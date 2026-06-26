@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InventoryItem",
+  "description": "One stock-keeping unit at one shop. This is ground truth, never AI generated.",
+  "type": "object",
+  "required": ["shop_id", "sku", "name", "category", "price", "qty"],
+  "additionalProperties": true,
+  "properties": {
+    "shop_id": {"type": "string"},
+    "sku": {"type": "string"},
+    "name": {"type": "string"},
+    "category": {"type": "string", "enum": ["pharmacy", "grocery", "electronics", "stationery"]},
+    "price": {"type": "number", "minimum": 0},
+    "qty": {"type": "integer", "minimum": 0}
+  }
+}

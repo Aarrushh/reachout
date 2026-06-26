@@ -1,0 +1,5 @@
+# Required for schema validation (the hallucination gate).
+jsonschema>=4.0
+
+# Optional. Only needed if you turn on the LLM query parser with --use-llm.
+# anthropic>=0.40

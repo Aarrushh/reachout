@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchIntent",
+  "description": "The structured result of parsing a user's free-text search.",
+  "type": "object",
+  "required": ["raw_query", "keywords"],
+  "additionalProperties": false,
+  "properties": {
+    "raw_query": {
+      "type": "string",
+      "description": "Exactly what the user typed. Never altered.",
+      "minLength": 1
+    },
+    "keywords": {
+      "type": "array",
+      "description": "Search terms drawn only from the user's words. No invented products.",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1
+    },
+    "category_hint": {
+      "type": ["string", "null"],
+      "description": "Optional category guess. One of the known categories or null.",
+      "enum": ["pharmacy", "grocery", "electronics", "stationery", null]
+    }
+  }
+}
