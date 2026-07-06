@@ -1,0 +1,26 @@
+{
+  "_comment": "Internal category -> OSM tag selectors. Read by scripts/overpass.py to build queries and by scripts/osm_ingest.py to map tags back to categories. Madrid farmacias are amenity=pharmacy, not shop=pharmacy. A tagging correction is an edit to this file, never to a prompt.",
+  "pharmacy": [
+    { "key": "amenity", "value": "pharmacy" },
+    { "key": "shop", "value": "chemist" }
+  ],
+  "grocery": [
+    { "key": "shop", "value": "supermarket" },
+    { "key": "shop", "value": "convenience" },
+    { "key": "shop", "value": "greengrocer" },
+    { "key": "shop", "value": "grocery" }
+  ],
+  "hardware": [
+    { "key": "shop", "value": "hardware" },
+    { "key": "shop", "value": "doityourself" }
+  ],
+  "electronics": [
+    { "key": "shop", "value": "electronics" },
+    { "key": "shop", "value": "mobile_phone" },
+    { "key": "shop", "value": "computer" }
+  ],
+  "stationery": [
+    { "key": "shop", "value": "stationery" },
+    { "key": "shop", "value": "copyshop" }
+  ]
+}

@@ -12,7 +12,9 @@ Protocol (MWP).
 ## What ReachOut is
 
 A shopper searches for an item. The search is broadcast to shops within a
-radius that have it in live stock. Matched shops are pinged instantly. See
+radius that have it in live stock. Matched shops are pinged instantly. The
+result is a ranked factual shop list — never narrative content. Madrid is
+the test market: real shops from OpenStreetMap, synthetic inventory. See
 `_config/product.md` for the full description.
 
 ## The one rule that matters most

@@ -1,0 +1,63 @@
+{
+  "_comment": "Synthetic SKU templates per category. This file is the ONLY source of item names and base prices in the MVP. inventory_seeder.py picks a deterministic subset per shop via random.Random(shop_id), jitters price +/-15% (rounded to cents), qty 0-12. Same shop_id => same inventory, every run.",
+  "pharmacy": [
+    { "sku": "PHA-0001", "name": "Paracetamol 1g 40 comprimidos", "base_price_eur": 3.95 },
+    { "sku": "PHA-0002", "name": "Ibuprofeno 400mg 30 comprimidos", "base_price_eur": 4.20 },
+    { "sku": "PHA-0003", "name": "Tiritas surtidas caja 20", "base_price_eur": 2.50 },
+    { "sku": "PHA-0004", "name": "Alcohol 96 250ml", "base_price_eur": 1.80 },
+    { "sku": "PHA-0005", "name": "Suero fisiológico 500ml", "base_price_eur": 2.95 },
+    { "sku": "PHA-0006", "name": "Jarabe para la tos 200ml", "base_price_eur": 6.50 },
+    { "sku": "PHA-0007", "name": "Vitamina C 1000mg 20 efervescentes", "base_price_eur": 5.40 },
+    { "sku": "PHA-0008", "name": "Crema solar SPF50 200ml", "base_price_eur": 12.90 },
+    { "sku": "PHA-0009", "name": "Termómetro digital", "base_price_eur": 7.95 },
+    { "sku": "PHA-0010", "name": "Gasas estériles 10 unidades", "base_price_eur": 2.10 }
+  ],
+  "grocery": [
+    { "sku": "GRO-0001", "name": "Leche entera 1L", "base_price_eur": 1.15 },
+    { "sku": "GRO-0002", "name": "Pan de molde integral", "base_price_eur": 1.60 },
+    { "sku": "GRO-0003", "name": "Huevos M docena", "base_price_eur": 2.45 },
+    { "sku": "GRO-0004", "name": "Arroz redondo 1kg", "base_price_eur": 1.35 },
+    { "sku": "GRO-0005", "name": "Aceite de oliva virgen extra 1L", "base_price_eur": 8.90 },
+    { "sku": "GRO-0006", "name": "Azúcar blanco 1kg", "base_price_eur": 1.20 },
+    { "sku": "GRO-0007", "name": "Espaguetis 500g", "base_price_eur": 0.95 },
+    { "sku": "GRO-0008", "name": "Tomate frito 400g", "base_price_eur": 1.10 },
+    { "sku": "GRO-0009", "name": "Café molido natural 250g", "base_price_eur": 3.25 },
+    { "sku": "GRO-0010", "name": "Agua mineral 1.5L", "base_price_eur": 0.60 }
+  ],
+  "hardware": [
+    { "sku": "HRD-0001", "name": "Destornillador plano 5.5mm", "base_price_eur": 4.50 },
+    { "sku": "HRD-0002", "name": "Martillo de carpintero 300g", "base_price_eur": 9.95 },
+    { "sku": "HRD-0003", "name": "Cinta métrica 5m", "base_price_eur": 5.25 },
+    { "sku": "HRD-0004", "name": "Tornillos surtidos caja 100", "base_price_eur": 6.80 },
+    { "sku": "HRD-0005", "name": "Bombilla LED E27 9W", "base_price_eur": 3.40 },
+    { "sku": "HRD-0006", "name": "Pilas AA pack 4", "base_price_eur": 3.95 },
+    { "sku": "HRD-0007", "name": "Cinta aislante negra 10m", "base_price_eur": 1.75 },
+    { "sku": "HRD-0008", "name": "Llave inglesa ajustable 200mm", "base_price_eur": 11.50 },
+    { "sku": "HRD-0009", "name": "Sellador de silicona 280ml", "base_price_eur": 4.95 },
+    { "sku": "HRD-0010", "name": "Guantes de trabajo talla 9", "base_price_eur": 2.90 }
+  ],
+  "electronics": [
+    { "sku": "ELE-0001", "name": "Cargador USB-C 20W", "base_price_eur": 14.95 },
+    { "sku": "ELE-0002", "name": "Cable USB-C a USB-C 1m", "base_price_eur": 7.50 },
+    { "sku": "ELE-0003", "name": "Auriculares con cable jack 3.5mm", "base_price_eur": 9.90 },
+    { "sku": "ELE-0004", "name": "Ratón óptico USB", "base_price_eur": 8.95 },
+    { "sku": "ELE-0005", "name": "Power bank 10000mAh", "base_price_eur": 19.95 },
+    { "sku": "ELE-0006", "name": "Adaptador HDMI a USB-C", "base_price_eur": 12.50 },
+    { "sku": "ELE-0007", "name": "Tarjeta microSD 64GB", "base_price_eur": 10.95 },
+    { "sku": "ELE-0008", "name": "Pilas AA pack 4", "base_price_eur": 4.25 },
+    { "sku": "ELE-0009", "name": "Altavoz bluetooth compacto", "base_price_eur": 24.90 },
+    { "sku": "ELE-0010", "name": "Hub USB 4 puertos", "base_price_eur": 13.75 }
+  ],
+  "stationery": [
+    { "sku": "STA-0001", "name": "Bolígrafo azul", "base_price_eur": 0.60 },
+    { "sku": "STA-0002", "name": "Cuaderno A5 rayado 80 hojas", "base_price_eur": 2.35 },
+    { "sku": "STA-0003", "name": "Papel A4 500 hojas", "base_price_eur": 4.95 },
+    { "sku": "STA-0004", "name": "Rotulador permanente negro", "base_price_eur": 1.45 },
+    { "sku": "STA-0005", "name": "Grapadora de sobremesa", "base_price_eur": 6.90 },
+    { "sku": "STA-0006", "name": "Pegamento en barra 20g", "base_price_eur": 1.25 },
+    { "sku": "STA-0007", "name": "Tijeras de oficina 17cm", "base_price_eur": 3.10 },
+    { "sku": "STA-0008", "name": "Carpeta clasificadora A4", "base_price_eur": 4.40 },
+    { "sku": "STA-0009", "name": "Lápices HB caja 12", "base_price_eur": 2.85 },
+    { "sku": "STA-0010", "name": "Subrayadores pack 4 colores", "base_price_eur": 3.60 }
+  ]
+}

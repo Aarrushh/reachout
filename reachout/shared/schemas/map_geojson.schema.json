@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ShopMapGeoJSON",
+  "description": "RFC 7946 FeatureCollection of matched shops. 'metadata' is a GeoJSON foreign member (allowed by RFC 7946 §6.1). Coordinates are [longitude, latitude] — the per-position bounds below make a lat/lng swap fail validation. Errors never appear in this file: on bad input, stage 05 writes output/error.json (status envelope) instead and no .geojson. Script invariant: features.length == metadata.result_count.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "metadata", "features"],
+  "properties": {
+    "type": { "const": "FeatureCollection" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["query", "generated_at", "result_count", "center", "radius_km"],
+      "properties": {
+        "query": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "result_count": { "type": "integer", "minimum": 0 },
+        "center": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lat", "lng"],
+          "properties": {
+            "lat": { "type": "number", "minimum": 40.2, "maximum": 40.7 },
+            "lng": { "type": "number", "minimum": -4.0, "maximum": -3.4 }
+          }
+        },
+        "radius_km": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 }
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "geometry", "properties"],
+        "properties": {
+          "type": { "const": "Feature" },
+          "geometry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "coordinates"],
+            "properties": {
+              "type": { "const": "Point" },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": [
+                  {
+                    "type": "number",
+                    "minimum": -4.0,
+                    "maximum": -3.4,
+                    "description": "longitude FIRST (RFC 7946)"
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 40.2,
+                    "maximum": 40.7,
+                    "description": "latitude second"
+                  }
+                ]
+              }
+            }
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["shop_id", "shop_name", "rank", "category", "address", "distance_km", "item_name", "price", "currency", "stock_qty"],
+            "properties": {
+              "shop_id": { "type": "string", "pattern": "^osm:(node|way|relation):[0-9]+$" },
+              "shop_name": { "type": "string", "minLength": 1 },
+              "rank": { "type": "integer", "minimum": 1 },
+              "category": { "enum": ["pharmacy", "grocery", "hardware", "electronics", "stationery"] },
+              "address": { "type": ["string", "null"] },
+              "distance_km": { "type": "number", "minimum": 0 },
+              "item_name": { "type": "string", "minLength": 1 },
+              "price": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+              "currency": { "const": "EUR" },
+              "stock_qty": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

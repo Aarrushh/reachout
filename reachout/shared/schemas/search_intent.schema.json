@@ -1,26 +1,54 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SearchIntent",
-  "description": "The structured result of parsing a user's free-text search.",
+  "description": "Stage 01 output. Grounded only in the user's words plus the committed SYNONYMS map. Stage 01 never geocodes and never invents products.",
   "type": "object",
-  "required": ["raw_query", "keywords"],
   "additionalProperties": false,
+  "required": ["status", "raw_query"],
   "properties": {
+    "status": { "enum": ["ok", "incomplete"] },
     "raw_query": {
       "type": "string",
-      "description": "Exactly what the user typed. Never altered.",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Exactly what the user typed. Never altered."
     },
     "keywords": {
       "type": "array",
-      "description": "Search terms drawn only from the user's words. No invented products.",
-      "items": {"type": "string", "minLength": 1},
-      "minItems": 1
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Terms from the user's words or SYNONYMS map rows only."
     },
-    "category_hint": {
+    "category_hints": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["pharmacy", "grocery", "hardware", "electronics", "stationery"] },
+      "description": "Zero or more hints. Empty array = search all categories."
+    },
+    "location_text": {
       "type": ["string", "null"],
-      "description": "Optional category guess. One of the known categories or null.",
-      "enum": ["pharmacy", "grocery", "electronics", "stationery", null]
+      "description": "Place name verbatim from the query, else null. Not geocoded here."
+    },
+    "missing_fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "ok" } } },
+      "then": {
+        "required": ["keywords", "category_hints", "location_text"],
+        "not": { "required": ["missing_fields"] }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "incomplete" } } },
+      "then": {
+        "required": ["missing_fields"],
+        "not": { "required": ["keywords"] }
+      }
+    }
+  ]
 }

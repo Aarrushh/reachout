@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InventoryRecord",
+  "description": "One SKU at one shop. Written only by inventory_seeder.py / inventory_simulator.py — never by an AI stage. synthetic is const true for the entire MVP: real shops, simulated stock, and the data never lies about that.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["shop_id", "sku", "name", "category", "price", "currency", "qty", "synthetic", "updated_at"],
+  "properties": {
+    "shop_id": { "type": "string", "pattern": "^osm:(node|way|relation):[0-9]+$" },
+    "sku": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}-[0-9]{4}$",
+      "description": "From data/sku_catalog.json templates, e.g. PHA-0001."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Item name from sku_catalog.json — the only source of item names."
+    },
+    "category": { "enum": ["pharmacy", "grocery", "hardware", "electronics", "stationery"] },
+    "price": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+    "currency": { "const": "EUR" },
+    "qty": { "type": "integer", "minimum": 0 },
+    "synthetic": { "const": true },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

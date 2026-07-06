@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GeoShops",
+  "description": "Stage 02 output: real shops inside the radius, sorted nearest-first, with no stock information yet. Script invariants (tested, not expressible here): shop_count == shops.length; shops sorted ascending by distance_km.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status"],
+  "properties": {
+    "status": { "enum": ["ok", "incomplete", "error"] },
+    "query_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lat", "lng", "resolved_from", "location_text"],
+      "properties": {
+        "lat": { "type": "number", "minimum": 40.2, "maximum": 40.7 },
+        "lng": { "type": "number", "minimum": -4.0, "maximum": -3.4 },
+        "resolved_from": { "enum": ["coordinates", "nominatim", "gazetteer", "default_center"] },
+        "location_text": { "type": ["string", "null"] }
+      }
+    },
+    "radius_km": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+    "shop_source": { "enum": ["overpass_live", "cache", "geofabrik"] },
+    "shop_count": { "type": "integer", "minimum": 0 },
+    "shops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["shop_id", "name", "categories", "lat", "lng", "address", "distance_km", "distance_type"],
+        "properties": {
+          "shop_id": { "type": "string", "pattern": "^osm:(node|way|relation):[0-9]+$" },
+          "name": { "type": "string", "minLength": 1 },
+          "categories": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["pharmacy", "grocery", "hardware", "electronics", "stationery"] }
+          },
+          "lat": { "type": "number", "minimum": 40.2, "maximum": 40.7 },
+          "lng": { "type": "number", "minimum": -4.0, "maximum": -3.4 },
+          "address": { "type": ["string", "null"] },
+          "distance_km": { "type": "number", "minimum": 0 },
+          "distance_type": { "enum": ["walking", "haversine"] }
+        }
+      }
+    },
+    "missing_fields": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "detail"],
+      "properties": {
+        "code": { "enum": ["no_shop_source", "location_unresolvable", "internal"] },
+        "detail": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "ok" } } },
+      "then": {
+        "required": ["query_location", "radius_km", "shop_source", "shop_count", "shops"],
+        "not": {
+          "anyOf": [
+            { "required": ["missing_fields"] },
+            { "required": ["error"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "incomplete" } } },
+      "then": { "required": ["missing_fields"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "error" } } },
+      "then": { "required": ["error"] }
+    }
+  ]
+}
