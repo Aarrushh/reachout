@@ -12,10 +12,20 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
+import { ApiError } from "./api/client";
 import SearchRoute from "./routes/search";
 import ResultsRoute from "./routes/results";
 
-const queryClient = new QueryClient();
+// A 4xx is permanent (bad query, bad params) — retrying only delays the
+// error state. Keep TanStack's default 3 retries for everything else.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) =>
+        !(error instanceof ApiError && error.status >= 400 && error.status < 500) && failureCount < 3,
+    },
+  },
+});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -8,6 +8,13 @@ import type { ShopsGeoJSON } from "../types/ShopsGeojson";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
+/** Fetch error carrying the HTTP status so callers can skip retries on 4xx. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 export interface SearchParams {
   q: string;
   near?: string;
@@ -28,18 +35,18 @@ function buildQueryString(params: SearchParams): string {
 
 export async function fetchRankedShops(params: SearchParams): Promise<RankedShops> {
   const res = await fetch(`${API_BASE}/api/search?${buildQueryString(params)}`);
-  if (!res.ok) throw new Error(`GET /api/search failed: ${res.status}`);
+  if (!res.ok) throw new ApiError(`GET /api/search failed: ${res.status}`, res.status);
   return res.json();
 }
 
 export async function fetchShopsGeoJSON(params: SearchParams): Promise<ShopMapGeoJSON> {
   const res = await fetch(`${API_BASE}/api/search.geojson?${buildQueryString(params)}`);
-  if (!res.ok) throw new Error(`GET /api/search.geojson failed: ${res.status}`);
+  if (!res.ok) throw new ApiError(`GET /api/search.geojson failed: ${res.status}`, res.status);
   return res.json();
 }
 
 export async function fetchAllShops(): Promise<ShopsGeoJSON> {
   const res = await fetch(`${API_BASE}/api/shops.geojson`);
-  if (!res.ok) throw new Error(`GET /api/shops.geojson failed: ${res.status}`);
+  if (!res.ok) throw new ApiError(`GET /api/shops.geojson failed: ${res.status}`, res.status);
   return res.json();
 }

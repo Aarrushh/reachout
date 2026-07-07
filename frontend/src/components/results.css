@@ -46,7 +46,8 @@
 .shop-card .distance { margin-left: auto; color: var(--sand-dim); }
 .shop-card .item-name { margin: 4px 0 0 0; color: var(--sand); }
 .shop-card .data-row { margin: 4px 0 0 0; display: flex; gap: 8px; align-items: baseline; color: var(--sand-dim); }
-.shop-card .price { color: var(--gold); }
+.shop-card .price { color: var(--gold); white-space: nowrap; }
+.shop-card .stock { white-space: nowrap; }
 .shop-card .stock.low { color: var(--cat-hardware); }
 .shop-card .address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dot-sep { color: var(--navy-line); }
