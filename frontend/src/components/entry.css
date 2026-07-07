@@ -4,6 +4,10 @@
     radial-gradient(ellipse 70% 50% at 50% 40%, rgba(226, 114, 91, 0.08), transparent),
     var(--ink-900);
 }
+.entry-net { position: absolute; inset: 0; width: 100%; height: 100%; }
+.entry-net circle { fill: var(--navy-line); opacity: 0.5; animation: net-pulse 6s ease-in-out infinite; }
+@keyframes net-pulse { 50% { opacity: 0.15; } }
+.entry-card { position: relative; z-index: 1; }
 .entry-lang { position: absolute; top: 16px; right: 16px; display: flex; gap: 4px; }
 .entry-lang button, .lang-toggle button {
   background: none; border: 1px solid rgba(34, 48, 76, 0.6); border-radius: 4px;

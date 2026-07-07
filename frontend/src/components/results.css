@@ -74,3 +74,16 @@
   align-self: flex-start; background: var(--terracotta); color: var(--ink-900);
   border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; cursor: pointer;
 }
+
+.user-dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--sand);
+  box-shadow: 0 0 0 4px rgba(234, 217, 189, 0.2);
+  animation: breathe 2s ease-in-out infinite;
+}
+@keyframes breathe { 50% { box-shadow: 0 0 0 9px rgba(234, 217, 189, 0.08); } }
+.shop-popup .maplibregl-popup-content {
+  background: var(--ink-700); color: var(--sand); border: 1px solid var(--ink-600);
+  border-radius: 6px; padding: 10px 12px; font-family: var(--font-ui); font-size: 13px;
+}
+.shop-popup .maplibregl-popup-tip { border-top-color: var(--ink-700); }
+.shop-popup .mono { color: var(--gold); font-family: var(--font-mono); font-size: 12px; }

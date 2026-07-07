@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { fetchAllShops, fetchRankedShops, fetchShopsGeoJSON, type SearchParams } from "../api/client";
+import MapPanel from "../components/MapPanel";
 import ResultsPanel from "../components/ResultsPanel";
 import TopBar from "../components/TopBar";
 import { useLang } from "../hooks/useLang";
@@ -77,7 +78,8 @@ export default function ResultsRoute() {
           lang={lang} radiusKm={radiusKm}
           onWiden={() => setParam("radius", "5")}
           onRetry={() => { void rankedShops.refetch(); void shopsGeoJSON.refetch(); }} />
-        <div className="map-panel" data-allshops={allShops.status} />
+        <MapPanel matched={shopsGeoJSON.data} network={allShops.data}
+          pingedIds={pingedIds} selectedShopId={selectedShopId} onSelect={setSelectedShopId} lang={lang} />
       </div>
     </div>
   );
