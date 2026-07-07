@@ -1,0 +1,25 @@
+:root {
+  --ink-900: #0c1220; --ink-800: #111a2c; --ink-700: #18233a; --ink-600: #22304c;
+  --terracotta: #e2725b; --terracotta-hot: #ff8a66;
+  --sand: #ead9bd; --sand-dim: #9aa3b5; --gold: #d9a441; --navy-line: #3a4e78;
+  --cat-pharmacy: #7fb069; --cat-grocery: #b8d97e; --cat-hardware: #f4a259;
+  --cat-electronics: #5bc0eb; --cat-stationery: #c77dff; --err: #e45858;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --font-ui: "Inter", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--ink-900); color: var(--sand);
+  font-family: var(--font-ui); font-size: 13px; line-height: 1.4;
+}
+.mono { font-family: var(--font-mono); font-weight: 500; }
+.microcaps {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+button, input { font: inherit; color: inherit; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

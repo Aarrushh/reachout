@@ -4,6 +4,7 @@
  */
 import type { RankedShops } from "../types/RankedShops";
 import type { ShopMapGeoJSON } from "../types/MapGeojson";
+import type { ShopsGeoJSON } from "../types/ShopsGeojson";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -34,5 +35,11 @@ export async function fetchRankedShops(params: SearchParams): Promise<RankedShop
 export async function fetchShopsGeoJSON(params: SearchParams): Promise<ShopMapGeoJSON> {
   const res = await fetch(`${API_BASE}/api/search.geojson?${buildQueryString(params)}`);
   if (!res.ok) throw new Error(`GET /api/search.geojson failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchAllShops(): Promise<ShopsGeoJSON> {
+  const res = await fetch(`${API_BASE}/api/shops.geojson`);
+  if (!res.ok) throw new Error(`GET /api/shops.geojson failed: ${res.status}`);
   return res.json();
 }
