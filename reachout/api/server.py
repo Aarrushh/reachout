@@ -19,6 +19,7 @@ for _dir in (os.path.join(REACHOUT_DIR, "scripts"), os.path.join(REACHOUT_DIR, "
         sys.path.insert(0, _dir)
 
 from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 import db  # noqa: E402
 import run_pipeline  # noqa: E402
@@ -30,6 +31,9 @@ DB_PATH = None
 NOTIF_DIR = None
 
 app = FastAPI(title="ReachOut API")
+
+# Read-only public API, no credentials: any browser origin may fetch it.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
 
 
 @app.get("/api/health")
