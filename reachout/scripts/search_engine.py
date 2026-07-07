@@ -1,93 +1,105 @@
 """The matching engine. Pure Python. This is the heart of ReachOut.
 
-Given a parsed search intent and the user's location, it:
-  1. filters shops to those inside the radius (geo.py, pure math)
-  2. matches the query keywords against each shop's LIVE in-stock items
-  3. ranks matches by distance, then stock depth, then price
+Given a parsed search intent (stage 01) and the geo-filtered candidate
+shops (stage 02, the ONLY candidate set), it:
+  1. reads each candidate shop's LIVE in-stock items from the database
+  2. keeps items whose name/category whole-word-matches a keyword, gated
+     by category_hints against the shop's full categories list (secondary
+     categories count)
+  3. ranks matched shops: nearest first, then most total matching stock,
+     then cheapest best item. Distances are copied unchanged from geo_shops.
   4. pings every matched shop (ping.py)
-  5. returns a structured result
+  5. returns a StockMatches-shaped result
 
 Critical design choice for "no hallucination": stock and distance come
-only from the database and from math. An AI never decides whether an item
-exists or how far away a shop is. If the data says zero stock, the result
-is zero stock.
+only from the database and from geo_shops. An AI never decides whether an
+item exists or how far away a shop is. If the data says zero stock, the
+result is zero stock.
 """
 
 import re
+
 import db
-import geo
 from ping import ping
 
 
 def _matches(item, keywords):
-    """Word-aware match. A keyword matches if it equals a whole word in the
-    item name or category, or (for longer keywords) appears as a substring.
-
-    Whole-word matching stops noise like the single letter 'c' matching
-    'sachet', or 'and' matching 'bandage'.
+    """Whole-word match. A keyword matches if it equals a whole word in the
+    item name or category.
     """
     haystack = (item["name"] + " " + item["category"]).lower()
     tokens = set(re.findall(r"[a-z0-9]+", haystack))
-    for kw in keywords:
-        k = kw.lower()
-        if k in tokens:
-            return True
-        if len(k) >= 4 and k in haystack:
-            return True
-    return False
+    return any(kw.lower() in tokens for kw in keywords)
 
 
-def search(intent, user_lat, user_lng, radius_km=5.0, do_ping=True):
-    keywords = intent.get("keywords", [])
-    conn = db.connect()
-    results = []
-
-    for shop in db.all_shops(conn):
-        distance = geo.haversine_km(user_lat, user_lng, shop["lat"], shop["lng"])
-        if distance > radius_km:
-            continue
-
-        live_items = db.items_for_shop(conn, shop["id"], in_stock_only=True)
-        matched = [i for i in live_items if _matches(i, keywords)]
-        if not matched:
-            continue
-
-        matched.sort(key=lambda i: i["price"])  # cheapest first within a shop
-        results.append({
-            "shop_id": shop["id"],
-            "shop_name": shop["name"],
-            "address": shop.get("address", ""),
-            "distance_km": round(distance, 2),
-            "items": matched,
-        })
-
-    conn.close()
-
-    # Rank shops: nearest first, then most stock of the top item, then cheapest.
-    results.sort(key=lambda r: (
-        r["distance_km"],
-        -max(i["qty"] for i in r["items"]),
-        min(i["price"] for i in r["items"]),
-    ))
-
-    if do_ping:
-        conn2 = db.connect()
-        shops_by_id = {s["id"]: s for s in db.all_shops(conn2)}
-        conn2.close()
-        for r in results:
-            ping(shops_by_id[r["shop_id"]], intent, r["items"], r["distance_km"])
-
+def _item_out(item):
     return {
-        "query": intent.get("raw_query", ""),
-        "keywords": keywords,
-        "radius_km": radius_km,
-        "match_count": len(results),
-        "matches": results,
+        "sku": item["sku"],
+        "name": item["name"],
+        "category": item["category"],
+        "price": item["price"],
+        "currency": item["currency"],
+        "qty": item["qty"],
     }
 
 
-if __name__ == "__main__":
-    # Quick manual test. Assumes seed_data.py has run.
-    demo_intent = {"raw_query": "paracetamol", "keywords": ["paracetamol"]}
-    out = search(demo_intent, 19.1100, 72.8500, radius_km=5.0, do_ping=True)
-    print("matches:", out["match_count"])
+def search(intent, geo_shops, db_path=None, do_ping=True, notif_dir=None):
+    geo_status = geo_shops.get("status")
+    if geo_status == "incomplete":
+        return {"status": "incomplete", "missing_fields": geo_shops.get("missing_fields", [])}
+    if geo_status == "error":
+        return {"status": "error", "error": geo_shops.get("error")}
+    if geo_status != "ok":
+        return {"status": "error", "error": {"code": "upstream_not_ok", "detail": f"geo_shops status was '{geo_status}'"}}
+
+    keywords = intent.get("keywords")
+    if intent.get("status") != "ok" or not keywords:
+        return {"status": "incomplete", "missing_fields": intent.get("missing_fields") or ["keywords"]}
+
+    category_hints = intent.get("category_hints") or []
+
+    conn = db.connect(db_path)
+    matches = []
+    for shop in geo_shops.get("shops", []):
+        if category_hints and not set(shop["categories"]) & set(category_hints):
+            continue
+
+        live_items = db.items_for_shop(conn, shop["shop_id"], in_stock_only=True)
+        matched_items = [i for i in live_items if _matches(i, keywords)]
+        if not matched_items:
+            continue
+
+        matched_items.sort(key=lambda i: i["price"])
+        matches.append({
+            "shop_id": shop["shop_id"],
+            "shop_name": shop["name"],
+            "categories": shop["categories"],
+            "address": shop["address"],
+            "lat": shop["lat"],
+            "lng": shop["lng"],
+            "distance_km": shop["distance_km"],
+            "distance_type": shop["distance_type"],
+            "items": [_item_out(i) for i in matched_items],
+        })
+    conn.close()
+
+    matches.sort(key=lambda m: (
+        m["distance_km"],
+        -sum(i["qty"] for i in m["items"]),
+        min(i["price"] for i in m["items"]),
+    ))
+
+    pinged_shop_ids = [m["shop_id"] for m in matches]
+    if do_ping:
+        for m in matches:
+            ping(m, intent, notif_dir=notif_dir)
+
+    return {
+        "status": "ok",
+        "query": intent.get("raw_query", ""),
+        "query_location": geo_shops.get("query_location"),
+        "radius_km": geo_shops.get("radius_km"),
+        "match_count": len(matches),
+        "matches": matches,
+        "pinged_shop_ids": pinged_shop_ids,
+    }

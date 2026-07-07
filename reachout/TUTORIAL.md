@@ -1,5 +1,12 @@
 # Building the ReachOut MVP
 
+> **Note:** this tutorial documents the original 3-stage prototype (Mumbai,
+> `seed_data.py`, rupees). The repo has since been restructured to a
+> 5-stage Madrid pipeline with real OpenStreetMap shops — see `README.md`
+> and `CONTEXT.md` for the current architecture and run instructions. This
+> tutorial is kept as-is for its explanation of the ICM method and the
+> hardcoded/agentic split, which still apply.
+
 A step-by-step tutorial. By the end you have a working hyperlocal search
 that pings shops, a live-updating inventory, and a repo you can push to
 GitHub. The whole thing runs locally with one dependency.

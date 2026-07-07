@@ -10,6 +10,6 @@ pytest>=8.0
 # Optional. Only needed if you turn on the LLM query parser with --use-llm.
 # anthropic>=0.40
 
-# Optional. Only for the thin read-only API wrapper (api/server.py), last build step.
-# fastapi>=0.110
-# uvicorn>=0.29
+# Only for the thin read-only API wrapper (api/server.py).
+fastapi>=0.110
+uvicorn>=0.29

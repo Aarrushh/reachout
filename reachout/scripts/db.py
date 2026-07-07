@@ -6,37 +6,45 @@ Every change is still observable because we also append plain-text events
 to data/events.jsonl (see inventory_simulator.py).
 
 Schema:
-  shops(id, name, category, lat, lng, address)
-  inventory(shop_id, sku, name, category, price, qty, updated_at)
+  shops(shop_id, osm_id, name, categories, lat, lng, address, source, fetched_at)
+  inventory(shop_id, sku, name, category, price, currency, qty, synthetic, updated_at)
 """
 
+import json
 import os
 import sqlite3
-import time
+from datetime import datetime, timezone
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "reachout.db")
 DB_PATH = os.path.abspath(DB_PATH)
 
 
-def connect():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def connect(path=None):
+    conn = sqlite3.connect(path or DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA busy_timeout=5000;")
     return conn
 
 
-def init_db():
-    conn = connect()
+def init_db(path=None):
+    conn = connect(path)
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS shops (
-            id TEXT PRIMARY KEY,
+            shop_id TEXT PRIMARY KEY,
+            osm_id INTEGER NOT NULL,
             name TEXT NOT NULL,
-            category TEXT NOT NULL,
+            categories TEXT NOT NULL,
             lat REAL NOT NULL,
             lng REAL NOT NULL,
-            address TEXT
+            address TEXT,
+            source TEXT NOT NULL,
+            fetched_at TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS inventory (
@@ -45,10 +53,12 @@ def init_db():
             name TEXT NOT NULL,
             category TEXT NOT NULL,
             price REAL NOT NULL,
+            currency TEXT NOT NULL,
             qty INTEGER NOT NULL,
-            updated_at REAL NOT NULL,
+            synthetic INTEGER NOT NULL,
+            updated_at TEXT NOT NULL,
             PRIMARY KEY (shop_id, sku),
-            FOREIGN KEY (shop_id) REFERENCES shops(id)
+            FOREIGN KEY (shop_id) REFERENCES shops(shop_id)
         );
 
         CREATE INDEX IF NOT EXISTS idx_inv_name ON inventory(name);
@@ -61,18 +71,39 @@ def init_db():
 
 def upsert_shop(conn, shop):
     conn.execute(
-        "INSERT OR REPLACE INTO shops (id, name, category, lat, lng, address) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (shop["id"], shop["name"], shop["category"], shop["lat"], shop["lng"], shop.get("address", "")),
+        "INSERT OR REPLACE INTO shops "
+        "(shop_id, osm_id, name, categories, lat, lng, address, source, fetched_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            shop["shop_id"],
+            shop["osm_id"],
+            shop["name"],
+            json.dumps(shop["categories"]),
+            shop["lat"],
+            shop["lng"],
+            shop.get("address"),
+            shop["source"],
+            shop["fetched_at"],
+        ),
     )
 
 
 def upsert_item(conn, item):
     conn.execute(
-        "INSERT OR REPLACE INTO inventory (shop_id, sku, name, category, price, qty, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (item["shop_id"], item["sku"], item["name"], item["category"],
-         item["price"], item["qty"], time.time()),
+        "INSERT OR REPLACE INTO inventory "
+        "(shop_id, sku, name, category, price, currency, qty, synthetic, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            item["shop_id"],
+            item["sku"],
+            item["name"],
+            item["category"],
+            item["price"],
+            item["currency"],
+            item["qty"],
+            1 if item["synthetic"] else 0,
+            now_iso(),
+        ),
     )
 
 
@@ -86,20 +117,32 @@ def adjust_qty(conn, shop_id, sku, delta):
     new_qty = max(0, row["qty"] + delta)
     conn.execute(
         "UPDATE inventory SET qty=?, updated_at=? WHERE shop_id=? AND sku=?",
-        (new_qty, time.time(), shop_id, sku),
+        (new_qty, now_iso(), shop_id, sku),
     )
     return new_qty
 
 
+def _shop_row(row):
+    shop = dict(row)
+    shop["categories"] = json.loads(shop["categories"])
+    return shop
+
+
+def _item_row(row):
+    item = dict(row)
+    item["synthetic"] = bool(item["synthetic"])
+    return item
+
+
 def all_shops(conn):
-    return [dict(r) for r in conn.execute("SELECT * FROM shops").fetchall()]
+    return [_shop_row(r) for r in conn.execute("SELECT * FROM shops").fetchall()]
 
 
 def items_for_shop(conn, shop_id, in_stock_only=True):
     q = "SELECT * FROM inventory WHERE shop_id=?"
     if in_stock_only:
         q += " AND qty > 0"
-    return [dict(r) for r in conn.execute(q, (shop_id,)).fetchall()]
+    return [_item_row(r) for r in conn.execute(q, (shop_id,)).fetchall()]
 
 
 if __name__ == "__main__":

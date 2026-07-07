@@ -20,6 +20,7 @@ points to, and in `STATUS.md`.
    `STATUS.md` under "Blocked / conflicts" instead.
 6. When done: run your definition-of-done checks, tick your boxes in
    `STATUS.md`, and note anything the next agent must know.
+7. update STATUS.md at the end of every session
 
 **Environment:** secrets live in `reachout/.env` (gitignored):
 `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` (a local proxy on

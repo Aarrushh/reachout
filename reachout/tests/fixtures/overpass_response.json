@@ -1,0 +1,57 @@
+{
+  "version": 0.6,
+  "elements": [
+    {
+      "type": "node",
+      "id": 111,
+      "lat": 40.4168,
+      "lon": -3.7038,
+      "tags": {
+        "amenity": "pharmacy",
+        "name": "Farmacia Sol",
+        "addr:street": "Calle Mayor",
+        "addr:housenumber": "1"
+      }
+    },
+    {
+      "type": "way",
+      "id": 222,
+      "center": { "lat": 40.4230, "lon": -3.7010 },
+      "tags": {
+        "shop": "supermarket",
+        "name": "Supermercado Chueca"
+      }
+    },
+    {
+      "type": "node",
+      "id": 333,
+      "lat": 40.4090,
+      "lon": -3.7018,
+      "tags": {
+        "shop": "hardware",
+        "name": "Ferretería Lavapiés",
+        "addr:postcode": "28012",
+        "addr:city": "Madrid"
+      }
+    },
+    {
+      "type": "node",
+      "id": 444,
+      "lat": 40.4100,
+      "lon": -3.7000,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "No Category Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 555,
+      "lat": 40.4100,
+      "lon": -3.7000,
+      "tags": {
+        "shop": "chemist"
+      }
+    }
+  ]
+}
