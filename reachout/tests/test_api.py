@@ -88,3 +88,17 @@ def test_lat_without_lng_is_a_bad_request(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     resp = client.get("/api/search", params={"q": "leche", "lat": 40.4168})
     assert resp.status_code == 400
+
+
+def test_all_shops_geojson_lists_every_shop(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/shops.geojson")
+    assert resp.status_code == 200
+    body = resp.json()
+    ok, err = v.validate(body, "shops_geojson.schema.json")
+    assert ok, err
+    assert body["metadata"]["shop_count"] == 1
+    props = body["features"][0]["properties"]
+    assert props == {"shop_id": "osm:node:1001", "shop_name": "Farmacia Malasaña",
+                     "category": "pharmacy"}
+    assert body["features"][0]["geometry"]["coordinates"] == [-3.7035, 40.4270]

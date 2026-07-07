@@ -20,6 +20,7 @@ for _dir in (os.path.join(REACHOUT_DIR, "scripts"), os.path.join(REACHOUT_DIR, "
 
 from fastapi import FastAPI, HTTPException  # noqa: E402
 
+import db  # noqa: E402
 import run_pipeline  # noqa: E402
 
 # Overridable in tests (monkeypatch.setattr(server, "DB_PATH", ...)); None
@@ -64,3 +65,29 @@ def search_geojson(q: str, near: Optional[str] = None, lat: Optional[float] = No
                     lng: Optional[float] = None, radius: float = 2.0):
     result = _run_pipeline(q, near, lat, lng, radius)
     return result["geojson"]
+
+
+@app.get("/api/shops.geojson")
+def shops_geojson():
+    """All known shops, no inventory: the map's network layer. Pure read."""
+    conn = db.connect(DB_PATH)
+    try:
+        shops = db.all_shops(conn)
+    finally:
+        conn.close()
+    return {
+        "type": "FeatureCollection",
+        "metadata": {"shop_count": len(shops)},
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [s["lng"], s["lat"]]},
+                "properties": {
+                    "shop_id": s["shop_id"],
+                    "shop_name": s["name"],
+                    "category": s["categories"][0],
+                },
+            }
+            for s in shops
+        ],
+    }

@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ShopsGeoJSON",
+  "description": "RFC 7946 FeatureCollection of ALL known shops (no inventory, no ranking) for the map's always-on network layer. Facts only: id, name, category, position. Same coordinate-order guard as map_geojson.schema.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "metadata", "features"],
+  "properties": {
+    "type": { "const": "FeatureCollection" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shop_count"],
+      "properties": { "shop_count": { "type": "integer", "minimum": 0 } }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "geometry", "properties"],
+        "properties": {
+          "type": { "const": "Feature" },
+          "geometry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "coordinates"],
+            "properties": {
+              "type": { "const": "Point" },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": [
+                  {
+                    "type": "number",
+                    "minimum": -4.0,
+                    "maximum": -3.4,
+                    "description": "longitude FIRST (RFC 7946)"
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 40.2,
+                    "maximum": 40.7,
+                    "description": "latitude second"
+                  }
+                ]
+              }
+            }
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["shop_id", "shop_name", "category"],
+            "properties": {
+              "shop_id": { "type": "string", "pattern": "^osm:(node|way|relation):[0-9]+$" },
+              "shop_name": { "type": "string", "minLength": 1 },
+              "category": { "enum": ["pharmacy", "grocery", "hardware", "electronics", "stationery"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}
