@@ -1,0 +1,43 @@
+.entry {
+  height: 100%; display: grid; place-items: center; position: relative;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 40%, rgba(226, 114, 91, 0.08), transparent),
+    var(--ink-900);
+}
+.entry-lang { position: absolute; top: 16px; right: 16px; display: flex; gap: 4px; }
+.entry-lang button, .lang-toggle button {
+  background: none; border: 1px solid rgba(34, 48, 76, 0.6); border-radius: 4px;
+  color: var(--sand-dim); padding: 4px 8px; cursor: pointer;
+}
+.entry-lang button.on, .lang-toggle button.on { color: var(--terracotta); border-color: var(--terracotta); }
+.entry-card { width: min(520px, 90vw); display: flex; flex-direction: column; gap: 16px; }
+.entry-wordmark { color: var(--terracotta); }
+.entry h1 { font-family: var(--font-display); font-weight: 600; font-size: 40px; line-height: 1.1; margin: 0; }
+.entry-loc { display: flex; gap: 8px; }
+.barrio-combobox { position: relative; flex: 1; }
+.barrio-combobox input, .search-input input {
+  width: 100%; background: var(--ink-700); border: 1px solid rgba(34, 48, 76, 0.6);
+  border-radius: 6px; padding: 12px; color: var(--sand);
+}
+.barrio-combobox input::placeholder, .search-input input::placeholder { color: var(--sand-dim); opacity: 0.7; }
+.barrio-combobox input:focus, .search-input input:focus { outline: none; border-color: var(--terracotta); }
+.barrio-combobox ul {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10;
+  background: var(--ink-700); border: 1px solid var(--ink-600); border-radius: 6px;
+  margin: 0; padding: 4px; list-style: none; max-height: 240px; overflow-y: auto;
+}
+.barrio-combobox li { padding: 8px 12px; border-radius: 4px; cursor: pointer; }
+.barrio-combobox li.active { background: var(--ink-600); }
+.entry-geo {
+  background: var(--ink-700); border: 1px solid rgba(34, 48, 76, 0.6); border-radius: 6px;
+  padding: 0 12px; cursor: pointer; color: var(--sand-dim); white-space: nowrap;
+}
+.entry-geo:hover { color: var(--terracotta); border-color: var(--terracotta); }
+.entry-geo:disabled { opacity: 0.5; cursor: wait; }
+.entry-geo-error { color: var(--err); margin: 0; font-size: 13px; }
+.search-input { display: flex; gap: 8px; }
+.search-input button {
+  background: var(--terracotta); border: none; border-radius: 6px; padding: 0 20px;
+  color: var(--ink-900); font-weight: 600; cursor: pointer;
+}
+.search-input button:disabled { opacity: 0.4; cursor: not-allowed; }
