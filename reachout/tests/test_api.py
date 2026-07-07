@@ -98,8 +98,19 @@ def test_cors_allows_browser_frontends(tmp_path, monkeypatch):
 
 def test_all_shops_geojson_lists_every_shop(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
+    # A legacy/manual row with no categories must be skipped, not crash the endpoint.
+    conn = db.connect(server.DB_PATH)
+    db.upsert_shop(conn, {
+        "shop_id": "osm:node:1002", "osm_id": 1002, "name": "Sin Categoría",
+        "categories": [], "lat": 40.4200, "lng": -3.7000,
+        "address": None, "source": "cache",
+        "fetched_at": "2026-07-07T10:00:00+00:00",
+    })
+    conn.commit()
+    conn.close()
     resp = client.get("/api/shops.geojson")
     assert resp.status_code == 200
+    assert resp.headers.get("cache-control") == "public, max-age=3600"
     body = resp.json()
     ok, err = v.validate(body, "shops_geojson.schema.json")
     assert ok, err

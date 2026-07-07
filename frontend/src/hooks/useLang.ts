@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import type { Lang } from "../i18n/strings";
@@ -7,6 +8,10 @@ import type { Lang } from "../i18n/strings";
 export function useLang(): [Lang, (l: Lang) => void] {
   const [searchParams, setSearchParams] = useSearchParams();
   const lang: Lang = searchParams.get("lang") === "en" ? "en" : "es";
+  // Keep screen readers / translators honest about the UI language.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
   const setLang = (l: Lang) => {
     const next = new URLSearchParams(searchParams);
     if (l === "es") next.delete("lang");

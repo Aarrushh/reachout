@@ -9,6 +9,7 @@ const STRINGS = {
   "entry.headline":        { es: "¿Dónde estás en Madrid?", en: "Where are you in Madrid?" },
   "entry.useLocation":     { es: "Usar mi ubicación", en: "Use my location" },
   "entry.locationDenied":  { es: "Ubicación no disponible — elige un barrio", en: "Location unavailable — pick a neighbourhood" },
+  "entry.needLocation":    { es: "Elige un barrio o usa tu ubicación primero", en: "Pick a neighbourhood or use your location first" },
   "entry.barrioPlaceholder": { es: "Barrio (Malasaña, Lavapiés…)", en: "Neighbourhood (Malasaña, Lavapiés…)" },
   "search.placeholder":    { es: "algo para el dolor de cabeza / usb c charger", en: "algo para el dolor de cabeza / usb c charger" },
   "search.submit":         { es: "Buscar", en: "Search" },

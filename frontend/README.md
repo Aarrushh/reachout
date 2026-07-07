@@ -1,74 +1,80 @@
-# ReachOut frontend — ARCHITECTURE ONLY
+# ReachOut frontend
 
-**Visual design is a separate future phase.** This folder deliberately contains
-zero visual, layout, component-styling, or UI decisions. That work belongs to a
-later phase using a different skill set (ui-ux-pro-max, 21st.dev, v0). This
-document fixes only the architecture those tools will drop into.
+The full UI for ReachOut's Madrid MVP: an entry screen (barrio autocomplete +
+geolocation + bilingual search) and a split-view results screen (ranked shop
+cards left, MapLibre dark map right with a live "ping" animation). Design
+spec: `../docs/superpowers/specs/2026-07-07-reachout-ui-design.md`.
 
 ## Framework
 
-React 19 + Vite + TypeScript.
-
-Why: (a) the designated future-UI tools (v0, 21st.dev) emit React components,
-so this skeleton is what they'll plug into; (b) MapLibre GL JS — open-source
-and keyless, consistent with ReachOut's anti-centralization positioning — has
-mature React bindings for the future map phase; (c) `json-schema-to-typescript`
-keeps frontend types slaved to the backend schemas.
+React 19 + Vite + TypeScript. MapLibre GL JS (keyless Carto Dark Matter
+tiles) for the map, TanStack Query for server state, plain CSS with design
+tokens (`src/styles/tokens.css`) — no UI library.
 
 ## Routing
 
 React Router, two routes. **The URL is the state of record** — shareable,
-back-button-safe, and it removes the need for a global store.
+back-button-safe, no global store.
 
-- `/` — search entry (reads/writes URL query params)
-- `/results?q=<text>&near=<name>|&lat=&lng=&radius=` — fires the two queries below
+- `/` — search entry (barrio or geolocation + query)
+- `/results?q=<text>&near=<name>|&lat=&lng=&radius=&lang=` — fires the queries below
+
+`lang=es|en` (absent = Spanish) selects UI copy via `src/i18n/strings.ts`;
+data fields (item names, shop names, addresses) are never translated.
 
 ## State management
 
-TanStack Query for all server state (cache key = the URL params). No
-Redux/Zustand for the MVP; the only client state is the URL.
+TanStack Query for all server state (cache key = the URL params). The only
+client-side presentation state is the card↔pin selection and the ping
+sequence (`src/hooks/usePingSequence.ts`) — "pinged" is timing, not data:
+every matched shop IS pinged; the hook staggers when each lights up.
+Retries: TanStack defaults, except permanent 4xx responses are not retried
+(see `ApiError` in `src/api/client.ts`).
 
 ## Endpoints consumed (from `reachout/api/server.py`)
 
 | Endpoint | Response contract |
 |----------|-------------------|
-| `GET /api/search?q&near\|lat,lng&radius` | validates against `reachout/shared/schemas/ranked_shops.schema.json` |
-| `GET /api/search.geojson?…same params…` | validates against `reachout/shared/schemas/map_geojson.schema.json` |
+| `GET /api/search?q&near\|lat,lng&radius` | `reachout/shared/schemas/ranked_shops.schema.json` |
+| `GET /api/search.geojson?…same params…` | `reachout/shared/schemas/map_geojson.schema.json` |
+| `GET /api/shops.geojson` | `reachout/shared/schemas/shops_geojson.schema.json` (all shops, network layer) |
 | `GET /api/health` | `{"status":"ok"}` |
-
-## Data shape expected
-
-Exactly the stage 04 and stage 05 schemas: a ranked list of
-`{rank, shop_id, shop_name, category, address, distance_km, item_name, sku,
-price, currency, stock_qty, lat, lng}` and a Point FeatureCollection.
 
 If the frontend ever "needs" a field that isn't in a schema, the schema
 changes first, backend second, generated types third — never a frontend-side
 invention.
 
-## Planned skeleton (built in execution step 11, no visuals)
+## Generated files — never hand-edited
+
+- `src/types/*.d.ts` — from `reachout/shared/schemas/` via `npm run gen-types`
+- `src/data/barrios.ts` — from `reachout/data/gazetteer_madrid.json` via `npm run gen-barrios`
+
+## Layout
 
 ```
-frontend/
-├── package.json              react, react-dom, react-router,
-│                             @tanstack/react-query, typescript, vite;
-│                             maplibre-gl listed but unwired until the UI phase
-├── vite.config.ts
-├── tsconfig.json
-├── .env.example              VITE_API_BASE=http://localhost:8000
-├── scripts/
-│   └── gen-types.ts          json-schema-to-typescript over
-│                             ../reachout/shared/schemas/ → src/types/*.d.ts
-└── src/
-    ├── main.tsx              router + QueryClientProvider bootstrap only
-    ├── routes/
-    │   ├── search.tsx        route module: URL params in/out; no visuals
-    │   └── results.tsx       route module: fires the two queries; no visuals
-    ├── api/
-    │   └── client.ts         two typed fetchers, nothing else
-    ├── types/                GENERATED from shared/schemas — never hand-edited
-    └── map/
-        └── geojson-source.ts adapter exposing the stage-05 FeatureCollection
-                              to whatever map component the future UI phase
-                              builds; no rendering code now
+src/
+├── main.tsx                 router + QueryClientProvider + fonts/tokens + retry policy
+├── styles/tokens.css        design tokens (palette, type). The map reads the
+│                            same CSS custom properties — one color source.
+├── i18n/strings.ts          all UI copy, ES/EN
+├── api/client.ts            typed fetchers + ApiError
+├── lib/                     format helpers, barrio matching
+├── data/barrios.ts          GENERATED barrio names
+├── types/                   GENERATED schema types
+├── hooks/                   useLang (URL param), usePingSequence
+├── map/map-layers.ts        pure GeoJSON builders (unit-tested, no maplibre)
+├── components/              entry + results UI, MapPanel (all maplibre code)
+└── routes/                  search.tsx (entry), results.tsx (split view)
 ```
+
+## Commands
+
+```bash
+npm run dev          # vite dev server on :5173 (backend expected on :8000)
+npm run build        # tsc --noEmit + vite build
+npm test             # vitest (formatting, i18n, ping sequence, map builders)
+npm run gen-types    # regenerate src/types from backend schemas
+npm run gen-barrios  # regenerate src/data/barrios.ts from the gazetteer
+```
+
+`VITE_API_BASE` (`.env`, default `http://localhost:8000`) points at the API.

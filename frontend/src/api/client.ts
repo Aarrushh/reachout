@@ -1,6 +1,7 @@
 /**
- * Two typed fetchers over reachout/api/server.py. Nothing else lives here —
- * no caching, no retries (TanStack Query owns that), no visual concerns.
+ * The typed fetchers over reachout/api/server.py and the ApiError they throw.
+ * Nothing else lives here — no caching, no retries (TanStack Query owns
+ * that, using ApiError.status to skip retrying permanent 4xx), no visuals.
  */
 import type { RankedShops } from "../types/RankedShops";
 import type { ShopMapGeoJSON } from "../types/MapGeojson";

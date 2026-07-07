@@ -24,6 +24,15 @@ export default function SearchInput({ value, onChange, onSubmit, lang, disabled,
         autoFocus={autoFocus}
         placeholder={t(lang, "search.placeholder")}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          // A disabled submit button suppresses implicit form submission, so
+          // Enter would be silently swallowed; route it to onSubmit so the
+          // caller can show why the search can't run yet.
+          if (e.key === "Enter" && disabled) {
+            e.preventDefault();
+            if (value.trim()) onSubmit();
+          }
+        }}
         aria-label={t(lang, "search.submit")}
       />
       <button type="submit" disabled={disabled || !value.trim()}>

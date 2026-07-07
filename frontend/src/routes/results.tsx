@@ -2,7 +2,7 @@
  * presentation state (selection, ping sequence) on top of the two queries. */
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 
 import { fetchAllShops, fetchRankedShops, fetchShopsGeoJSON, type SearchParams } from "../api/client";
 import MapPanel from "../components/MapPanel";
@@ -60,11 +60,16 @@ export default function ResultsRoute() {
     setSearchParams(next);
   }
 
-  const searchKey = searchParams.toString();
+  // Only the data-bearing params: a lang toggle must not replay the pings.
+  const searchKey = [params.q, params.near, params.lat, params.lng, params.radius].join("|");
   const pingedIds = usePingSequence(
     rankedShops.data?.status === "ok" ? rankedShops.data.results : undefined,
     searchKey,
   );
+
+  // Without a query both searches are disabled and would skeleton forever.
+  // (After all hooks so the hook order stays stable.)
+  if (!enabled) return <Navigate to={lang === "en" ? "/?lang=en" : "/"} replace />;
 
   return (
     <div className="results-screen">
@@ -77,7 +82,7 @@ export default function ResultsRoute() {
           selectedShopId={selectedShopId} onSelect={setSelectedShopId}
           lang={lang} radiusKm={radiusKm}
           onWiden={() => setParam("radius", "5")}
-          onRetry={() => { void rankedShops.refetch(); void shopsGeoJSON.refetch(); }} />
+          onRetry={() => { void rankedShops.refetch(); void shopsGeoJSON.refetch(); void allShops.refetch(); }} />
         <MapPanel matched={shopsGeoJSON.data} network={allShops.data}
           pingedIds={pingedIds} selectedShopId={selectedShopId} onSelect={setSelectedShopId} lang={lang} />
       </div>

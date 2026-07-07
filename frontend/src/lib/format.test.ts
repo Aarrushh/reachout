@@ -6,6 +6,9 @@ describe("format", () => {
   it("shows meters under 1 km", () => {
     expect(formatDistance(0.412, "en")).toBe("412 m");
   });
+  it("never shows 1000 m at the km boundary", () => {
+    expect(formatDistance(0.9997, "en")).toBe("1.0 km");
+  });
   it("uses locale decimal for km", () => {
     expect(formatDistance(1.24, "es")).toBe("1,2 km");
     expect(formatDistance(1.24, "en")).toBe("1.2 km");

@@ -2,7 +2,7 @@ import maplibregl, { Map as MLMap, Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 
-import { pingLinesFC, radiusRingFC, type Center } from "../map/map-layers";
+import { pingLinesFC, radiusRingFC } from "../map/map-layers";
 import { formatDistance, formatPrice } from "../lib/format";
 import { CATEGORY_ICONS } from "./ShopCard";
 import { t, type Lang } from "../i18n/strings";
@@ -12,11 +12,24 @@ import type { ShopsGeoJSON } from "../types/ShopsGeojson";
 const STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 const MADRID: [number, number] = [-3.7038, 40.4168];
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
-const CAT_COLOR: maplibregl.ExpressionSpecification = [
-  "match", ["get", "category"],
-  "pharmacy", "#7fb069", "grocery", "#b8d97e", "hardware", "#f4a259",
-  "electronics", "#5bc0eb", "stationery", "#c77dff", "#e2725b",
-];
+
+/** Single source of truth for colors is tokens.css; the MapLibre paint
+ * expressions read the same custom properties instead of duplicating hexes. */
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function catColorExpression(): maplibregl.ExpressionSpecification {
+  return [
+    "match", ["get", "category"],
+    "pharmacy", cssVar("--cat-pharmacy"),
+    "grocery", cssVar("--cat-grocery"),
+    "hardware", cssVar("--cat-hardware"),
+    "electronics", cssVar("--cat-electronics"),
+    "stationery", cssVar("--cat-stationery"),
+    cssVar("--terracotta"),
+  ];
+}
 
 interface Props {
   matched: ShopMapGeoJSON | undefined;
@@ -32,16 +45,16 @@ function setData(map: MLMap, id: string, fc: GeoJSON.FeatureCollection) {
   src?.setData(fc);
 }
 
-/** Numeric feature ids are required for setFeatureState; derive from osm id. */
-function fid(shopId: string): number {
-  return Number(shopId.split(":")[2]);
-}
-
-function withIds(matched: ShopMapGeoJSON): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: matched.features.map((f) => ({ ...(f as unknown as GeoJSON.Feature), id: fid(f.properties.shop_id) })),
-  };
+/** MapLibre feature-state needs a numeric id per feature. OSM node/way/
+ * relation numeric ids overlap, so index into the current result set and keep
+ * a shop_id → index map alongside — collision-free by construction. */
+function withIndexIds(matched: ShopMapGeoJSON): { fc: GeoJSON.FeatureCollection; idMap: Map<string, number> } {
+  const idMap = new Map<string, number>();
+  const features = matched.features.map((f, i) => {
+    idMap.set(f.properties.shop_id, i);
+    return { ...(f as unknown as GeoJSON.Feature), id: i };
+  });
+  return { fc: { type: "FeatureCollection", features }, idMap };
 }
 
 function esc(s: string): string {
@@ -54,6 +67,7 @@ export default function MapPanel({ matched, network, pingedIds, selectedShopId, 
   const [loaded, setLoaded] = useState(false);
   const popupRef = useRef<Popup | null>(null);
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const idMapRef = useRef<Map<string, number>>(new Map());
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
@@ -72,25 +86,28 @@ export default function MapPanel({ matched, network, pingedIds, selectedShopId, 
         map.addSource(id, { type: "geojson", data: EMPTY });
       }
       map.addLayer({ id: "network-shops", source: "network", type: "circle",
-        paint: { "circle-radius": 3, "circle-color": "#3a4e78", "circle-opacity": 0.55 } });
+        paint: { "circle-radius": 3, "circle-color": cssVar("--navy-line"), "circle-opacity": 0.55 } });
       map.addLayer({ id: "radius-ring", source: "ring", type: "line",
-        paint: { "line-color": "#e2725b", "line-opacity": 0.25, "line-width": 1.5, "line-dasharray": [2, 3] } });
+        paint: { "line-color": cssVar("--terracotta"), "line-opacity": 0.25, "line-width": 1.5, "line-dasharray": [2, 3] } });
       map.addLayer({ id: "ping-lines", source: "lines", type: "line",
-        paint: { "line-color": "#e2725b", "line-opacity": 0.4, "line-width": 1 } });
+        paint: { "line-color": cssVar("--terracotta"), "line-opacity": 0.4, "line-width": 1 } });
       map.addLayer({ id: "matched-shops", source: "matched", type: "circle",
         paint: {
           "circle-radius": ["+", 6, ["*", 2, ["sqrt", ["get", "stock_qty"]]]],
-          "circle-color": CAT_COLOR,
+          "circle-color": catColorExpression(),
           "circle-stroke-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1.5],
-          "circle-stroke-color": ["case", ["boolean", ["feature-state", "selected"], false], "#ff8a66", "#ead9bd"],
-          "circle-opacity": ["case", ["boolean", ["feature-state", "pinged"], false], 1, 0],
-          "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "pinged"], false], 1, 0],
+          "circle-stroke-color": ["case", ["boolean", ["feature-state", "selected"], false],
+            cssVar("--terracotta-hot"), cssVar("--sand")],
+          // Unpinged dots stay faintly visible: a shop present on the map but
+          // missing from the ranked set must never be invisible forever.
+          "circle-opacity": ["case", ["boolean", ["feature-state", "pinged"], false], 1, 0.25],
+          "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "pinged"], false], 1, 0.3],
         } });
       map.addLayer({ id: "rank-labels", source: "matched", type: "symbol",
         filter: ["<=", ["get", "rank"], 10],
         layout: { "text-field": ["concat", "#", ["to-string", ["get", "rank"]]],
           "text-size": 11, "text-offset": [0, -1.6], "text-font": ["Open Sans Bold"] },
-        paint: { "text-color": "#ead9bd",
+        paint: { "text-color": cssVar("--sand"),
           "text-opacity": ["case", ["boolean", ["feature-state", "pinged"], false], 1, 0] } });
 
       map.on("mouseenter", "matched-shops", () => { map.getCanvas().style.cursor = "pointer"; });
@@ -110,47 +127,51 @@ export default function MapPanel({ matched, network, pingedIds, selectedShopId, 
     };
   }, []);
 
-  // The effects below intentionally have no dependency arrays: they run every
-  // render, early-return until the map is loaded, and each is idempotent.
-
   // Network layer (static).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loaded || !network) return;
     setData(map, "network", network as unknown as GeoJSON.FeatureCollection);
-  });
+  }, [loaded, network]);
 
   // Matched shops + ring + user dot + camera, when a new result set arrives.
-  const lastMatchedRef = useRef<ShopMapGeoJSON | null>(null);
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !loaded || !matched || lastMatchedRef.current === matched) return;
-    lastMatchedRef.current = matched;
-    const center: Center = matched.metadata.center;
-    setData(map, "matched", withIds(matched));
+    if (!map || !loaded || !matched) return;
+    const center = matched.metadata.center;
+    const { fc, idMap } = withIndexIds(matched);
+    idMapRef.current = idMap;
+    map.removeFeatureState({ source: "matched" });
+    setData(map, "matched", fc);
     setData(map, "ring", radiusRingFC(center, matched.metadata.radius_km));
 
     userMarkerRef.current?.remove();
     const el = document.createElement("div");
     el.className = "user-dot";
-    el.title = t(lang, "map.you");
     userMarkerRef.current = new maplibregl.Marker({ element: el }).setLngLat([center.lng, center.lat]).addTo(map);
 
     const bounds = new maplibregl.LngLatBounds([center.lng, center.lat], [center.lng, center.lat]);
     for (const f of matched.features) bounds.extend(f.geometry.coordinates as [number, number]);
     map.fitBounds(bounds, { padding: 60, duration: 600, maxZoom: 16 });
-  });
+  }, [loaded, matched]);
+
+  // The user-dot tooltip is the only lang-dependent bit of the map chrome.
+  useEffect(() => {
+    userMarkerRef.current?.getElement().setAttribute("title", t(lang, "map.you"));
+  }, [loaded, matched, lang]);
 
   // Ping state → feature-state + lines.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loaded || !matched) return;
     for (const f of matched.features) {
-      map.setFeatureState({ source: "matched", id: fid(f.properties.shop_id) },
+      const id = idMapRef.current.get(f.properties.shop_id);
+      if (id === undefined) continue;
+      map.setFeatureState({ source: "matched", id },
         { pinged: pingedIds.has(f.properties.shop_id), selected: f.properties.shop_id === selectedShopId });
     }
     setData(map, "lines", pingLinesFC(matched.metadata.center, matched, pingedIds));
-  });
+  }, [loaded, matched, pingedIds, selectedShopId]);
 
   // Popup follows selection.
   useEffect(() => {
@@ -169,7 +190,7 @@ export default function MapPanel({ matched, network, pingedIds, selectedShopId, 
         `<div class="mono">${formatPrice(p.price)} · ${t(lang, "results.stock")} ${p.stock_qty} · ${formatDistance(p.distance_km, lang)}</div>`,
       )
       .addTo(map);
-  });
+  }, [loaded, matched, selectedShopId, lang]);
 
   return <div ref={container} className="map-panel" />;
 }

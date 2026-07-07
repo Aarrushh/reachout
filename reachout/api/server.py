@@ -1,9 +1,11 @@
 """Thin read-only FastAPI wrapper over run_pipeline.run().
 
-No business logic lives here: every field in a response is exactly what
-run_pipeline's stage 04 (ranked_shops) / stage 05 (GeoJSON) already produced
-and schema-validated. Each request gets its own throwaway output_root so
-concurrent requests never read or clobber each other's stage files.
+No business logic lives here: every field in a search response is exactly
+what run_pipeline's stage 04 (ranked_shops) / stage 05 (GeoJSON) already
+produced and schema-validated. Each request gets its own throwaway
+output_root so concurrent requests never read or clobber each other's stage
+files. The one non-pipeline endpoint (/api/shops.geojson, a static projection
+of the shops table) is schema-validated here at request time instead.
 """
 
 import os
@@ -18,11 +20,12 @@ for _dir in (os.path.join(REACHOUT_DIR, "scripts"), os.path.join(REACHOUT_DIR, "
     if _dir not in sys.path:
         sys.path.insert(0, _dir)
 
-from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi import FastAPI, HTTPException, Response  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 import db  # noqa: E402
 import run_pipeline  # noqa: E402
+import validate  # noqa: E402
 
 # Overridable in tests (monkeypatch.setattr(server, "DB_PATH", ...)); None
 # means run_pipeline falls back to its own defaults (the real reachout.db /
@@ -72,26 +75,34 @@ def search_geojson(q: str, near: Optional[str] = None, lat: Optional[float] = No
 
 
 @app.get("/api/shops.geojson")
-def shops_geojson():
+def shops_geojson(response: Response):
     """All known shops, no inventory: the map's network layer. Pure read."""
     conn = db.connect(DB_PATH)
     try:
         shops = db.all_shops(conn)
     finally:
         conn.close()
-    return {
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [s["lng"], s["lat"]]},
+            "properties": {
+                "shop_id": s["shop_id"],
+                "shop_name": s["name"],
+                "category": s["categories"][0],
+            },
+        }
+        for s in shops
+        if s["categories"]  # a row with no categories can't be classified; skip it
+    ]
+    body = {
         "type": "FeatureCollection",
-        "metadata": {"shop_count": len(shops)},
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [s["lng"], s["lat"]]},
-                "properties": {
-                    "shop_id": s["shop_id"],
-                    "shop_name": s["name"],
-                    "category": s["categories"][0],
-                },
-            }
-            for s in shops
-        ],
+        "metadata": {"shop_count": len(features)},
+        "features": features,
     }
+    ok, err = validate.validate(body, "shops_geojson.schema.json")
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"shops_geojson failed schema: {err}")
+    # Shop identities change rarely (OSM refresh), unlike inventory: cacheable.
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return body

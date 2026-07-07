@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "gen-types": "tsx scripts/gen-types.ts",
+    "gen-barrios": "tsx scripts/gen-barrios.ts",
     "test": "vitest run"
   },
   "dependencies": {
