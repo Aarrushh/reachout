@@ -8,6 +8,7 @@ import { fetchAllShops, fetchRankedShops, fetchShopsGeoJSON, type SearchParams }
 import ResultsPanel from "../components/ResultsPanel";
 import TopBar from "../components/TopBar";
 import { useLang } from "../hooks/useLang";
+import { usePingSequence } from "../hooks/usePingSequence";
 import type { RankedShops } from "../types/RankedShops";
 import "../components/results.css";
 
@@ -58,8 +59,11 @@ export default function ResultsRoute() {
     setSearchParams(next);
   }
 
-  const results = rankedShops.data?.status === "ok" ? rankedShops.data.results ?? [] : [];
-  const pingedIds = new Set(results.map((r) => r.shop_id)); // Task 5 replaces with usePingSequence
+  const searchKey = searchParams.toString();
+  const pingedIds = usePingSequence(
+    rankedShops.data?.status === "ok" ? rankedShops.data.results : undefined,
+    searchKey,
+  );
 
   return (
     <div className="results-screen">

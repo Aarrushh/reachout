@@ -61,6 +61,13 @@
 }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
+.shop-card { opacity: 0.35; transition: opacity 0.3s; }
+.shop-card.pinged { opacity: 1; animation: card-in 0.3s ease-out; }
+@keyframes card-in { from { transform: translateY(12px); opacity: 0.35; } to { transform: none; opacity: 1; } }
+.shop-card.pinged .ping-dot { animation: ping-pulse 0.4s ease-out 3; }
+@keyframes ping-pulse { 50% { box-shadow: 0 0 0 5px rgba(255, 138, 102, 0.35); } }
+@media (prefers-reduced-motion: reduce) { .shop-card { opacity: 1; } }
+
 .results-panel.state { display: flex; flex-direction: column; gap: 12px; padding: 32px 24px; }
 .error-detail { color: var(--err); font-size: 12px; word-break: break-word; }
 .cta {
