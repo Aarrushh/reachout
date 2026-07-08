@@ -1,0 +1,18 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  # publish is relative to `base`, so this points at frontend/dist
+  publish = "dist"
+
+# The frontend inlines VITE_API_BASE at build time (see frontend/src/api/client.ts).
+# Without it, the build falls back to http://localhost:8000 and all API calls fail
+# in production. Set this to your deployed backend URL — either uncomment below OR
+# set it in Netlify UI > Site settings > Environment variables (UI value overrides).
+# [build.environment]
+#   VITE_API_BASE = "https://your-backend-url.example.com"
+
+# SPA fallback: let react-router handle client-side routes (e.g. /results)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
