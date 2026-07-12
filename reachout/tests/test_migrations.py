@@ -87,6 +87,19 @@ def test_migrate_transaction_rollback(clean_db):
 
 def test_migration_1_regions_table(clean_db):
     """Test that migration 1 creates the regions table with the exact columns."""
+    clean_db.executescript("""
+        CREATE TABLE IF NOT EXISTS shops (
+            shop_id TEXT PRIMARY KEY,
+            osm_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            categories TEXT NOT NULL,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            address TEXT,
+            source TEXT NOT NULL,
+            fetched_at TEXT NOT NULL
+        );
+    """)
     migrations.migrate(clean_db)
     
     version = clean_db.execute("PRAGMA user_version").fetchone()[0]
@@ -114,3 +127,58 @@ def test_migration_1_regions_table(clean_db):
         assert col[2] == expected_columns[name]["type"]
         assert col[3] == expected_columns[name]["notnull"]
         assert col[5] == expected_columns[name]["pk"]
+
+
+def test_migration_2_shops_region_id(clean_db):
+    """Test that migration 2 adds region_id and its index, leaving existing rows NULL."""
+    # First, run up to migration 1 to create tables normally but wait on 2.
+    # We'll construct a mock of init_db state using only migration 1 plus shops table.
+    
+    clean_db.executescript("""
+        CREATE TABLE IF NOT EXISTS shops (
+            shop_id TEXT PRIMARY KEY,
+            osm_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            categories TEXT NOT NULL,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            address TEXT,
+            source TEXT NOT NULL,
+            fetched_at TEXT NOT NULL
+        );
+    """)
+    
+    full_migrations = migrations.MIGRATIONS.copy()
+    migrations.MIGRATIONS = [full_migrations[0]]
+    migrations.migrate(clean_db)
+    
+    # Insert a shop before migration 2
+    clean_db.execute(
+        "INSERT INTO shops (shop_id, osm_id, name, categories, lat, lng, source, fetched_at) "
+        "VALUES ('shop1', 1, 'Shop 1', '[]', 0, 0, 'src', 'now')"
+    )
+    
+    # Restore full migrations and apply
+    migrations.MIGRATIONS = full_migrations
+    migrations.migrate(clean_db)
+    
+    version = clean_db.execute("PRAGMA user_version").fetchone()[0]
+    assert version >= 2
+    
+    # Check column
+    columns = clean_db.execute("PRAGMA table_info(shops)").fetchall()
+    col_names = [col[1] for col in columns]
+    assert "region_id" in col_names
+    
+    region_id_col = next(col for col in columns if col[1] == "region_id")
+    assert region_id_col[2] == "TEXT"
+    assert region_id_col[3] == 0 # nullable
+    
+    # Check index
+    indices = clean_db.execute("PRAGMA index_list(shops)").fetchall()
+    index_names = [idx[1] for idx in indices]
+    assert "idx_shops_region" in index_names
+    
+    # Check existing row
+    row = clean_db.execute("SELECT region_id FROM shops WHERE shop_id = 'shop1'").fetchone()
+    assert row[0] is None

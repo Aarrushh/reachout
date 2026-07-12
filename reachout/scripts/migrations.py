@@ -10,6 +10,10 @@ MIGRATIONS = [
             source TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
+    """),
+    (2, """
+        ALTER TABLE shops ADD COLUMN region_id TEXT;
+        CREATE INDEX idx_shops_region ON shops(region_id);
     """)
 ]
 
