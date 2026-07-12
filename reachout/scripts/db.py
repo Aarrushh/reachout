@@ -15,6 +15,11 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 
+try:
+    from . import migrations
+except ImportError:
+    import migrations
+
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "reachout.db")
 DB_PATH = os.path.abspath(DB_PATH)
 
@@ -66,6 +71,7 @@ def init_db(path=None):
         """
     )
     conn.commit()
+    migrations.migrate(conn)
     conn.close()
 
 
