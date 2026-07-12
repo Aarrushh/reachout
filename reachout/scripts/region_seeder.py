@@ -4,8 +4,12 @@ import json
 import os
 import unicodedata
 
-from . import db
-from . import geo
+try:
+    from . import db
+    from . import geo
+except ImportError:
+    import db
+    import geo
 
 def _slugify(text: str) -> str:
     """Lowercase, strip accents, and convert spaces to dashes."""
@@ -79,3 +83,33 @@ def assign_shops(conn, max_km=1.2):
     conn.commit()
     
     return {"assigned": assigned, "unassigned": unassigned}
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+    
+    parser = argparse.ArgumentParser(description="Region seeder from the local gazetteer.")
+    parser.add_argument("--db", help="Path to the database file")
+    args = parser.parse_args()
+    
+    db_path = args.db if args.db else db.DB_PATH
+    
+    if not os.path.exists(db_path):
+        print(f"Error: Database not found at {db_path}", file=sys.stderr)
+        sys.exit(1)
+        
+    conn = db.connect(db_path)
+    
+    try:
+        print("Seeding regions...")
+        seed_regions(conn)
+        
+        regions = db.all_regions(conn)
+        print(f"Seeded {len(regions)} regions.")
+        
+        print("Assigning shops to regions...")
+        res = assign_shops(conn)
+        print(f"Assigned {res['assigned']} shops. Unassigned {res['unassigned']} shops.")
+        
+    finally:
+        conn.close()

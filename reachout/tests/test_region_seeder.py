@@ -125,3 +125,36 @@ def test_assign_shops(tmp_path):
     assert shop_dict["s1"]["region_id"] == "center"
     assert shop_dict["s2"]["region_id"] == "center"
     assert shop_dict["s3"]["region_id"] is None
+
+def test_region_seeder_cli(tmp_path, monkeypatch):
+    import os
+    import subprocess
+    import sys
+    
+    # Setup DB
+    db_path = str(tmp_path / "test.db")
+    db.init_db(db_path)
+    
+    # We will invoke the CLI script as a subprocess.
+    script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "region_seeder.py")
+    
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    
+    res = subprocess.run(
+        [sys.executable, script_path, "--db", db_path],
+        capture_output=True,
+        text=True,
+        env=env
+    )
+    
+    assert res.returncode == 0, f"Script failed with output: {res.stderr}"
+    assert "Seeding regions..." in res.stdout
+    assert "Seeded " in res.stdout
+    assert "Assigning shops to regions..." in res.stdout
+    assert "Assigned 0 shops. Unassigned 0 shops." in res.stdout
+    
+    # Verify DB state
+    conn = db.connect(db_path)
+    regions = db.all_regions(conn)
+    assert len(regions) > 0
