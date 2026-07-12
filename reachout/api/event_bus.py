@@ -7,6 +7,36 @@ blocking the simulator or other clients.
 """
 import asyncio
 
+from reachout.scripts import db, validate
+
+
+def to_stock_event(raw: dict, region_id: str | None) -> dict:
+    """Shape a raw simulator event into a valid stock_event schema.
+    
+    Raises ValueError if the shaped event fails schema validation.
+    """
+    event = {
+        "type": raw["type"],
+        "shop_id": raw["shop_id"],
+        "shop_name": raw["shop"],
+        "region_id": region_id,
+        "sku": raw["sku"],
+        "name": raw["name"],
+        "qty_now": raw["qty_now"],
+        "ts": db.now_iso(raw["epoch"]) if "epoch" in raw else db.now_iso(),
+    }
+    
+    if "sold" in raw:
+        event["sold"] = raw["sold"]
+    if "added" in raw:
+        event["added"] = raw["added"]
+        
+    ok, err = validate.validate(event, "stock_event.schema.json")
+    if not ok:
+        raise ValueError(f"Invalid stock event: {err}")
+        
+    return event
+
 
 class EventBus:
     """In-memory publish-subscribe event bus."""

@@ -76,3 +76,102 @@ async def test_event_bus_unsubscribe(bus):
     
     bus.publish({"id": 2})
     assert q.qsize() == 0
+
+
+def test_to_stock_event_sale():
+    from reachout.api.event_bus import to_stock_event
+    
+    raw = {
+        "type": "sale",
+        "shop_id": "osm:node:123",
+        "shop": "Test Shop",
+        "sku": "PHA-0001",
+        "name": "Aspirin",
+        "sold": 2,
+        "qty_now": 8
+    }
+    
+    with patch('reachout.api.event_bus.db.now_iso', return_value='2024-01-01T12:00:00+00:00'):
+        event = to_stock_event(raw, "madrid-centro")
+        
+    assert event["type"] == "sale"
+    assert event["shop_id"] == "osm:node:123"
+    assert event["shop_name"] == "Test Shop"
+    assert event["region_id"] == "madrid-centro"
+    assert event["sku"] == "PHA-0001"
+    assert event["name"] == "Aspirin"
+    assert event["sold"] == 2
+    assert event["qty_now"] == 8
+    assert event["ts"] == "2024-01-01T12:00:00+00:00"
+
+
+def test_to_stock_event_restock():
+    from reachout.api.event_bus import to_stock_event
+    
+    raw = {
+        "type": "restock",
+        "shop_id": "osm:node:123",
+        "shop": "Test Shop",
+        "sku": "PHA-0001",
+        "name": "Aspirin",
+        "added": 10,
+        "qty_now": 18
+    }
+    
+    with patch('reachout.api.event_bus.db.now_iso', return_value='2024-01-01T12:00:00+00:00'):
+        event = to_stock_event(raw, None)
+        
+    assert event["type"] == "restock"
+    assert event["shop_id"] == "osm:node:123"
+    assert event["shop_name"] == "Test Shop"
+    assert event["region_id"] is None
+    assert event["sku"] == "PHA-0001"
+    assert event["name"] == "Aspirin"
+    assert event["added"] == 10
+    assert event["qty_now"] == 18
+    assert event["ts"] == "2024-01-01T12:00:00+00:00"
+
+
+def test_to_stock_event_new_item():
+    from reachout.api.event_bus import to_stock_event
+    
+    raw = {
+        "type": "new_item",
+        "shop_id": "osm:node:123",
+        "shop": "Test Shop",
+        "sku": "PHA-0001",
+        "name": "Aspirin",
+        "qty_now": 10,
+        "source": "template"
+    }
+    
+    with patch('reachout.api.event_bus.db.now_iso', return_value='2024-01-01T12:00:00+00:00'):
+        event = to_stock_event(raw, "madrid-centro")
+        
+    assert event["type"] == "new_item"
+    assert event["shop_id"] == "osm:node:123"
+    assert event["shop_name"] == "Test Shop"
+    assert event["region_id"] == "madrid-centro"
+    assert event["sku"] == "PHA-0001"
+    assert event["name"] == "Aspirin"
+    assert event["qty_now"] == 10
+    assert event["ts"] == "2024-01-01T12:00:00+00:00"
+    assert "sold" not in event
+    assert "added" not in event
+
+
+def test_to_stock_event_invalid_raises():
+    from reachout.api.event_bus import to_stock_event
+    
+    raw = {
+        "type": "sale",
+        "shop_id": "osm:node:123",
+        "shop": "Test Shop",
+        "sku": "PHA-0001",
+        "name": "Aspirin",
+        "sold": -1,  # Invalid: minimum is 1
+        "qty_now": 8
+    }
+    
+    with pytest.raises(ValueError, match="Invalid stock event"):
+        to_stock_event(raw, "madrid-centro")
