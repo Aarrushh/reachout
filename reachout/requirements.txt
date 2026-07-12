@@ -13,3 +13,6 @@ pytest>=8.0
 # Only for the thin read-only API wrapper (api/server.py).
 fastapi>=0.110
 uvicorn>=0.29
+
+# in-process scheduler for the live-inventory simulator; no broker
+apscheduler>=3.10
