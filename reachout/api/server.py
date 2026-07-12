@@ -151,6 +151,42 @@ def shops_geojson(response: Response):
     return body
 
 
+@app.get("/api/inventory")
+def inventory(region: Optional[str] = None, page: int = Query(1, ge=1),
+              page_size: int = Query(25, ge=1, le=100),
+              in_stock: int = Query(0, ge=0, le=1)):
+    """Paginated inventory endpoint."""
+    conn = db.connect(DB_PATH)
+    try:
+        if region is not None:
+            valid_regions = [r["region_id"] for r in db.all_regions(conn)]
+            if region not in valid_regions:
+                raise HTTPException(status_code=404, detail=f"Region {region} not found")
+        
+        items, total_items = db.inventory_page(conn, region, page, page_size, bool(in_stock))
+    finally:
+        conn.close()
+        
+    total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
+    
+    body = {
+        "status": "ok",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "region_id": region,
+        "page": page,
+        "page_size": page_size,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "items": items,
+    }
+    
+    ok, err = validate.validate(body, "inventory_response.schema.json")
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"inventory_response failed schema: {err}")
+        
+    return body
+
+
 @app.get("/api/regions")
 def regions(response: Response):
     """List of all known regions and their shop counts. Pure read."""

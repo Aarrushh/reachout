@@ -221,15 +221,25 @@ def region_shop_counts(conn):
 
 
 def inventory_page(conn, region_id, page, page_size, in_stock_only=False):
-    where_clauses = ["shops.region_id = ?"]
-    params = [region_id]
+    where_clauses = []
+    params = []
+    
+    if region_id is not None:
+        where_clauses.append("shops.region_id = ?")
+        params.append(region_id)
+        
     if in_stock_only:
         where_clauses.append("inventory.qty > 0")
-    where_str = " AND ".join(where_clauses)
+        
+    where_str = ""
+    if where_clauses:
+        where_str = " WHERE " + " AND ".join(where_clauses)
     
-    total = conn.execute(f"SELECT COUNT(*) as total FROM inventory JOIN shops ON inventory.shop_id = shops.shop_id WHERE {where_str}", params).fetchone()["total"]
+    total_query = f"SELECT COUNT(*) as total FROM inventory JOIN shops ON inventory.shop_id = shops.shop_id{where_str}"
+    total = conn.execute(total_query, params).fetchone()["total"]
+    
     offset = (page - 1) * page_size
-    q = f"SELECT inventory.* FROM inventory JOIN shops ON inventory.shop_id = shops.shop_id WHERE {where_str} ORDER BY inventory.shop_id, inventory.sku LIMIT ? OFFSET ?"
+    q = f"SELECT inventory.*, shops.name as shop_name FROM inventory JOIN shops ON inventory.shop_id = shops.shop_id{where_str} ORDER BY inventory.shop_id, inventory.sku LIMIT ? OFFSET ?"
     rows = [_item_row(r) for r in conn.execute(q, params + [page_size, offset]).fetchall()]
     return rows, total
 

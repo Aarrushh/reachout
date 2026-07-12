@@ -49,6 +49,78 @@ def test_health():
     assert ok, err
 
 
+def test_inventory_pagination_and_schema(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    
+    # Valid request for specific region
+    resp = client.get("/api/inventory?region=malasana&page=1&page_size=25")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["total_items"] == 1
+    assert body["total_pages"] == 1
+    assert len(body["items"]) == 1
+    item = body["items"][0]
+    assert item["shop_id"] == "osm:node:1001"
+    assert item["shop_name"] == "Farmacia Malasaña"
+    assert item["sku"] == "PHA-0001"
+    ok, err = v.validate(body, "inventory_response.schema.json")
+    assert ok, err
+
+    # Valid request for all regions
+    resp = client.get("/api/inventory?page=1&page_size=25")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["total_items"] == 1
+    assert body["total_pages"] == 1
+    assert len(body["items"]) == 1
+    ok, err = v.validate(body, "inventory_response.schema.json")
+    assert ok, err
+
+    # Out of bounds page
+    resp = client.get("/api/inventory?page=0&page_size=25")
+    assert resp.status_code == 422
+
+    # Out of bounds page_size
+    resp = client.get("/api/inventory?page=1&page_size=101")
+    assert resp.status_code == 422
+
+    # Empty page (page 2 when only 1 item exists)
+    resp = client.get("/api/inventory?page=2&page_size=25")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["total_items"] == 1
+    assert body["total_pages"] == 1
+    assert len(body["items"]) == 0
+    ok, err = v.validate(body, "inventory_response.schema.json")
+    assert ok, err
+
+    # 404 for unknown region
+    resp = client.get("/api/inventory?region=unknown&page=1&page_size=25")
+    assert resp.status_code == 404
+
+    # Pagination math test: multiple pages
+    # Let's add more items directly to the DB to test total_pages math
+    db_path = str(tmp_path / "reachout.db")
+    conn = db.connect(db_path)
+    for i in range(2, 6):
+        db.upsert_item(conn, {
+            "shop_id": "osm:node:1001", "sku": f"PHA-000{i}", "name": f"Item {i}",
+            "category": "pharmacy", "price": 3.95, "currency": "EUR", "qty": 5, "synthetic": True,
+        })
+    conn.commit()
+    conn.close()
+
+    resp = client.get("/api/inventory?page=1&page_size=2")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total_items"] == 5
+    assert body["total_pages"] == 3
+    assert len(body["items"]) == 2
+
+
 def test_search_returns_schema_valid_ranked_shops(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     resp = client.get("/api/search", params={
