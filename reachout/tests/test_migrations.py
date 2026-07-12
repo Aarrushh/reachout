@@ -84,3 +84,33 @@ def test_migrate_transaction_rollback(clean_db):
     assert "test1" in tables
     assert "test2" not in tables
     assert "test3" not in tables
+
+def test_migration_1_regions_table(clean_db):
+    """Test that migration 1 creates the regions table with the exact columns."""
+    migrations.migrate(clean_db)
+    
+    version = clean_db.execute("PRAGMA user_version").fetchone()[0]
+    assert version >= 1
+    
+    tables = [row[0] for row in clean_db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+    assert "regions" in tables
+    
+    columns = clean_db.execute("PRAGMA table_info(regions)").fetchall()
+    
+    expected_columns = {
+        "region_id": {"type": "TEXT", "notnull": 0, "pk": 1},
+        "name": {"type": "TEXT", "notnull": 1, "pk": 0},
+        "lat": {"type": "REAL", "notnull": 1, "pk": 0},
+        "lng": {"type": "REAL", "notnull": 1, "pk": 0},
+        "source": {"type": "TEXT", "notnull": 1, "pk": 0},
+        "created_at": {"type": "TEXT", "notnull": 1, "pk": 0},
+    }
+    
+    assert len(columns) == len(expected_columns)
+    
+    for col in columns:
+        name = col[1]
+        assert name in expected_columns
+        assert col[2] == expected_columns[name]["type"]
+        assert col[3] == expected_columns[name]["notnull"]
+        assert col[5] == expected_columns[name]["pk"]

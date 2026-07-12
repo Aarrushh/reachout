@@ -1,6 +1,17 @@
 """Database migrations runner."""
 
-MIGRATIONS = []
+MIGRATIONS = [
+    (1, """
+        CREATE TABLE regions (
+            region_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            source TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+    """)
+]
 
 def migrate(conn):
     """
