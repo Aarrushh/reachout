@@ -6,7 +6,7 @@ import { Navigate, useSearchParams } from "react-router-dom";
 
 import { fetchAllShops, fetchRankedShops, fetchShopsGeoJSON, type SearchParams } from "../api/client";
 import MapPanel from "../components/MapPanel";
-import ResultsPanel from "../components/ResultsPanel";
+import ResultsPanel, { type SortMode } from "../components/ResultsPanel";
 import TopBar from "../components/TopBar";
 import { useLang } from "../hooks/useLang";
 import { usePingSequence } from "../hooks/usePingSequence";
@@ -14,6 +14,12 @@ import type { RankedShops } from "../types/RankedShops";
 import "../components/results.css";
 
 export type RankedResult = NonNullable<RankedShops["results"]>[number];
+
+const SORT_MODES: SortMode[] = ["relevance", "price_asc", "price_desc", "distance"];
+
+// Filter changes reset pagination: stale page numbers point at slices that no
+// longer exist after the visible set shrinks.
+const PAGE_RESETTERS = new Set(["category", "stock", "sort"]);
 
 function paramsFromUrl(searchParams: URLSearchParams): SearchParams {
   const lat = searchParams.get("lat");
@@ -36,7 +42,18 @@ export default function ResultsRoute() {
   const radiusKm = params.radius ?? 2;
   const enabled = params.q.length > 0;
 
+  // Presentation-only URL params (never join queryKeys or the ping searchKey).
+  const rawSort = searchParams.get("sort");
+  const sort: SortMode = SORT_MODES.includes(rawSort as SortMode) ? (rawSort as SortMode) : "relevance";
+  const category = searchParams.get("category");
+  const inStockOnly = searchParams.get("stock") === "1";
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const region = searchParams.get("region");
+
   const rankedShops = useQuery({
+    // sort/category/stock/page/region are client-side presentation state and
+    // stay OUT of this key; region would join it only if the API ever gains a
+    // region param.
     queryKey: ["ranked-shops", params],
     queryFn: () => fetchRankedShops(params),
     enabled,
@@ -57,6 +74,14 @@ export default function ResultsRoute() {
   function setParam(key: string, value: string) {
     const next = new URLSearchParams(searchParams);
     next.set(key, value);
+    if (PAGE_RESETTERS.has(key)) next.delete("page");
+    setSearchParams(next);
+  }
+
+  function deleteParam(key: string) {
+    const next = new URLSearchParams(searchParams);
+    next.delete(key);
+    if (PAGE_RESETTERS.has(key)) next.delete("page");
     setSearchParams(next);
   }
 
@@ -76,15 +101,26 @@ export default function ResultsRoute() {
       <TopBar q={params.q} near={params.near ?? null} radiusKm={radiusKm} lang={lang}
         onSearch={(q) => setParam("q", q)}
         onRadius={(km) => setParam("radius", String(km))}
-        onLang={setLang} />
+        onLang={setLang}
+        category={category}
+        onCategory={(c) => (c ? setParam("category", c) : deleteParam("category"))} />
       <div className="split">
         <ResultsPanel query={rankedShops} pingedIds={pingedIds}
           selectedShopId={selectedShopId} onSelect={setSelectedShopId}
           lang={lang} radiusKm={radiusKm}
           onWiden={() => setParam("radius", "5")}
-          onRetry={() => { void rankedShops.refetch(); void shopsGeoJSON.refetch(); void allShops.refetch(); }} />
+          onRetry={() => { void rankedShops.refetch(); void shopsGeoJSON.refetch(); void allShops.refetch(); }}
+          sort={sort} onSort={(s) => setParam("sort", s)}
+          category={category}
+          onCategory={(c) => (c ? setParam("category", c) : deleteParam("category"))}
+          inStockOnly={inStockOnly}
+          onInStockOnly={(v) => (v ? setParam("stock", "1") : deleteParam("stock"))}
+          page={page} onPage={(p) => setParam("page", String(p))} />
         <MapPanel matched={shopsGeoJSON.data} network={allShops.data}
-          pingedIds={pingedIds} selectedShopId={selectedShopId} onSelect={setSelectedShopId} lang={lang} />
+          pingedIds={pingedIds} selectedShopId={selectedShopId} onSelect={setSelectedShopId} lang={lang}
+          region={region}
+          onRegion={(r) => (r ? setParam("region", r) : deleteParam("region"))}
+          networkCount={allShops.data?.metadata.shop_count ?? 0} />
       </div>
     </div>
   );

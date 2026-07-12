@@ -1,11 +1,50 @@
+/* ================= SPLIT + MAP OVERLAY ================= */
 .results-screen { height: 100%; display: flex; flex-direction: column; }
-.split { flex: 1; display: flex; min-height: 0; }
-.results-panel { width: 420px; min-width: 360px; overflow-y: auto; background: var(--ink-800); padding: 8px; }
-.map-panel { flex: 1; position: relative; background: var(--ink-900); }
+.split {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1fr 1fr;
+}
+.results-panel { overflow-y: auto; min-width: 0; background: var(--ink-800); }
+/* The wrap takes .map-panel's old grid slot; sticky keeps the map in view
+ * while the left column scrolls. */
+.map-panel-wrap { position: relative; min-width: 0; }
+.map-panel { position: absolute; inset: 0; background: var(--amz-navbar); }
 @media (max-width: 900px) {
-  .split { flex-direction: column-reverse; }
-  .results-panel { width: 100%; flex: 1; }
-  .map-panel { height: 45vh; flex: none; }
+  .split { display: flex; flex-direction: column; }
+  .map-panel-wrap { height: 40vh; flex: none; }
+  .results-panel { flex: 1; }
+}
+
+.map-overlay {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 10px; pointer-events: none;
+}
+.map-overlay .region-select, .map-overlay .live-indicator { pointer-events: auto; }
+.region-select {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--amz-navbar); color: var(--ink-900);
+  border: 1px solid var(--amz-navbar-2); border-radius: 8px; padding: 5px 10px;
+  box-shadow: var(--shadow-card);
+}
+.region-select .microcaps { color: var(--ink-600); }
+.region-select select {
+  background: var(--amz-navbar); color: var(--ink-900);
+  border: none; cursor: pointer; max-width: 140px;
+}
+.live-indicator {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--amz-navbar); color: var(--ink-900);
+  border: 1px solid var(--amz-navbar-2); border-radius: 8px; padding: 6px 10px;
+  box-shadow: var(--shadow-card); font-size: 12px;
+}
+.live-indicator .mono { color: var(--ink-600); }
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--stock-green); animation: live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--stock-green) 30%, transparent); }
 }
 
 /* ================= TOPBAR (Amazon navbar, two stacked bars) ================= */
@@ -53,8 +92,53 @@
 .cat-pill.active { border-color: var(--ink-900); }
 .cat-strip.inert .cat-pill { cursor: default; }
 
-.results-meta { color: var(--sand-dim); padding: 8px 12px; margin: 0; }
+/* ================= RESULTS PANEL (sort/filter/pagination) ================= */
+.results-meta { color: var(--sand-dim); padding: 0 12px 8px; margin: 0; }
 .results-meta .mono { color: var(--sand-dim); }
+.results-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 12px 12px 4px;
+}
+.results-count { margin: 0; font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.sort-select { display: flex; align-items: center; gap: 6px; color: var(--sand-dim); }
+.sort-select select {
+  background: var(--ink-800); color: var(--sand);
+  border: 1px solid var(--ink-600); border-radius: 8px; padding: 4px 8px;
+  box-shadow: var(--shadow-card); cursor: pointer;
+}
+.results-body { display: flex; gap: 12px; padding: 0 12px 12px; align-items: flex-start; }
+.filter-rail {
+  flex: none; width: 180px; position: sticky; top: 0;
+  padding: 12px; background: var(--ink-900);
+  border: 1px solid var(--ink-600); border-radius: 8px;
+}
+.filter-title { margin: 0 0 8px; color: var(--sand); }
+.filter-sub { margin: 8px 0 4px; color: var(--sand-dim); }
+.filter-cats { list-style: none; margin: 0; padding: 0; }
+.filter-cats label, .filter-stock {
+  display: flex; align-items: center; gap: 6px; padding: 3px 0;
+  font-size: 13px; cursor: pointer;
+}
+.filter-stock { margin-top: 10px; border-top: 1px solid var(--ink-700); padding-top: 10px; }
+.filter-rail input[type="checkbox"] { accent-color: var(--terracotta); }
+.card-column { flex: 1; min-width: 0; }
+.pagination {
+  display: flex; justify-content: center; align-items: center; gap: 4px;
+  padding: 16px 0 8px; flex-wrap: wrap;
+}
+.pagination button {
+  background: var(--ink-900); border: 1px solid var(--ink-600); border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; color: var(--sand);
+}
+.pagination button:hover:enabled { box-shadow: var(--shadow-card); }
+.pagination button:disabled { color: var(--sand-dim); cursor: default; }
+.pagination button.current { border-color: var(--sand); color: var(--sand); font-weight: 600; }
+@media (max-width: 1200px) {
+  .results-body { flex-direction: column; }
+  .filter-rail { position: static; width: 100%; display: flex; gap: 16px; align-items: center; }
+  .filter-cats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .filter-stock { margin: 0; border: none; padding: 3px 0; }
+}
 
 /* ================= SHOPCARD (Amazon product card) ================= */
 .shop-card {

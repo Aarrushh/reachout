@@ -2,6 +2,8 @@ import maplibregl, { Map as MLMap, Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 
+import MapOverlay from "./MapOverlay";
+import { BARRIOS } from "../data/barrios";
 import { pingLinesFC, radiusRingFC } from "../map/map-layers";
 import { formatDistance, formatPrice } from "../lib/format";
 import { CATEGORY_ICONS } from "./ShopCard";
@@ -38,6 +40,9 @@ interface Props {
   selectedShopId: string | null;
   onSelect: (id: string | null) => void;
   lang: Lang;
+  region: string | null;
+  onRegion: (r: string | null) => void;
+  networkCount: number;
 }
 
 function setData(map: MLMap, id: string, fc: GeoJSON.FeatureCollection) {
@@ -61,7 +66,7 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-export default function MapPanel({ matched, network, pingedIds, selectedShopId, onSelect, lang }: Props) {
+export default function MapPanel({ matched, network, pingedIds, selectedShopId, onSelect, lang, region, onRegion, networkCount }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -173,6 +178,28 @@ export default function MapPanel({ matched, network, pingedIds, selectedShopId, 
     setData(map, "lines", pingLinesFC(matched.metadata.center, matched, pingedIds));
   }, [loaded, matched, pingedIds, selectedShopId]);
 
+  // Overlay-owned camera effect: the region selector flies the camera to the
+  // barrio centroid (chrome-level camera work only — no sources/layers).
+  // Skipped until the user actually changes region, so it never fights the
+  // fitBounds that frames a fresh result set.
+  const prevRegionRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded) return;
+    const prev = prevRegionRef.current;
+    prevRegionRef.current = region;
+    if (prev === region) return;
+    if (prev === undefined && region === null) return;
+    const barrio = region ? BARRIOS.find((b) => b.name === region) : undefined;
+    const center: [number, number] = barrio ? [barrio.lng, barrio.lat] : MADRID;
+    const zoom = barrio ? 14 : 13;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      map.jumpTo({ center, zoom });
+    } else {
+      map.flyTo({ center, zoom, duration: 800 });
+    }
+  }, [loaded, region]);
+
   // Popup follows selection.
   useEffect(() => {
     const map = mapRef.current;
@@ -192,5 +219,10 @@ export default function MapPanel({ matched, network, pingedIds, selectedShopId, 
       .addTo(map);
   }, [loaded, matched, selectedShopId, lang]);
 
-  return <div ref={container} className="map-panel" />;
+  return (
+    <div className="map-panel-wrap">
+      <div ref={container} className="map-panel" />
+      <MapOverlay region={region} onRegion={onRegion} networkCount={networkCount} lang={lang} />
+    </div>
+  );
 }
