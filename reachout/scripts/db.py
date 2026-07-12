@@ -61,6 +61,9 @@ def init_db(path=None):
             currency TEXT NOT NULL,
             qty INTEGER NOT NULL,
             synthetic INTEGER NOT NULL,
+            source TEXT NOT NULL DEFAULT 'template',
+            rating REAL,
+            review_count INTEGER,
             updated_at TEXT NOT NULL,
             PRIMARY KEY (shop_id, sku),
             FOREIGN KEY (shop_id) REFERENCES shops(shop_id)
@@ -68,6 +71,7 @@ def init_db(path=None):
 
         CREATE INDEX IF NOT EXISTS idx_inv_name ON inventory(name);
         CREATE INDEX IF NOT EXISTS idx_inv_qty ON inventory(qty);
+        PRAGMA user_version = 3;
         """
     )
     conn.commit()
@@ -97,8 +101,8 @@ def upsert_shop(conn, shop):
 def upsert_item(conn, item):
     conn.execute(
         "INSERT OR REPLACE INTO inventory "
-        "(shop_id, sku, name, category, price, currency, qty, synthetic, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "(shop_id, sku, name, category, price, currency, qty, synthetic, source, rating, review_count, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             item["shop_id"],
             item["sku"],
@@ -108,6 +112,9 @@ def upsert_item(conn, item):
             item["currency"],
             item["qty"],
             1 if item["synthetic"] else 0,
+            item.get("source", "template"),
+            item.get("rating"),
+            item.get("review_count"),
             now_iso(),
         ),
     )

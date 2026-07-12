@@ -14,6 +14,11 @@ MIGRATIONS = [
     (2, """
         ALTER TABLE shops ADD COLUMN region_id TEXT;
         CREATE INDEX idx_shops_region ON shops(region_id);
+    """),
+    (3, """
+        ALTER TABLE inventory ADD COLUMN source TEXT NOT NULL DEFAULT 'template';
+        ALTER TABLE inventory ADD COLUMN rating REAL;
+        ALTER TABLE inventory ADD COLUMN review_count INTEGER;
     """)
 ]
 

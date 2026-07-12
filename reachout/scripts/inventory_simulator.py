@@ -77,7 +77,7 @@ def _tick(conn):
             db.upsert_item(conn, {
                 "shop_id": shop["shop_id"], "sku": entry["sku"], "name": entry["name"],
                 "category": category, "price": entry["base_price_eur"], "currency": "EUR",
-                "qty": qty, "synthetic": True,
+                "qty": qty, "synthetic": True, "source": "template",
             })
             _log_event({"type": "new_item", "shop_id": shop["shop_id"], "shop": shop["name"],
                         "sku": entry["sku"], "name": entry["name"], "qty_now": qty})

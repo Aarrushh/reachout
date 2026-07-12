@@ -100,7 +100,10 @@ def test_migration_1_regions_table(clean_db):
             fetched_at TEXT NOT NULL
         );
     """)
+    full_migrations = migrations.MIGRATIONS.copy()
+    migrations.MIGRATIONS = [full_migrations[0]]
     migrations.migrate(clean_db)
+    migrations.MIGRATIONS = full_migrations
     
     version = clean_db.execute("PRAGMA user_version").fetchone()[0]
     assert version >= 1
@@ -159,8 +162,9 @@ def test_migration_2_shops_region_id(clean_db):
     )
     
     # Restore full migrations and apply
-    migrations.MIGRATIONS = full_migrations
+    migrations.MIGRATIONS = [full_migrations[0], full_migrations[1]]
     migrations.migrate(clean_db)
+    migrations.MIGRATIONS = full_migrations
     
     version = clean_db.execute("PRAGMA user_version").fetchone()[0]
     assert version >= 2
@@ -182,3 +186,75 @@ def test_migration_2_shops_region_id(clean_db):
     # Check existing row
     row = clean_db.execute("SELECT region_id FROM shops WHERE shop_id = 'shop1'").fetchone()
     assert row[0] is None
+
+def test_migration_3_inventory_columns(clean_db):
+    """Test that migration 3 adds source, rating, and review_count to inventory."""
+    clean_db.executescript("""
+        CREATE TABLE IF NOT EXISTS shops (
+            shop_id TEXT PRIMARY KEY,
+            osm_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            categories TEXT NOT NULL,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            address TEXT,
+            source TEXT NOT NULL,
+            fetched_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS inventory (
+            shop_id TEXT NOT NULL,
+            sku TEXT NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            price REAL NOT NULL,
+            currency TEXT NOT NULL,
+            qty INTEGER NOT NULL,
+            synthetic INTEGER NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (shop_id, sku),
+            FOREIGN KEY (shop_id) REFERENCES shops(shop_id)
+        );
+    """)
+    
+    full_migrations = migrations.MIGRATIONS.copy()
+    migrations.MIGRATIONS = [full_migrations[0], full_migrations[1]]
+    migrations.migrate(clean_db)
+    
+    clean_db.execute(
+        "INSERT INTO shops (shop_id, osm_id, name, categories, lat, lng, source, fetched_at) "
+        "VALUES ('shop1', 1, 'Shop 1', '[]', 0, 0, 'src', 'now')"
+    )
+    clean_db.execute(
+        "INSERT INTO inventory (shop_id, sku, name, category, price, currency, qty, synthetic, updated_at) "
+        "VALUES ('shop1', 'sku1', 'Item 1', 'cat', 10.0, 'EUR', 1, 1, 'now')"
+    )
+    
+    migrations.MIGRATIONS = full_migrations
+    migrations.migrate(clean_db)
+    
+    version = clean_db.execute("PRAGMA user_version").fetchone()[0]
+    assert version >= 3
+    
+    columns = clean_db.execute("PRAGMA table_info(inventory)").fetchall()
+    col_names = [col[1] for col in columns]
+    assert "source" in col_names
+    assert "rating" in col_names
+    assert "review_count" in col_names
+    
+    source_col = next(col for col in columns if col[1] == "source")
+    assert source_col[2] == "TEXT"
+    assert source_col[3] == 1 # not null
+    assert source_col[4] == "'template'" # default
+    
+    rating_col = next(col for col in columns if col[1] == "rating")
+    assert rating_col[2] == "REAL"
+    assert rating_col[3] == 0 # nullable
+    
+    review_count_col = next(col for col in columns if col[1] == "review_count")
+    assert review_count_col[2] == "INTEGER"
+    assert review_count_col[3] == 0 # nullable
+    
+    row = clean_db.execute("SELECT source, rating, review_count FROM inventory WHERE shop_id = 'shop1'").fetchone()
+    assert row[0] == 'template'
+    assert row[1] is None
+    assert row[2] is None
