@@ -57,6 +57,63 @@ def test_search_returns_schema_valid_ranked_shops(tmp_path, monkeypatch):
     assert body["results"][0]["shop_id"] == "osm:node:1001"
 
 
+def test_search_paginated_returns_schema_valid_search_page(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/search", params={
+        "q": "algo para el dolor de cabeza", "near": "Malasaña", "radius": 2.0,
+        "page": 1, "page_size": 1
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    ok, err = v.validate(body, "search_page.schema.json")
+    assert ok, err
+    assert body["status"] == "ok"
+    assert body["page"] == 1
+    assert body["page_size"] == 1
+    assert body["total_results"] == 1
+    assert body["total_pages"] == 1
+    assert body["result_count"] == 1
+    assert body["results"][0]["shop_id"] == "osm:node:1001"
+    assert body["results"][0]["rank"] == 1
+
+
+def test_search_paginated_out_of_bounds(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/search", params={
+        "q": "algo para el dolor de cabeza", "near": "Malasaña", "radius": 2.0,
+        "page": 2, "page_size": 10
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    ok, err = v.validate(body, "search_page.schema.json")
+    assert ok, err
+    assert body["status"] == "ok"
+    assert body["page"] == 2
+    assert body["page_size"] == 10
+    assert body["total_results"] == 1
+    assert body["total_pages"] == 1
+    assert body["result_count"] == 0
+    assert body["results"] == []
+
+
+def test_search_paginated_invalid_parameters(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    
+    # Invalid page (<= 0)
+    resp = client.get("/api/search", params={
+        "q": "algo para el dolor de cabeza", "near": "Malasaña", "radius": 2.0,
+        "page": 0
+    })
+    assert resp.status_code == 422
+    
+    # Invalid page_size (> 50)
+    resp = client.get("/api/search", params={
+        "q": "algo para el dolor de cabeza", "near": "Malasaña", "radius": 2.0,
+        "page": 1, "page_size": 51
+    })
+    assert resp.status_code == 422
+
+
 def test_search_geojson_returns_schema_valid_featurecollection(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     resp = client.get("/api/search.geojson", params={

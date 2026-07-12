@@ -20,7 +20,8 @@ for _dir in (os.path.join(REACHOUT_DIR, "scripts"), os.path.join(REACHOUT_DIR, "
     if _dir not in sys.path:
         sys.path.insert(0, _dir)
 
-from fastapi import FastAPI, HTTPException, Response  # noqa: E402
+from fastapi import FastAPI, HTTPException, Response, Query  # noqa: E402
+import math
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 import db  # noqa: E402
@@ -66,9 +67,46 @@ def _run_pipeline(q, near, lat, lng, radius):
 
 @app.get("/api/search")
 def search(q: str, near: Optional[str] = None, lat: Optional[float] = None,
-           lng: Optional[float] = None, radius: float = 2.0):
+           lng: Optional[float] = None, radius: float = 2.0,
+           page: Optional[int] = Query(None, ge=1),
+           page_size: Optional[int] = Query(10, ge=1, le=50)):
     result = _run_pipeline(q, near, lat, lng, radius)
-    return result["ranked_shops"]
+    ranked = result["ranked_shops"]
+
+    if page is None:
+        return ranked
+
+    # Paginate the response based on search_page.schema.json
+    if ranked["status"] != "ok":
+        # Pass through error/incomplete, but validate as search_page
+        ok, err = validate.validate(ranked, "search_page.schema.json")
+        if not ok:
+            raise HTTPException(status_code=500, detail=f"search_page failed schema: {err}")
+        return ranked
+
+    total_results = len(ranked["results"])
+    total_pages = math.ceil(total_results / page_size) if total_results > 0 else 0
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    sliced_results = ranked["results"][start_idx:end_idx]
+
+    body = {
+        "status": "ok",
+        "query": ranked["query"],
+        "generated_at": ranked["generated_at"],
+        "page": page,
+        "page_size": page_size,
+        "total_results": total_results,
+        "total_pages": total_pages,
+        "result_count": len(sliced_results),
+        "results": sliced_results,
+    }
+    
+    ok, err = validate.validate(body, "search_page.schema.json")
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"search_page failed schema: {err}")
+
+    return body
 
 
 @app.get("/api/search.geojson")
