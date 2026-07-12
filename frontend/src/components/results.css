@@ -56,34 +56,65 @@
 .results-meta { color: var(--sand-dim); padding: 8px 12px; margin: 0; }
 .results-meta .mono { color: var(--sand-dim); }
 
+/* ================= SHOPCARD (Amazon product card) ================= */
 .shop-card {
-  padding: 12px; border-radius: 6px; cursor: pointer;
-  border-left: 2px solid transparent;
-  border-bottom: 1px solid rgba(34, 48, 76, 0.6);
-  background: var(--ink-800);
+  position: relative; display: flex; gap: 12px; padding: 14px; cursor: pointer;
+  background: var(--ink-900); border: 1px solid var(--ink-600); border-radius: 8px;
+  margin-bottom: 8px;
 }
-.shop-card:hover, .shop-card.selected { background: var(--ink-600); }
+.shop-card:hover { box-shadow: var(--shadow-card); }
+.shop-card.selected { outline: 2px solid var(--terracotta); outline-offset: -1px; }
 .shop-card.cat-pharmacy { --cat: var(--cat-pharmacy); }
 .shop-card.cat-grocery { --cat: var(--cat-grocery); }
 .shop-card.cat-hardware { --cat: var(--cat-hardware); }
 .shop-card.cat-electronics { --cat: var(--cat-electronics); }
 .shop-card.cat-stationery { --cat: var(--cat-stationery); }
-.shop-card:hover, .shop-card.selected { border-left-color: var(--cat); }
-.shop-card header { display: flex; align-items: baseline; gap: 8px; }
-.shop-card .rank { color: var(--sand-dim); font-size: 13px; }
-.shop-card .cat-icon { color: var(--cat); font-size: 15px; }
-.shop-card h3 { font-family: var(--font-display); font-size: 14px; font-weight: 600; margin: 0; flex: 1; }
-.shop-card .distance { margin-left: auto; color: var(--sand-dim); }
-.shop-card .item-name { margin: 4px 0 0 0; color: var(--sand); }
-.shop-card .data-row { margin: 4px 0 0 0; display: flex; gap: 8px; align-items: baseline; color: var(--sand-dim); }
-.shop-card .price { color: var(--gold); white-space: nowrap; }
-.shop-card .stock { white-space: nowrap; }
-.shop-card .stock.low { color: var(--cat-hardware); }
-.shop-card .address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dot-sep { color: var(--navy-line); }
+.card-tile {
+  position: relative; flex: none; width: 96px; height: 96px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 40px; color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 15%, var(--ink-900));
+}
+.card-tile .rank {
+  position: absolute; top: -2px; left: -2px; font-size: 11px;
+  color: var(--sand-dim); background: var(--ink-800);
+  border: 1px solid var(--ink-600); border-radius: 999px; padding: 1px 6px;
+}
+.card-body { flex: 1; min-width: 0; }
+.item-title {
+  margin: 0; font-family: var(--font-ui); font-size: 16px; font-weight: 500;
+  color: var(--navy-line);
+}
+.shop-card:hover .item-title { text-decoration: underline; }
+.trust-row { margin: 3px 0 0; display: flex; align-items: center; gap: 6px; }
+.stars { position: relative; display: inline-block; height: 16px; line-height: 0; }
+.stars-empty { display: inline-flex; }
+.stars-filled {
+  position: absolute; top: 0; left: 0; display: inline-flex;
+  overflow: hidden; white-space: nowrap;
+}
+.rating-value, .review-count { color: var(--navy-line); font-size: 13px; }
+.no-rating { color: var(--sand-dim); font-size: 13px; }
+.price-row { margin: 3px 0 0; }
+.split-price { color: var(--price-red); line-height: 1; }
+.split-price .price-sym { font-size: 12px; }
+.split-price .price-int { font-size: 21px; }
+.split-price .price-dec { font-size: 12px; }
+.stock-badge { margin: 3px 0 0; font-size: 13px; }
+.stock-badge.in { color: var(--stock-green); }
+.stock-badge.low { color: var(--stock-amber); }
+.stock-badge.out { color: var(--sand-dim); }
+.meta-row {
+  margin: 6px 0 0; color: var(--sand-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.meta-row .mono { color: var(--sand-dim); }
 
-.ping-badge { color: var(--terracotta-hot); display: inline-flex; align-items: center; gap: 4px; }
-.ping-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--terracotta-hot); }
+.ping-badge {
+  position: absolute; top: 10px; right: 10px;
+  color: var(--terracotta); display: inline-flex; align-items: center; gap: 4px;
+}
+.ping-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--terracotta); }
 
 .skeleton-card {
   height: 92px; border-radius: 6px; margin-bottom: 8px;
@@ -96,7 +127,7 @@
 .shop-card.pinged { opacity: 1; animation: card-in 0.3s ease-out; }
 @keyframes card-in { from { transform: translateY(12px); opacity: 0.35; } to { transform: none; opacity: 1; } }
 .shop-card.pinged .ping-dot { animation: ping-pulse 0.4s ease-out 3; }
-@keyframes ping-pulse { 50% { box-shadow: 0 0 0 5px rgba(255, 138, 102, 0.35); } }
+@keyframes ping-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--terracotta) 35%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .shop-card { opacity: 1; } }
 
 .results-panel.state { display: flex; flex-direction: column; gap: 12px; padding: 32px 24px; }
@@ -107,11 +138,11 @@
 }
 
 .user-dot {
-  width: 10px; height: 10px; border-radius: 50%; background: var(--sand);
-  box-shadow: 0 0 0 4px rgba(234, 217, 189, 0.2);
+  width: 10px; height: 10px; border-radius: 50%; background: var(--terracotta);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--terracotta) 20%, transparent);
   animation: breathe 2s ease-in-out infinite;
 }
-@keyframes breathe { 50% { box-shadow: 0 0 0 9px rgba(234, 217, 189, 0.08); } }
+@keyframes breathe { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--terracotta) 8%, transparent); } }
 .shop-popup .maplibregl-popup-content {
   background: var(--ink-700); color: var(--sand); border: 1px solid var(--ink-600);
   border-radius: 6px; padding: 10px 12px; font-family: var(--font-ui); font-size: 13px;
