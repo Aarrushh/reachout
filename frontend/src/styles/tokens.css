@@ -1,18 +1,39 @@
+/*
+ * Amazon-style light theme. Token NAMES are frozen — MapPanel.tsx reads them
+ * by name at runtime via getComputedStyle. The map basemap (Carto Dark Matter)
+ * stays dark, so --navy-line and --cat-* are mid-lightness values that hold up
+ * on BOTH white cards (WCAG AA ≥ 4.5:1 vs #ffffff) and the dark map (≥ 3.4:1
+ * vs ~#0e0e0e, non-text graphic use).
+ *
+ * Contrast vs #ffffff: cat-pharmacy 5.32, cat-grocery 4.80, cat-hardware 4.85,
+ * cat-electronics 5.61, cat-stationery 5.63, navy-line 5.67, err 6.64,
+ * sand-dim 7.07, stock-green 5.85.
+ */
 :root {
-  --ink-900: #0c1220; --ink-800: #111a2c; --ink-700: #18233a; --ink-600: #22304c;
-  --terracotta: #e2725b; --terracotta-hot: #ff8a66;
-  --sand: #ead9bd; --sand-dim: #9aa3b5; --gold: #d9a441; --navy-line: #3a4e78;
-  --cat-pharmacy: #7fb069; --cat-grocery: #b8d97e; --cat-hardware: #f4a259;
-  --cat-electronics: #5bc0eb; --cat-stationery: #c77dff; --err: #e45858;
+  --ink-900: #ffffff; --ink-800: #f7f8f8; --ink-700: #eaeded; --ink-600: #d5d9d9;
+  --terracotta: #ff9900; --terracotta-hot: #e47911;
+  --sand: #0f1111; --sand-dim: #565959; --gold: #ffa41c; --navy-line: #007185;
+  --cat-pharmacy: #217a4b; --cat-grocery: #5a7d0e; --cat-hardware: #b05a1e;
+  --cat-electronics: #0f6e9e; --cat-stationery: #8b3fd1; --err: #b12704;
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
   --font-ui: "Inter", sans-serif;
+
+  /* Amazon-look additions */
+  --price-red: #b12704;
+  --star-gold: #ffa41c;
+  --stock-green: #007600;
+  --stock-amber: #b12704;
+  --amz-navbar: #131921;
+  --amz-navbar-2: #232f3e;
+  --focus-ring: #007185;
+  --shadow-card: 0 2px 5px rgba(15, 17, 17, 0.15);
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--ink-900); color: var(--sand);
-  font-family: var(--font-ui); font-size: 13px; line-height: 1.4;
+  font-family: var(--font-ui); font-size: 14px; line-height: 1.4;
 }
 .mono { font-family: var(--font-mono); font-weight: 500; }
 .microcaps {
