@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Region Record",
+  "description": "A geographical region with associated shop metadata",
+  "type": "object",
+  "properties": {
+    "region_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lat": {
+      "type": "number",
+      "minimum": 40.2,
+      "maximum": 40.7
+    },
+    "lng": {
+      "type": "number",
+      "minimum": -4.0,
+      "maximum": -3.4
+    },
+    "source": {
+      "type": "string",
+      "enum": ["gazetteer"]
+    },
+    "shop_count": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": ["region_id", "name", "lat", "lng", "source", "shop_count"],
+  "additionalProperties": false
+}

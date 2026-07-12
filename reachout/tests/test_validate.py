@@ -45,3 +45,53 @@ def test_multiple_of_still_rejects_a_genuine_sub_cent_price():
     ok, err = v.validate(_stock_matches_with_price(4.691), "stock_matches.schema.json")
     assert not ok
     assert "multiple of" in err
+
+
+def test_region_record_schema():
+    base_payload = {
+        "region_id": "malasana-madrid",
+        "name": "Malasaña",
+        "lat": 40.4267,
+        "lng": -3.7038,
+        "source": "gazetteer",
+        "shop_count": 5
+    }
+
+    # Valid payload
+    ok, err = v.validate(base_payload, "region_record.schema.json")
+    assert ok, err
+
+    # Invalid region_id pattern
+    bad_id = dict(base_payload, region_id="Malasana!")
+    ok, err = v.validate(bad_id, "region_record.schema.json")
+    assert not ok
+
+    # Invalid name (minLength 1)
+    bad_name = dict(base_payload, name="")
+    ok, err = v.validate(bad_name, "region_record.schema.json")
+    assert not ok
+
+    # Lat out of bounds
+    bad_lat = dict(base_payload, lat=41.0)
+    ok, err = v.validate(bad_lat, "region_record.schema.json")
+    assert not ok
+
+    # Lng out of bounds
+    bad_lng = dict(base_payload, lng=-3.0)
+    ok, err = v.validate(bad_lng, "region_record.schema.json")
+    assert not ok
+
+    # Invalid source
+    bad_source = dict(base_payload, source="unknown")
+    ok, err = v.validate(bad_source, "region_record.schema.json")
+    assert not ok
+
+    # Invalid shop_count
+    bad_count = dict(base_payload, shop_count=-1)
+    ok, err = v.validate(bad_count, "region_record.schema.json")
+    assert not ok
+
+    # Additional properties
+    extra_prop = dict(base_payload, extra="foo")
+    ok, err = v.validate(extra_prop, "region_record.schema.json")
+    assert not ok
