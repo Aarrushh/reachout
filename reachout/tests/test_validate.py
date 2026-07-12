@@ -95,3 +95,86 @@ def test_region_record_schema():
     extra_prop = dict(base_payload, extra="foo")
     ok, err = v.validate(extra_prop, "region_record.schema.json")
     assert not ok
+
+def test_regions_response_schema_ok():
+    base_payload = {
+        "status": "ok",
+        "generated_at": "2023-01-01T12:00:00Z",
+        "region_count": 1,
+        "regions": [
+            {
+                "region_id": "malasana-madrid",
+                "name": "Malasaña",
+                "lat": 40.4267,
+                "lng": -3.7038,
+                "source": "gazetteer",
+                "shop_count": 5
+            }
+        ]
+    }
+
+    # Valid payload
+    ok, err = v.validate(base_payload, "regions_response.schema.json")
+    assert ok, err
+
+    # Invalid status
+    bad_status = dict(base_payload, status="foo")
+    ok, err = v.validate(bad_status, "regions_response.schema.json")
+    assert not ok
+
+    # Missing generated_at
+    bad_payload = dict(base_payload)
+    del bad_payload["generated_at"]
+    ok, err = v.validate(bad_payload, "regions_response.schema.json")
+    assert not ok
+    
+    # Missing region_count
+    bad_payload = dict(base_payload)
+    del bad_payload["region_count"]
+    ok, err = v.validate(bad_payload, "regions_response.schema.json")
+    assert not ok
+    
+    # Missing regions
+    bad_payload = dict(base_payload)
+    del bad_payload["regions"]
+    ok, err = v.validate(bad_payload, "regions_response.schema.json")
+    assert not ok
+
+    # Invalid region count
+    bad_count = dict(base_payload, region_count=-1)
+    ok, err = v.validate(bad_count, "regions_response.schema.json")
+    assert not ok
+
+    # Additional properties
+    extra_prop = dict(base_payload, extra="foo")
+    ok, err = v.validate(extra_prop, "regions_response.schema.json")
+    assert not ok
+
+
+def test_regions_response_schema_error():
+    base_payload = {
+        "status": "error",
+        "error": {
+            "code": "internal",
+            "detail": "Something went wrong"
+        }
+    }
+
+    # Valid payload
+    ok, err = v.validate(base_payload, "regions_response.schema.json")
+    assert ok, err
+
+    # Invalid code
+    bad_code = dict(base_payload, error={"code": "foo", "detail": "foo"})
+    ok, err = v.validate(bad_code, "regions_response.schema.json")
+    assert not ok
+
+    # Missing detail
+    bad_error = dict(base_payload, error={"code": "internal"})
+    ok, err = v.validate(bad_error, "regions_response.schema.json")
+    assert not ok
+
+    # Missing error object
+    bad_payload = {"status": "error"}
+    ok, err = v.validate(bad_payload, "regions_response.schema.json")
+    assert not ok
