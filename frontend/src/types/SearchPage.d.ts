@@ -1,18 +1,22 @@
 /* eslint-disable */
 /**
- * Generated from reachout/shared/schemas/ranked_shops.schema.json — do not hand-edit.
+ * Generated from reachout/shared/schemas/search_page.schema.json — do not hand-edit.
  * Run `npm run gen-types` to regenerate.
  */
 
 /**
- * The final consumer-facing artifact: a ranked FACTUAL list of nearby shops holding the item. additionalProperties:false on every object is the narrative gate. Now includes optional rating and review_count. Script invariants: result_count == results.length; ranks are 1..N contiguous in array order.
+ * Paginated envelope for GET /api/search. The ranks stay the GLOBAL ranks (page 2 starts at rank 11). result_count equals the slice length.
  */
-export type RankedShops = {
+export type SearchPage = {
   [k: string]: unknown;
 } & {
   status: "ok" | "incomplete" | "error";
   query?: string;
   generated_at?: string;
+  page?: number;
+  page_size?: number;
+  total_results?: number;
+  total_pages?: number;
   result_count?: number;
   results?: {
     rank: number;
@@ -31,8 +35,6 @@ export type RankedShops = {
     stock_qty: number;
     lat: number;
     lng: number;
-    rating?: number;
-    review_count?: number;
   }[];
   /**
    * @minItems 1

@@ -1,10 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "InventoryRecord",
-  "description": "One SKU at one shop. Written only by inventory_seeder.py / inventory_simulator.py — never by an AI stage. synthetic is const true for the entire MVP: real shops, simulated stock, and the data never lies about that.",
+  "description": "One SKU at one shop. Written only by inventory_seeder.py / inventory_simulator.py — never by an AI stage. synthetic is const true for the entire MVP: real shops, simulated stock, and the data never lies about that. Now includes optional rating, review_count, and source.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["shop_id", "sku", "name", "category", "price", "currency", "qty", "synthetic", "source", "updated_at"],
+  "required": ["shop_id", "sku", "name", "category", "price", "currency", "qty", "synthetic", "updated_at"],
   "properties": {
     "shop_id": { "type": "string", "pattern": "^osm:(node|way|relation):[0-9]+$" },
     "sku": {
