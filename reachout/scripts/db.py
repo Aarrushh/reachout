@@ -215,6 +215,13 @@ def shops_in_region(conn, region_id):
     return [_shop_row(r) for r in conn.execute("SELECT * FROM shops WHERE region_id=?", (region_id,)).fetchall()]
 
 
+def get_region(conn, region_id):
+    row = conn.execute("SELECT * FROM regions WHERE region_id=?", (region_id,)).fetchone()
+    if row is None:
+        return None
+    return _region_row(row)
+
+
 def region_shop_counts(conn):
     rows = conn.execute("SELECT region_id, COUNT(*) as count FROM shops WHERE region_id IS NOT NULL GROUP BY region_id").fetchall()
     return {row["region_id"]: row["count"] for row in rows}

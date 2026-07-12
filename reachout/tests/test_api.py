@@ -121,6 +121,55 @@ def test_inventory_pagination_and_schema(tmp_path, monkeypatch):
     assert len(body["items"]) == 2
 
 
+def test_search_region_returns_schema_valid_ranked_shops(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/search", params={
+        "q": "algo para el dolor de cabeza", "region": "malasana", "radius": 2.0,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    ok, err = v.validate(body, "ranked_shops.schema.json")
+    assert ok, err
+    assert body["status"] == "ok"
+    assert body["result_count"] == 1
+    assert body["results"][0]["shop_id"] == "osm:node:1001"
+
+
+def test_search_geojson_region_returns_schema_valid(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/search.geojson", params={
+        "q": "algo para el dolor de cabeza", "region": "malasana", "radius": 2.0,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    ok, err = v.validate(body, "map_geojson.schema.json")
+    assert ok, err
+    assert body["features"][0]["properties"]["shop_id"] == "osm:node:1001"
+
+
+def test_search_region_mutually_exclusive(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    # Combine region with near
+    resp = client.get("/api/search", params={
+        "q": "algo", "region": "malasana", "near": "Malasaña"
+    })
+    assert resp.status_code == 400
+    
+    # Combine region with lat/lng
+    resp = client.get("/api/search", params={
+        "q": "algo", "region": "malasana", "lat": 40.4267, "lng": -3.7038
+    })
+    assert resp.status_code == 400
+
+
+def test_search_region_not_found(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/search", params={
+        "q": "algo", "region": "unknown_region"
+    })
+    assert resp.status_code == 404
+
+
 def test_search_returns_schema_valid_ranked_shops(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     resp = client.get("/api/search", params={

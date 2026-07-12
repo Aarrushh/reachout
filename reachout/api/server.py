@@ -50,7 +50,24 @@ def health():
     return body
 
 
-def _run_pipeline(q, near, lat, lng, radius):
+def _run_pipeline(q, near, lat, lng, radius, region=None):
+    if region is not None:
+        if near is not None or lat is not None or lng is not None:
+            raise HTTPException(status_code=400, detail="region cannot be combined with near, lat, or lng")
+        
+        conn = db.connect(DB_PATH)
+        try:
+            region_data = db.get_region(conn, region)
+        finally:
+            conn.close()
+            
+        if not region_data:
+            raise HTTPException(status_code=404, detail=f"Region '{region}' not found")
+            
+        lat = region_data["lat"]
+        lng = region_data["lng"]
+        near = None
+
     if (lat is None) != (lng is None):
         raise HTTPException(status_code=400, detail="lat and lng must be given together")
 
@@ -69,9 +86,10 @@ def _run_pipeline(q, near, lat, lng, radius):
 @app.get("/api/search")
 def search(q: str, near: Optional[str] = None, lat: Optional[float] = None,
            lng: Optional[float] = None, radius: float = 2.0,
+           region: Optional[str] = None,
            page: Optional[int] = Query(None, ge=1),
            page_size: Optional[int] = Query(10, ge=1, le=50)):
-    result = _run_pipeline(q, near, lat, lng, radius)
+    result = _run_pipeline(q, near, lat, lng, radius, region=region)
     ranked = result["ranked_shops"]
 
     if page is None:
@@ -112,8 +130,9 @@ def search(q: str, near: Optional[str] = None, lat: Optional[float] = None,
 
 @app.get("/api/search.geojson")
 def search_geojson(q: str, near: Optional[str] = None, lat: Optional[float] = None,
-                    lng: Optional[float] = None, radius: float = 2.0):
-    result = _run_pipeline(q, near, lat, lng, radius)
+                    lng: Optional[float] = None, radius: float = 2.0,
+                    region: Optional[str] = None):
+    result = _run_pipeline(q, near, lat, lng, radius, region=region)
     return result["geojson"]
 
 
