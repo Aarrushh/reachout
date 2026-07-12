@@ -37,7 +37,10 @@ def test_health():
     client = TestClient(server.app)
     resp = client.get("/api/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    body = resp.json()
+    assert body == {"status": "ok"}
+    ok, err = v.validate(body, "health_response.schema.json")
+    assert ok, err
 
 
 def test_search_returns_schema_valid_ranked_shops(tmp_path, monkeypatch):

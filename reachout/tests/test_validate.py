@@ -413,3 +413,53 @@ def test_stock_event_schema_errors():
     extra_prop = dict(base_payload, extra="foo")
     ok, err = v.validate(extra_prop, "stock_event.schema.json")
     assert not ok
+
+def test_health_response_schema_ok():
+    # Base minimal payload
+    base_payload = {"status": "ok"}
+    ok, err = v.validate(base_payload, "health_response.schema.json")
+    assert ok, err
+    
+    # Full payload
+    full_payload = {
+        "status": "ok",
+        "shop_count": 100,
+        "region_count": 10,
+        "simulator_running": True
+    }
+    ok, err = v.validate(full_payload, "health_response.schema.json")
+    assert ok, err
+    
+    # Partial payload
+    partial_payload = {
+        "status": "ok",
+        "simulator_running": False
+    }
+    ok, err = v.validate(partial_payload, "health_response.schema.json")
+    assert ok, err
+
+def test_health_response_schema_error():
+    # Invalid status
+    bad_payload = {"status": "error"}
+    ok, err = v.validate(bad_payload, "health_response.schema.json")
+    assert not ok
+
+    # Missing status
+    bad_payload = {"shop_count": 100}
+    ok, err = v.validate(bad_payload, "health_response.schema.json")
+    assert not ok
+
+    # Negative shop_count
+    bad_payload = {"status": "ok", "shop_count": -1}
+    ok, err = v.validate(bad_payload, "health_response.schema.json")
+    assert not ok
+
+    # Negative region_count
+    bad_payload = {"status": "ok", "region_count": -1}
+    ok, err = v.validate(bad_payload, "health_response.schema.json")
+    assert not ok
+
+    # Additional properties
+    bad_payload = {"status": "ok", "extra": "foo"}
+    ok, err = v.validate(bad_payload, "health_response.schema.json")
+    assert not ok

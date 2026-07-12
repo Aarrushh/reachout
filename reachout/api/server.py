@@ -41,7 +41,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    body = {"status": "ok"}
+    ok, err = validate.validate(body, "health_response.schema.json")
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"health_response failed schema: {err}")
+    return body
 
 
 def _run_pipeline(q, near, lat, lng, radius):

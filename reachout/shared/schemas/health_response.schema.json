@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HealthResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok"]
+    },
+    "shop_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "region_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "simulator_running": {
+      "type": "boolean"
+    }
+  }
+}
