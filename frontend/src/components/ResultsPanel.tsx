@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import ShopCard, { CATEGORY_ICONS } from "./ShopCard";
+import { monoNums } from "../lib/monoNums";
 import { CATEGORIES } from "./TopBar";
 import { t, type Lang, type StringKey } from "../i18n/strings";
 import type { RankedShops } from "../types/RankedShops";
@@ -93,7 +94,7 @@ export default function ResultsPanel({
   if (results.length === 0) {
     return (
       <div className="results-panel state">
-        <p>{t(lang, "results.empty", { r: radiusKm })}</p>
+        <p>{monoNums(t(lang, "results.empty", { r: radiusKm }))}</p>
         {radiusKm < 5 && <button className="cta" onClick={onWiden}>{t(lang, "results.widen")}</button>}
       </div>
     );
@@ -104,7 +105,7 @@ export default function ResultsPanel({
     <div className="results-panel" ref={panelRef}>
       <div className="results-header">
         <h2 className="results-count">
-          {t(lang, "results.count", { n: filtered.length, q: data.query ?? "" })}
+          {monoNums(t(lang, "results.count", { n: filtered.length, q: data.query ?? "" }))}
         </h2>
         <label className="sort-select">
           <span className="microcaps">{t(lang, "sort.label")}</span>
@@ -116,7 +117,7 @@ export default function ResultsPanel({
         </label>
       </div>
       <p className="results-meta microcaps">
-        {radiusKm} km · <span className="mono">{generatedAt}</span>
+        <span className="mono">{radiusKm} km</span> · <span className="mono">{generatedAt}</span>
       </p>
       <div className="results-body">
         <aside className="filter-rail">

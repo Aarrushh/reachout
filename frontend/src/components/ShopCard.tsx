@@ -1,4 +1,5 @@
 import { formatDistance, formatPrice } from "../lib/format";
+import { monoNums } from "../lib/monoNums";
 import { t, type Lang, type StringKey } from "../i18n/strings";
 import type { RankedResult } from "../routes/results";
 
@@ -82,7 +83,7 @@ export default function ShopCard({ result, pinged, selected, onSelect, lang }: P
         </p>
         <p className="price-row"><SplitPrice price={r.price} /></p>
         <p className={`stock-badge ${stockClass}`}>
-          {t(lang, stockKey, { n: r.stock_qty })}
+          {monoNums(t(lang, stockKey, { n: r.stock_qty }))}
         </p>
         <p className="meta-row microcaps">
           {r.shop_name} · <span className="mono">{formatDistance(r.distance_km, lang)}</span>
