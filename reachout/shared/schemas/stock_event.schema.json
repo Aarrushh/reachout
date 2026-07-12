@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StockEvent",
+  "description": "SSE event payload for real-time inventory updates",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "shop_id",
+    "shop_name",
+    "region_id",
+    "sku",
+    "name",
+    "qty_now",
+    "ts"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["sale", "restock", "new_item"]
+    },
+    "shop_id": {
+      "type": "string",
+      "pattern": "^osm:(node|way|relation):[0-9]+$"
+    },
+    "shop_name": {
+      "type": "string"
+    },
+    "region_id": {
+      "type": ["string", "null"]
+    },
+    "sku": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}-[0-9]{4}$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "qty_now": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sold": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "added": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

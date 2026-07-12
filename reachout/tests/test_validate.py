@@ -299,3 +299,117 @@ def test_inventory_response_schema_error():
     bad_payload_extra = dict(base_payload, items=[bad_item_extra])
     ok, err = v.validate(bad_payload_extra, "inventory_response.schema.json")
     assert not ok
+
+def test_stock_event_schema_sale_ok():
+    payload = {
+        "type": "sale",
+        "shop_id": "osm:node:123",
+        "shop_name": "Test Shop",
+        "region_id": "malasana-madrid",
+        "sku": "PHA-0001",
+        "name": "Test Item",
+        "qty_now": 4,
+        "ts": "2023-01-01T12:00:00Z",
+        "sold": 1
+    }
+    ok, err = v.validate(payload, "stock_event.schema.json")
+    assert ok, err
+
+def test_stock_event_schema_restock_ok():
+    payload = {
+        "type": "restock",
+        "shop_id": "osm:node:123",
+        "shop_name": "Test Shop",
+        "region_id": "malasana-madrid",
+        "sku": "PHA-0001",
+        "name": "Test Item",
+        "qty_now": 10,
+        "ts": "2023-01-01T12:00:00Z",
+        "added": 5
+    }
+    ok, err = v.validate(payload, "stock_event.schema.json")
+    assert ok, err
+
+def test_stock_event_schema_new_item_ok():
+    payload = {
+        "type": "new_item",
+        "shop_id": "osm:node:123",
+        "shop_name": "Test Shop",
+        "region_id": "malasana-madrid",
+        "sku": "PHA-0001",
+        "name": "Test Item",
+        "qty_now": 5,
+        "ts": "2023-01-01T12:00:00Z",
+        "added": 5
+    }
+    ok, err = v.validate(payload, "stock_event.schema.json")
+    assert ok, err
+
+def test_stock_event_schema_null_region_ok():
+    payload = {
+        "type": "sale",
+        "shop_id": "osm:node:123",
+        "shop_name": "Test Shop",
+        "region_id": None,
+        "sku": "PHA-0001",
+        "name": "Test Item",
+        "qty_now": 4,
+        "ts": "2023-01-01T12:00:00Z",
+        "sold": 1
+    }
+    ok, err = v.validate(payload, "stock_event.schema.json")
+    assert ok, err
+
+def test_stock_event_schema_errors():
+    base_payload = {
+        "type": "sale",
+        "shop_id": "osm:node:123",
+        "shop_name": "Test Shop",
+        "region_id": "malasana-madrid",
+        "sku": "PHA-0001",
+        "name": "Test Item",
+        "qty_now": 4,
+        "ts": "2023-01-01T12:00:00Z"
+    }
+
+    # Invalid type
+    bad_type = dict(base_payload, type="foo")
+    ok, err = v.validate(bad_type, "stock_event.schema.json")
+    assert not ok
+
+    # Invalid shop_id
+    bad_shop = dict(base_payload, shop_id="123")
+    ok, err = v.validate(bad_shop, "stock_event.schema.json")
+    assert not ok
+
+    # Invalid sku
+    bad_sku = dict(base_payload, sku="BADSKU")
+    ok, err = v.validate(bad_sku, "stock_event.schema.json")
+    assert not ok
+
+    # Invalid qty_now
+    bad_qty = dict(base_payload, qty_now=-1)
+    ok, err = v.validate(bad_qty, "stock_event.schema.json")
+    assert not ok
+
+    # Invalid ts format (not testing full ISO8601 validation here, just that it's present/string)
+    # The actual validator might pass simple strings if format is ignored, but missing is bad
+    bad_ts = dict(base_payload)
+    del bad_ts["ts"]
+    ok, err = v.validate(bad_ts, "stock_event.schema.json")
+    assert not ok
+
+    # Invalid sold
+    bad_sold = dict(base_payload, sold=0)
+    ok, err = v.validate(bad_sold, "stock_event.schema.json")
+    assert not ok
+
+    # Invalid added
+    bad_added = dict(base_payload, added=0)
+    ok, err = v.validate(bad_added, "stock_event.schema.json")
+    assert not ok
+
+    # Extra properties
+    extra_prop = dict(base_payload, extra="foo")
+    ok, err = v.validate(extra_prop, "stock_event.schema.json")
+    assert not ok
