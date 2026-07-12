@@ -155,6 +155,55 @@ def test_search_paginated_returns_schema_valid_search_page(tmp_path, monkeypatch
     assert body["results"][0]["rank"] == 1
 
 
+def test_search_paginated_multiple_pages_math(tmp_path, monkeypatch):
+    # Add another pharmacy and item to have 2 results total for the query
+    client = _client(tmp_path, monkeypatch)
+    db_path = str(tmp_path / "reachout.db")
+    conn = db.connect(db_path)
+    db.upsert_shop(conn, {
+        "shop_id": "osm:node:1003", "osm_id": 1003, "name": "Otra Farmacia",
+        "categories": ["pharmacy"], "lat": 40.4271, "lng": -3.7036,
+        "address": "Calle del Pez 2", "source": "cache",
+        "fetched_at": "2026-07-07T10:00:00+00:00",
+    })
+    db.upsert_item(conn, {
+        "shop_id": "osm:node:1003", "sku": "PHA-0001", "name": "Paracetamol 1g 40 comprimidos",
+        "category": "pharmacy", "price": 4.00, "currency": "EUR", "qty": 10, "synthetic": True,
+    })
+    conn.commit()
+    conn.close()
+
+    # Page 1
+    resp1 = client.get("/api/search", params={
+        "q": "algo para el dolor de cabeza", "near": "Malasaña", "radius": 2.0,
+        "page": 1, "page_size": 1
+    })
+    assert resp1.status_code == 200
+    body1 = resp1.json()
+    assert body1["total_results"] == 2
+    assert body1["total_pages"] == 2
+    assert body1["result_count"] == 1
+    assert body1["results"][0]["rank"] == 1
+    
+    # Page 2
+    resp2 = client.get("/api/search", params={
+        "q": "algo para el dolor de cabeza", "near": "Malasaña", "radius": 2.0,
+        "page": 2, "page_size": 1
+    })
+    assert resp2.status_code == 200
+    body2 = resp2.json()
+    assert body2["total_results"] == 2
+    assert body2["total_pages"] == 2
+    assert body2["result_count"] == 1
+    assert body2["results"][0]["rank"] == 2
+    
+    # Verify both pages validate
+    ok1, err1 = v.validate(body1, "search_page.schema.json")
+    assert ok1, err1
+    ok2, err2 = v.validate(body2, "search_page.schema.json")
+    assert ok2, err2
+
+
 def test_search_paginated_out_of_bounds(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     resp = client.get("/api/search", params={
