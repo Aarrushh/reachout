@@ -59,7 +59,8 @@ def test_tick_new_item_uses_sku_catalog_with_eur_and_synthetic(tmp_path, monkeyp
     events_path = tmp_path / "events.jsonl"
     monkeypatch.setattr(inventory_simulator, "EVENTS_PATH", str(events_path))
     monkeypatch.setattr(inventory_simulator.random, "random", lambda: 0.9)
-    monkeypatch.setattr(inventory_simulator.random, "choice", lambda seq: seq[0])
+    # Return the last item from the choices. For hardware, "HRD-1171" has dummyjson source and ratings.
+    monkeypatch.setattr(inventory_simulator.random, "choice", lambda seq: seq[-1])
     monkeypatch.setattr(inventory_simulator.random, "randint", lambda a, b: 10)
 
     inventory_simulator._tick(conn)
@@ -75,6 +76,14 @@ def test_tick_new_item_uses_sku_catalog_with_eur_and_synthetic(tmp_path, monkeyp
     assert new_item["currency"] == "EUR"
     assert new_item["synthetic"] is True
     assert new_item["qty"] == 10
+    assert new_item["source"] == "dummyjson"
+    assert new_item["rating"] == 3.62
+    assert new_item["review_count"] == 3
+
+    lines = events_path.read_text(encoding="utf-8").strip().splitlines()
+    event = json.loads(lines[0])
+    assert event["type"] == "new_item"
+    assert event["source"] == "dummyjson"
 
 
 def test_run_simulator_runs_offline_against_new_schema(tmp_path, monkeypatch):

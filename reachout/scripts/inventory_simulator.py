@@ -77,10 +77,12 @@ def _tick(conn):
             db.upsert_item(conn, {
                 "shop_id": shop["shop_id"], "sku": entry["sku"], "name": entry["name"],
                 "category": category, "price": entry["base_price_eur"], "currency": "EUR",
-                "qty": qty, "synthetic": True, "source": "template",
+                "qty": qty, "synthetic": True, "source": entry.get("source", "template"),
+                "rating": entry.get("rating"), "review_count": entry.get("review_count"),
             })
             _log_event({"type": "new_item", "shop_id": shop["shop_id"], "shop": shop["name"],
-                        "sku": entry["sku"], "name": entry["name"], "qty_now": qty})
+                        "sku": entry["sku"], "name": entry["name"], "qty_now": qty,
+                        "source": entry.get("source", "template")})
 
 
 def run_simulator(stop_event=None, interval=1.0, seconds=None, db_path=None):
