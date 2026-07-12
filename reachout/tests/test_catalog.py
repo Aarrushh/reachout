@@ -1,6 +1,15 @@
 import json
 import os
 import re
+from scripts.validate import validate
+
+def test_catalog_schema_validation():
+    catalog_path = os.path.join(os.path.dirname(__file__), "..", "data", "sku_catalog.json")
+    with open(catalog_path, encoding="utf-8") as f:
+        catalog = json.load(f)
+    
+    is_valid, error = validate(catalog, "sku_catalog.schema.json")
+    assert is_valid, f"Catalog validation failed: {error}"
 
 def test_merged_catalog():
     catalog_path = os.path.join(os.path.dirname(__file__), "..", "data", "sku_catalog.json")
