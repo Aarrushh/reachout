@@ -39,12 +39,14 @@ def _client(tmp_path, monkeypatch):
     return TestClient(server.app)
 
 
-def test_health():
-    client = TestClient(server.app)
+def test_health(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    
     resp = client.get("/api/health")
     assert resp.status_code == 200
     body = resp.json()
-    assert body == {"status": "ok"}
+    # The _client fixture calls _seeded_db which adds 1 shop and 1 region
+    assert body == {"status": "ok", "shop_count": 1, "region_count": 1, "simulator_running": False}
     ok, err = v.validate(body, "health_response.schema.json")
     assert ok, err
 

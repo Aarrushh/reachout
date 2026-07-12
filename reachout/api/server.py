@@ -41,9 +41,35 @@ app = FastAPI(title="ReachOut API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
 
 
+import sqlite3
+
 @app.get("/api/health")
 def health():
-    body = {"status": "ok"}
+    shop_count = 0
+    region_count = 0
+    
+    conn = db.connect(DB_PATH)
+    try:
+        shop_count = conn.execute("SELECT COUNT(*) FROM shops").fetchone()[0]
+        region_count = conn.execute("SELECT COUNT(*) FROM regions").fetchone()[0]
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+        
+    simulator_running = False
+    try:
+        from scripts.inventory_simulator import scheduler
+        simulator_running = getattr(scheduler, "running", False)
+    except ImportError:
+        pass
+        
+    body = {
+        "status": "ok",
+        "shop_count": shop_count,
+        "region_count": region_count,
+        "simulator_running": simulator_running
+    }
     ok, err = validate.validate(body, "health_response.schema.json")
     if not ok:
         raise HTTPException(status_code=500, detail=f"health_response failed schema: {err}")
