@@ -178,3 +178,124 @@ def test_regions_response_schema_error():
     bad_payload = {"status": "error"}
     ok, err = v.validate(bad_payload, "regions_response.schema.json")
     assert not ok
+
+def test_inventory_response_schema_ok():
+    base_payload = {
+        "status": "ok",
+        "generated_at": "2023-01-01T12:00:00Z",
+        "region_id": "malasana-madrid",
+        "page": 1,
+        "page_size": 20,
+        "total_items": 1,
+        "total_pages": 1,
+        "items": [
+            {
+                "shop_id": "osm:node:1",
+                "shop_name": "Test Shop",
+                "sku": "PHA-0001",
+                "name": "Test Item",
+                "category": "pharmacy",
+                "price": 10.99,
+                "currency": "EUR",
+                "qty": 5,
+                "synthetic": True,
+                "source": "template",
+                "updated_at": "2023-01-01T12:00:00Z"
+            }
+        ]
+    }
+
+    # Valid payload
+    ok, err = v.validate(base_payload, "inventory_response.schema.json")
+    assert ok, err
+
+    # Null region_id is allowed
+    payload_null_region = dict(base_payload, region_id=None)
+    ok, err = v.validate(payload_null_region, "inventory_response.schema.json")
+    assert ok, err
+
+    # Optional fields rating and review_count are allowed
+    payload_optional = dict(base_payload)
+    payload_optional["items"] = [
+        dict(base_payload["items"][0], rating=4.5, review_count=10)
+    ]
+    ok, err = v.validate(payload_optional, "inventory_response.schema.json")
+    assert ok, err
+
+
+def test_inventory_response_schema_error():
+    base_payload = {
+        "status": "ok",
+        "generated_at": "2023-01-01T12:00:00Z",
+        "region_id": "malasana-madrid",
+        "page": 1,
+        "page_size": 20,
+        "total_items": 1,
+        "total_pages": 1,
+        "items": [
+            {
+                "shop_id": "osm:node:1",
+                "shop_name": "Test Shop",
+                "sku": "PHA-0001",
+                "name": "Test Item",
+                "category": "pharmacy",
+                "price": 10.99,
+                "currency": "EUR",
+                "qty": 5,
+                "synthetic": True,
+                "source": "template",
+                "updated_at": "2023-01-01T12:00:00Z"
+            }
+        ]
+    }
+
+    # Missing status
+    bad_payload = dict(base_payload)
+    del bad_payload["status"]
+    ok, err = v.validate(bad_payload, "inventory_response.schema.json")
+    assert not ok
+
+    # Invalid page
+    bad_page = dict(base_payload, page=0)
+    ok, err = v.validate(bad_page, "inventory_response.schema.json")
+    assert not ok
+
+    # Invalid page_size (> 100)
+    bad_page_size_high = dict(base_payload, page_size=101)
+    ok, err = v.validate(bad_page_size_high, "inventory_response.schema.json")
+    assert not ok
+
+    # Invalid page_size (< 1)
+    bad_page_size_low = dict(base_payload, page_size=0)
+    ok, err = v.validate(bad_page_size_low, "inventory_response.schema.json")
+    assert not ok
+
+    # Additional properties in root
+    extra_prop_root = dict(base_payload, extra="foo")
+    ok, err = v.validate(extra_prop_root, "inventory_response.schema.json")
+    assert not ok
+
+    # Missing sku in item
+    bad_item = dict(base_payload["items"][0])
+    del bad_item["sku"]
+    bad_payload_item = dict(base_payload, items=[bad_item])
+    ok, err = v.validate(bad_payload_item, "inventory_response.schema.json")
+    assert not ok
+
+    # Invalid sku pattern
+    bad_item_sku = dict(base_payload["items"][0], sku="BADSKU")
+    bad_payload_sku = dict(base_payload, items=[bad_item_sku])
+    ok, err = v.validate(bad_payload_sku, "inventory_response.schema.json")
+    assert not ok
+
+    # Invalid currency
+    bad_item_curr = dict(base_payload["items"][0], currency="USD")
+    bad_payload_curr = dict(base_payload, items=[bad_item_curr])
+    ok, err = v.validate(bad_payload_curr, "inventory_response.schema.json")
+    assert not ok
+
+    # Additional properties in item
+    bad_item_extra = dict(base_payload["items"][0], extra="foo")
+    bad_payload_extra = dict(base_payload, items=[bad_item_extra])
+    ok, err = v.validate(bad_payload_extra, "inventory_response.schema.json")
+    assert not ok

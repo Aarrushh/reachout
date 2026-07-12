@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InventoryResponse",
+  "description": "Envelope for GET /api/inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "generated_at",
+    "region_id",
+    "page",
+    "page_size",
+    "total_items",
+    "total_pages",
+    "items"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "error"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "region_id": {
+      "type": ["string", "null"]
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "page_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "total_items": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_pages": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "shop_id",
+          "shop_name",
+          "sku",
+          "name",
+          "category",
+          "price",
+          "currency",
+          "qty",
+          "synthetic",
+          "source",
+          "updated_at"
+        ],
+        "properties": {
+          "shop_id": {
+            "type": "string"
+          },
+          "shop_name": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}-[0-9]{4}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "pharmacy",
+              "grocery",
+              "hardware",
+              "electronics",
+              "stationery"
+            ]
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "multipleOf": 0.01
+          },
+          "currency": {
+            "const": "EUR"
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "synthetic": {
+            "const": true
+          },
+          "source": {
+            "type": "string",
+            "enum": ["template", "dummyjson"]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rating": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 5
+          },
+          "review_count": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
