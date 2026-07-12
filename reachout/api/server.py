@@ -12,6 +12,7 @@ import os
 import shutil
 import sys
 import tempfile
+from datetime import datetime, timezone
 from typing import Optional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -146,5 +147,41 @@ def shops_geojson(response: Response):
     if not ok:
         raise HTTPException(status_code=500, detail=f"shops_geojson failed schema: {err}")
     # Shop identities change rarely (OSM refresh), unlike inventory: cacheable.
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return body
+
+
+@app.get("/api/regions")
+def regions(response: Response):
+    """List of all known regions and their shop counts. Pure read."""
+    conn = db.connect(DB_PATH)
+    try:
+        all_regions = db.all_regions(conn)
+        shop_counts = db.region_shop_counts(conn)
+    finally:
+        conn.close()
+
+    regions_list = []
+    for r in all_regions:
+        regions_list.append({
+            "region_id": r["region_id"],
+            "name": r["name"],
+            "lat": r["lat"],
+            "lng": r["lng"],
+            "source": r["source"],
+            "shop_count": shop_counts.get(r["region_id"], 0),
+        })
+
+    body = {
+        "status": "ok",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "region_count": len(regions_list),
+        "regions": regions_list,
+    }
+
+    ok, err = validate.validate(body, "regions_response.schema.json")
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"regions_response failed schema: {err}")
+
     response.headers["Cache-Control"] = "public, max-age=3600"
     return body

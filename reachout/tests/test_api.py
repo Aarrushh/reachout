@@ -10,12 +10,18 @@ def _seeded_db(tmp_path):
     db_path = str(tmp_path / "reachout.db")
     db.init_db(db_path)
     conn = db.connect(db_path)
+    db.upsert_region(conn, {
+        "region_id": "malasana", "name": "Malasaña", "lat": 40.4267,
+        "lng": -3.7038, "source": "gazetteer", "created_at": "2026-07-07T10:00:00+00:00"
+    })
     db.upsert_shop(conn, {
         "shop_id": "osm:node:1001", "osm_id": 1001, "name": "Farmacia Malasaña",
         "categories": ["pharmacy"], "lat": 40.4270, "lng": -3.7035,
         "address": "Calle del Pez 1", "source": "cache",
         "fetched_at": "2026-07-07T10:00:00+00:00",
     })
+    # Update region_id manually to test shop counts since upsert_shop doesn't include it.
+    conn.execute("UPDATE shops SET region_id=? WHERE shop_id=?", ("malasana", "osm:node:1001"))
     db.upsert_item(conn, {
         "shop_id": "osm:node:1001", "sku": "PHA-0001", "name": "Paracetamol 1g 40 comprimidos",
         "category": "pharmacy", "price": 3.95, "currency": "EUR", "qty": 5, "synthetic": True,
@@ -179,3 +185,19 @@ def test_all_shops_geojson_lists_every_shop(tmp_path, monkeypatch):
     assert props == {"shop_id": "osm:node:1001", "shop_name": "Farmacia Malasaña",
                      "category": "pharmacy"}
     assert body["features"][0]["geometry"]["coordinates"] == [-3.7035, 40.4270]
+
+
+def test_regions_returns_schema_valid_response(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/regions")
+    assert resp.status_code == 200
+    assert resp.headers.get("cache-control") == "public, max-age=3600"
+    body = resp.json()
+    ok, err = v.validate(body, "regions_response.schema.json")
+    assert ok, err
+    assert body["status"] == "ok"
+    assert body["region_count"] == 1
+    assert len(body["regions"]) == 1
+    r = body["regions"][0]
+    assert r["region_id"] == "malasana"
+    assert r["shop_count"] == 1
