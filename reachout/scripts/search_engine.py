@@ -33,7 +33,7 @@ def _matches(item, keywords):
 
 
 def _item_out(item):
-    return {
+    out = {
         "sku": item["sku"],
         "name": item["name"],
         "category": item["category"],
@@ -41,6 +41,10 @@ def _item_out(item):
         "currency": item["currency"],
         "qty": item["qty"],
     }
+    for key in ("rating", "review_count", "source"):
+        if item.get(key) is not None:
+            out[key] = item[key]
+    return out
 
 
 def search(intent, geo_shops, db_path=None, do_ping=True, notif_dir=None):

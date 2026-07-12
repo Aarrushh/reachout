@@ -82,7 +82,7 @@ def _missing_fields(matches):
 
 def _build_result(rank, match):
     cheapest = _cheapest_item(match)
-    return {
+    result = {
         "rank": rank,
         "shop_id": match["shop_id"],
         "shop_name": match["shop_name"],
@@ -97,6 +97,11 @@ def _build_result(rank, match):
         "lat": match["lat"],
         "lng": match["lng"],
     }
+    if "rating" in cheapest and cheapest["rating"] is not None:
+        result["rating"] = cheapest["rating"]
+    if "review_count" in cheapest and cheapest["review_count"] is not None:
+        result["review_count"] = cheapest["review_count"]
+    return result
 
 
 def _deterministic_build(matches_data):

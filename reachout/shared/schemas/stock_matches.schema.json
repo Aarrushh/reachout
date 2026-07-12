@@ -63,7 +63,10 @@
                   "type": "integer",
                   "minimum": 1,
                   "description": "minimum 1: out-of-stock rows are schema-invalid here by design."
-                }
+                },
+                "source": { "enum": ["template", "dummyjson"] },
+                "rating": { "type": "number", "minimum": 0, "maximum": 5 },
+                "review_count": { "type": "integer", "minimum": 0 }
               }
             }
           }
