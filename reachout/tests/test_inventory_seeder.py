@@ -92,3 +92,18 @@ def test_seed_shop_rows_validate_against_inventory_record_schema(tmp_path):
     for row in rows:
         ok, err = validate.validate(row, "inventory_record.schema.json")
         assert ok, err
+
+
+def test_seed_shop_carries_new_fields(tmp_path):
+    with open(CATALOG_PATH, encoding="utf-8") as f:
+        catalog = json.load(f)
+    catalog_entries = {entry["sku"]: entry for entry in catalog["hardware"]}
+
+    rows = _seed_fresh(tmp_path, "a.db", _shop())
+
+    assert rows
+    for row in rows:
+        entry = catalog_entries[row["sku"]]
+        assert row["source"] == entry.get("source", "template")
+        assert row["rating"] == entry.get("rating")
+        assert row["review_count"] == entry.get("review_count")

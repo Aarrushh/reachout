@@ -1,2 +1,9 @@
 .pytest_cache/
 __pycache__/
+# secrets
+.env
+# jules runner working files
+tools/.jules_runner_state.json
+tools/jules_runner.log
+tools/.jules-wt/
+tools/.jules-wt-main/

@@ -41,10 +41,11 @@ def _log_event(event):
 def _tick(conn):
     shops = db.all_shops(conn)
     if not shops:
-        return
+        return None
     shop = random.choice(shops)
     category = shop["categories"][0]
     roll = random.random()
+    event = None
 
     if roll < 0.55:
         # Sell. Pick an in-stock item and remove a few units.
@@ -53,8 +54,8 @@ def _tick(conn):
             item = random.choice(items)
             sold = random.randint(1, 5)
             new_qty = db.adjust_qty(conn, shop["shop_id"], item["sku"], -sold)
-            _log_event({"type": "sale", "shop_id": shop["shop_id"], "shop": shop["name"],
-                        "sku": item["sku"], "name": item["name"], "sold": sold, "qty_now": new_qty})
+            event = {"type": "sale", "shop_id": shop["shop_id"], "shop": shop["name"],
+                     "sku": item["sku"], "name": item["name"], "sold": sold, "qty_now": new_qty}
 
     elif roll < 0.85:
         # Restock an existing item.
@@ -63,8 +64,8 @@ def _tick(conn):
             item = random.choice(items)
             added = random.randint(5, 20)
             new_qty = db.adjust_qty(conn, shop["shop_id"], item["sku"], added)
-            _log_event({"type": "restock", "shop_id": shop["shop_id"], "shop": shop["name"],
-                        "sku": item["sku"], "name": item["name"], "added": added, "qty_now": new_qty})
+            event = {"type": "restock", "shop_id": shop["shop_id"], "shop": shop["name"],
+                     "sku": item["sku"], "name": item["name"], "added": added, "qty_now": new_qty}
 
     else:
         # Add a brand new SKU from the catalog that the shop does not have yet.
@@ -77,10 +78,17 @@ def _tick(conn):
             db.upsert_item(conn, {
                 "shop_id": shop["shop_id"], "sku": entry["sku"], "name": entry["name"],
                 "category": category, "price": entry["base_price_eur"], "currency": "EUR",
-                "qty": qty, "synthetic": True,
+                "qty": qty, "synthetic": True, "source": entry.get("source", "template"),
+                "rating": entry.get("rating"), "review_count": entry.get("review_count"),
             })
-            _log_event({"type": "new_item", "shop_id": shop["shop_id"], "shop": shop["name"],
-                        "sku": entry["sku"], "name": entry["name"], "qty_now": qty})
+            event = {"type": "new_item", "shop_id": shop["shop_id"], "shop": shop["name"],
+                     "sku": entry["sku"], "name": entry["name"], "qty_now": qty,
+                     "source": entry.get("source", "template")}
+            
+    if event:
+        _log_event(event)
+
+    return event
 
 
 def run_simulator(stop_event=None, interval=1.0, seconds=None, db_path=None):

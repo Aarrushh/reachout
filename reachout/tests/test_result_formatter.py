@@ -32,7 +32,7 @@ def _t1_matches():
                 "distance_type": "haversine",
                 "items": [
                     {"sku": "PHA-0001", "name": "Paracetamol", "category": "pharmacy",
-                     "price": 3.95, "currency": "EUR", "qty": 10},
+                     "price": 3.95, "currency": "EUR", "qty": 10, "rating": 4.8, "review_count": 50},
                 ],
             },
             {
@@ -75,7 +75,7 @@ def test_t1_two_matches_verbatim_numbers():
     assert r1["address"] is None
 
     allowed = set(v.load_schema("ranked_shops.schema.json")["properties"]["results"]["items"]["required"])
-    assert set(r0.keys()) == allowed
+    assert set(r0.keys()) == allowed | {"rating", "review_count"}
     assert set(r1.keys()) == allowed
 
 
@@ -135,3 +135,19 @@ def test_upstream_not_ok_becomes_error():
     _assert_valid(result)
     assert result["status"] == "error"
     assert result["error"]["code"] == "upstream_not_ok"
+
+
+def test_ratings_and_reviews_flow_to_results():
+    matches = _t1_matches()
+    result = format_results(matches)
+    _assert_valid(result)
+    
+    r0 = result["results"][0]
+    assert r0["shop_id"] == "osm:node:111"
+    assert r0["rating"] == 4.8
+    assert r0["review_count"] == 50
+    
+    r1 = result["results"][1]
+    assert r1["shop_id"] == "osm:node:222"
+    assert "rating" not in r1
+    assert "review_count" not in r1

@@ -58,8 +58,8 @@ def _db_shop(shop_id, name, categories, lat, lng, address="Calle Mayor 1"):
     }
 
 
-def _item(shop_id, sku, name, category, price, qty):
-    return {
+def _item(shop_id, sku, name, category, price, qty, rating=None, review_count=None, source=None):
+    item = {
         "shop_id": shop_id,
         "sku": sku,
         "name": name,
@@ -69,6 +69,13 @@ def _item(shop_id, sku, name, category, price, qty):
         "qty": qty,
         "synthetic": True,
     }
+    if rating is not None:
+        item["rating"] = rating
+    if review_count is not None:
+        item["review_count"] = review_count
+    if source is not None:
+        item["source"] = source
+    return item
 
 
 def _init_db(tmp_path, shops, items):
@@ -300,3 +307,40 @@ def test_no_ping_when_do_ping_false(tmp_path):
 
     assert result["pinged_shop_ids"] == ["osm:node:111"]
     assert not notif_dir.exists()
+
+
+def test_dummyjson_item_surfaces_ratings(tmp_path):
+    shops = [
+        _db_shop("osm:node:1", "Farmacia Dummy", ["pharmacy"], 40.41, -3.70),
+        _db_shop("osm:node:2", "Farmacia Template", ["pharmacy"], 40.42, -3.71),
+    ]
+    items = [
+        _item("osm:node:1", "PHA-0001", "Paracetamol", "pharmacy", 3.00, 2, rating=4.5, review_count=100, source="dummyjson"),
+        _item("osm:node:2", "PHA-0001", "Paracetamol", "pharmacy", 3.00, 10, source="template"),
+    ]
+    db_path = _init_db(tmp_path, shops, items)
+
+    geo_shops = _geo_shops([
+        _geo_shop("osm:node:1", "Farmacia Dummy", ["pharmacy"], 40.41, -3.70, 0.5),
+        _geo_shop("osm:node:2", "Farmacia Template", ["pharmacy"], 40.42, -3.71, 1.0),
+    ])
+    intent = _intent(keywords=["paracetamol"])
+
+    result = search(intent, geo_shops, db_path=db_path, notif_dir=str(tmp_path / "notifications"), do_ping=False)
+
+    _assert_valid(result)
+    assert result["match_count"] == 2
+    
+    # Check dummyjson shop (rank 1 because it is nearer)
+    dummy_match = result["matches"][0]
+    assert dummy_match["shop_id"] == "osm:node:1"
+    assert dummy_match["items"][0]["rating"] == 4.5
+    assert dummy_match["items"][0]["review_count"] == 100
+    assert dummy_match["items"][0]["source"] == "dummyjson"
+    
+    # Check template shop (rank 2)
+    template_match = result["matches"][1]
+    assert template_match["shop_id"] == "osm:node:2"
+    assert "rating" not in template_match["items"][0]
+    assert "review_count" not in template_match["items"][0]
+    assert template_match["items"][0]["source"] == "template"

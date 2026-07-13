@@ -104,6 +104,19 @@ def test_t1_headache_query_near_malasana_end_to_end(tmp_path, monkeypatch):
     assert geo_shops["query_location"]["resolved_from"] == "gazetteer"
     assert geojson["features"][0]["properties"]["shop_id"] == "osm:node:1001"
     assert os.path.exists(os.path.join(notif_dir, "osm_node_1001.jsonl"))
+    
+    # Task 26: verify the bootstrap hook populated regions
+    conn = db.connect(db_path)
+    try:
+        regions = db.all_regions(conn)
+        assert len(regions) > 0, "regions should have been seeded"
+        
+        shops = db.all_shops(conn)
+        assert len(shops) > 0
+        for shop in shops:
+            assert shop.get("region_id") is not None, f"shop {shop['shop_id']} missing region_id"
+    finally:
+        conn.close()
 
 
 def test_t2_usb_c_charger_explicit_coords_end_to_end(tmp_path, monkeypatch):

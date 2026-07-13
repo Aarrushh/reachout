@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SKU Catalog",
+  "description": "Schema for data/sku_catalog.json which contains template and dummyjson products per category.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_comment": {
+      "type": "string"
+    },
+    "pharmacy": {
+      "$ref": "#/definitions/category_array"
+    },
+    "grocery": {
+      "$ref": "#/definitions/category_array"
+    },
+    "hardware": {
+      "$ref": "#/definitions/category_array"
+    },
+    "electronics": {
+      "$ref": "#/definitions/category_array"
+    },
+    "stationery": {
+      "$ref": "#/definitions/category_array"
+    }
+  },
+  "definitions": {
+    "category_array": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sku", "name", "base_price_eur", "source"],
+        "properties": {
+          "sku": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}-[0-9]{4}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "base_price_eur": {
+            "type": "number"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["template", "dummyjson"]
+          },
+          "rating": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "review_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

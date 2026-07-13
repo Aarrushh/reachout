@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RegionsResponse",
+  "description": "Envelope for GET /api/regions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status"],
+  "properties": {
+    "status": { "enum": ["ok", "error"] },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "region_count": { "type": "integer", "minimum": 0 },
+    "regions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["region_id", "name", "lat", "lng", "source", "shop_count"],
+        "properties": {
+          "region_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lat": {
+            "type": "number",
+            "minimum": 40.2,
+            "maximum": 40.7
+          },
+          "lng": {
+            "type": "number",
+            "minimum": -4.0,
+            "maximum": -3.4
+          },
+          "source": {
+            "type": "string",
+            "enum": ["gazetteer"]
+          },
+          "shop_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "detail"],
+      "properties": {
+        "code": { "enum": ["upstream_not_ok", "internal"] },
+        "detail": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "ok" } } },
+      "then": { "required": ["generated_at", "region_count", "regions"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "error" } } },
+      "then": { "required": ["error"] }
+    }
+  ]
+}

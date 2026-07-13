@@ -5,7 +5,7 @@
  */
 
 /**
- * One SKU at one shop. Written only by inventory_seeder.py / inventory_simulator.py — never by an AI stage. synthetic is const true for the entire MVP: real shops, simulated stock, and the data never lies about that.
+ * One SKU at one shop. Written only by inventory_seeder.py / inventory_simulator.py — never by an AI stage. synthetic is const true for the entire MVP: real shops, simulated stock, and the data never lies about that. Now includes optional rating, review_count, and source.
  */
 export interface InventoryRecord {
   shop_id: string;
@@ -22,5 +22,8 @@ export interface InventoryRecord {
   currency: "EUR";
   qty: number;
   synthetic: true;
+  source?: "template" | "dummyjson";
+  rating?: number | null;
+  review_count?: number | null;
   updated_at: string;
 }

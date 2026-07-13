@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.join(HERE, "agent"))
 
 import db                                      # noqa: E402
 import osm_ingest                              # noqa: E402
+import region_seeder                           # noqa: E402
 import validate as v                           # noqa: E402
 from query_parser import parse_query           # noqa: E402  stage 01
 from geo_resolve import resolve as geo_resolve  # noqa: E402  stage 02
@@ -109,6 +110,10 @@ def _ensure_db_ready(db_path, offline):
     try:
         if not db.all_shops(conn):
             osm_ingest.ingest(conn=conn, offline=offline)
+            
+        if not db.all_regions(conn):
+            region_seeder.seed_regions(conn)
+            region_seeder.assign_shops(conn)
     finally:
         conn.close()
 

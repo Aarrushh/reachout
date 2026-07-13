@@ -49,6 +49,9 @@ def seed_shop(conn, shop):
             "currency": "EUR",
             "qty": qty,
             "synthetic": True,
+            "source": entry.get("source", "template"),
+            "rating": entry.get("rating"),
+            "review_count": entry.get("review_count"),
         }
         db.upsert_item(conn, item)
         rows.append(dict(item, updated_at=now))

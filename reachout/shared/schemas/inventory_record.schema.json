@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "InventoryRecord",
-  "description": "One SKU at one shop. Written only by inventory_seeder.py / inventory_simulator.py — never by an AI stage. synthetic is const true for the entire MVP: real shops, simulated stock, and the data never lies about that.",
+  "description": "One SKU at one shop. Written only by inventory_seeder.py / inventory_simulator.py — never by an AI stage. synthetic is const true for the entire MVP: real shops, simulated stock, and the data never lies about that. Now includes optional rating, review_count, and source.",
   "type": "object",
   "additionalProperties": false,
   "required": ["shop_id", "sku", "name", "category", "price", "currency", "qty", "synthetic", "updated_at"],
@@ -22,6 +22,9 @@
     "currency": { "const": "EUR" },
     "qty": { "type": "integer", "minimum": 0 },
     "synthetic": { "const": true },
+    "source": { "enum": ["template", "dummyjson"] },
+    "rating": { "type": ["number", "null"], "minimum": 0, "maximum": 5 },
+    "review_count": { "type": ["integer", "null"], "minimum": 0 },
     "updated_at": { "type": "string", "format": "date-time" }
   }
 }

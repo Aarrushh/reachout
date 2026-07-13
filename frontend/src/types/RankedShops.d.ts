@@ -5,7 +5,7 @@
  */
 
 /**
- * The final consumer-facing artifact: a ranked FACTUAL list of nearby shops holding the item. additionalProperties:false on every object is the narrative gate — no community card, story, culture tag, vibe, or editorial field can validate, whatever it is called. Script invariants: result_count == results.length; ranks are 1..N contiguous in array order.
+ * The final consumer-facing artifact: a ranked FACTUAL list of nearby shops holding the item. additionalProperties:false on every object is the narrative gate. Now includes optional rating and review_count. Script invariants: result_count == results.length; ranks are 1..N contiguous in array order.
  */
 export type RankedShops = {
   [k: string]: unknown;
@@ -31,6 +31,8 @@ export type RankedShops = {
     stock_qty: number;
     lat: number;
     lng: number;
+    rating?: number;
+    review_count?: number;
   }[];
   /**
    * @minItems 1
