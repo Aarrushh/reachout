@@ -8,10 +8,12 @@ files. The one non-pipeline endpoint (/api/shops.geojson, a static projection
 of the shops table) is schema-validated here at request time instead.
 """
 
+import asyncio
 import os
 import shutil
 import sys
 import tempfile
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -35,7 +37,37 @@ import validate  # noqa: E402
 DB_PATH = None
 NOTIF_DIR = None
 
-app = FastAPI(title="ReachOut API")
+async def tick_once():
+    await asyncio.to_thread(_sync_tick)
+
+def _sync_tick():
+    conn = db.connect(DB_PATH)
+    try:
+        from scripts import inventory_simulator
+        from api.event_bus import BUS, to_stock_event
+        event = inventory_simulator._tick(conn)
+        conn.commit()
+        if event:
+            region_id = conn.execute("SELECT region_id FROM shops WHERE shop_id=?", (event["shop_id"],)).fetchone()[0]
+            BUS.publish(to_stock_event(event, region_id))
+    finally:
+        conn.close()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if os.environ.get("REACHOUT_SIM") == "1":
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(tick_once, "interval", seconds=2, jitter=1)
+        scheduler.start()
+        try:
+            yield
+        finally:
+            scheduler.shutdown()
+    else:
+        yield
+
+app = FastAPI(title="ReachOut API", lifespan=lifespan)
 
 # Read-only public API, no credentials: any browser origin may fetch it.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
