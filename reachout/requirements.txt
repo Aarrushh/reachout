@@ -16,3 +16,8 @@ uvicorn>=0.29
 
 # in-process scheduler for the live-inventory simulator; no broker
 apscheduler>=3.10
+
+# Dev/test-only: async client for exercising the SSE stream in-process
+# (tests/test_sse_stream.py) — the one declared Phase-4 test-only exception
+# to TASK 01's "no other deps" rule.
+httpx>=0.27
