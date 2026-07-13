@@ -9,6 +9,7 @@ of the shops table) is schema-validated here at request time instead.
 """
 
 import asyncio
+import json
 import os
 import shutil
 import sys
@@ -23,7 +24,8 @@ for _dir in (os.path.join(REACHOUT_DIR, "scripts"), os.path.join(REACHOUT_DIR, "
     if _dir not in sys.path:
         sys.path.insert(0, _dir)
 
-from fastapi import FastAPI, HTTPException, Response, Query  # noqa: E402
+from fastapi import FastAPI, HTTPException, Response, Query
+from fastapi.responses import StreamingResponse  # noqa: E402
 import math
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
@@ -298,3 +300,32 @@ def regions(response: Response):
 
     response.headers["Cache-Control"] = "public, max-age=3600"
     return body
+
+@app.get("/api/inventory/stream")
+async def inventory_stream(region: str | None = None):
+    """SSE stream of stock events."""
+    from api.event_bus import BUS
+    
+    async def event_generator():
+        q = BUS.subscribe()
+        try:
+            yield f"event: hello\ndata: {json.dumps({'region': region})}\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=15.0)
+                    if region and event.get("region_id") != region:
+                        continue
+                    yield f"event: stock\ndata: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+        finally:
+            BUS.unsubscribe(q)
+            
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        }
+    )
