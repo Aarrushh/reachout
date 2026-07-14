@@ -139,63 +139,64 @@ async def _stream_session(url: str, publish):
     return _parse_frames(body), len(baseline), count_while_open
 
 
-@pytest.mark.asyncio
-async def test_hello_frame_arrives():
-    async def publish():
-        pass
+def test_hello_frame_arrives():
+    async def _test():
+        async def publish():
+            pass
 
-    frames, _, _ = await _stream_session("/api/inventory/stream", publish)
-    assert frames, "no SSE frames received"
-    hello = frames[0]
-    assert hello["event"] == "hello"
-    assert json.loads(hello["data"]) == {"region": None}
+        frames, _, _ = await _stream_session("/api/inventory/stream", publish)
+        assert frames, "no SSE frames received"
+        hello = frames[0]
+        assert hello["event"] == "hello"
+        assert json.loads(hello["data"]) == {"region": None}
+    asyncio.run(_test())
 
+def test_published_event_is_received_and_schema_valid():
+    async def _test():
+        event = _event_bus().to_stock_event(dict(RAW_SALE), "malasana")
 
-@pytest.mark.asyncio
-async def test_published_event_is_received_and_schema_valid():
-    event = _event_bus().to_stock_event(dict(RAW_SALE), "malasana")
+        async def publish():
+            _event_bus().BUS.publish(event)
 
-    async def publish():
-        _event_bus().BUS.publish(event)
+        frames, _, _ = await _stream_session("/api/inventory/stream", publish)
+        stock = [f for f in frames if f.get("event") == "stock"]
+        assert len(stock) == 1
+        received = json.loads(stock[0]["data"])
+        assert received == event
+        ok, err = v.validate(received, "stock_event.schema.json")
+        assert ok, err
+    asyncio.run(_test())
 
-    frames, _, _ = await _stream_session("/api/inventory/stream", publish)
-    stock = [f for f in frames if f.get("event") == "stock"]
-    assert len(stock) == 1
-    received = json.loads(stock[0]["data"])
-    assert received == event
-    ok, err = v.validate(received, "stock_event.schema.json")
-    assert ok, err
+def test_region_filter_drops_mismatches():
+    async def _test():
+        matching = _event_bus().to_stock_event(dict(RAW_SALE), "malasana")
+        mismatching = _event_bus().to_stock_event(dict(RAW_SALE), "chueca")
 
+        async def publish():
+            _event_bus().BUS.publish(mismatching)
+            _event_bus().BUS.publish(matching)
 
-@pytest.mark.asyncio
-async def test_region_filter_drops_mismatches():
-    matching = _event_bus().to_stock_event(dict(RAW_SALE), "malasana")
-    mismatching = _event_bus().to_stock_event(dict(RAW_SALE), "chueca")
+        frames, _, _ = await _stream_session(
+            "/api/inventory/stream?region=malasana", publish)
+        hello = frames[0]
+        assert json.loads(hello["data"]) == {"region": "malasana"}
+        stock = [json.loads(f["data"]) for f in frames if f.get("event") == "stock"]
+        assert stock == [matching], "mismatched-region event should be dropped"
+    asyncio.run(_test())
 
-    async def publish():
-        _event_bus().BUS.publish(mismatching)
-        _event_bus().BUS.publish(matching)
+def test_disconnect_removes_subscriber():
+    async def _test():
+        async def publish():
+            pass
 
-    frames, _, _ = await _stream_session(
-        "/api/inventory/stream?region=malasana", publish)
-    hello = frames[0]
-    assert json.loads(hello["data"]) == {"region": "malasana"}
-    stock = [json.loads(f["data"]) for f in frames if f.get("event") == "stock"]
-    assert stock == [matching], "mismatched-region event should be dropped"
-
-
-@pytest.mark.asyncio
-async def test_disconnect_removes_subscriber():
-    async def publish():
-        pass
-
-    frames, baseline, while_open = await _stream_session(
-        "/api/inventory/stream", publish)
-    assert while_open == baseline + 1
-    # The generator's finally block must have unsubscribed by stream end.
-    bus = _event_bus().BUS
-    for _ in range(50):
-        if len(bus._subscribers) == baseline:
-            break
-        await asyncio.sleep(0.02)
-    assert len(bus._subscribers) == baseline
+        frames, baseline, while_open = await _stream_session(
+            "/api/inventory/stream", publish)
+        assert while_open == baseline + 1
+        # The generator's finally block must have unsubscribed by stream end.
+        bus = _event_bus().BUS
+        for _ in range(50):
+            if len(bus._subscribers) == baseline:
+                break
+            await asyncio.sleep(0.02)
+        assert len(bus._subscribers) == baseline
+    asyncio.run(_test())

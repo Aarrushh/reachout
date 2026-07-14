@@ -382,47 +382,50 @@ def test_scheduler_unset_by_default(tmp_path, monkeypatch):
     assert resp.status_code == 200
     assert resp.json()["simulator_running"] is False
 
-@pytest.mark.asyncio
-async def test_tick_once_publishes_valid_event(tmp_path, monkeypatch):
-    from reachout.api.event_bus import BUS
+def test_tick_once_publishes_valid_event(tmp_path, monkeypatch):
     import asyncio
-    
-    # Force DB_PATH to use _seeded_db output so _sync_tick has tables.
-    db_path = _seeded_db(tmp_path)
-    monkeypatch.setattr(server, "DB_PATH", db_path)
-    # the client fixture also needs to be called to setup app state if needed,
-    # but mostly we need server.DB_PATH correctly monkeypatched.
-    client = _client(tmp_path, monkeypatch)
-    
-    q = BUS.subscribe()
-    
-    # Simulate a tick. The simulator roll may not produce an event if items is empty 
-    # and new items is empty, but we seeded 1 shop with 1 item.
-    # Insert an event manually via simulator bypassing the random rolls
-    # Or actually just monkeypatch random.random to return a guaranteed value
-    import random
-    monkeypatch.setattr(random, "random", lambda: 0.1) # 0.1 < 0.55 so sale
-    
-    # We also need to monkeypatch choice so we definitely select our item, 
-    # but there's only 1 shop and 1 item seeded so random.choice is deterministic anyway.
-    monkeypatch.setattr(random, "choice", lambda seq: list(seq)[0])
 
-    # Force the event_bus module to be loaded from the same place
-    # to avoid the duplicate module issue where `api.event_bus` and
-    # `reachout.api.event_bus` have different BUS instances.
-    import sys
-    import reachout.api.event_bus as eb
-    sys.modules["api.event_bus"] = eb
-    
-    await server.tick_once()
-    try:
-        event = q.get_nowait()
-    except asyncio.QueueEmpty:
-        pytest.fail("No event published despite fixed random roll")
-    
-    # an event should be published
-    assert event["type"] in ("sale", "restock", "new_item")
-    assert event["shop_id"] == "osm:node:1001"
-    assert event["region_id"] == "malasana"
-    assert "qty_now" in event
-    BUS.unsubscribe(q)
+    async def _test():
+        from reachout.api.event_bus import BUS
+        
+        # Force DB_PATH to use _seeded_db output so _sync_tick has tables.
+        db_path = _seeded_db(tmp_path)
+        monkeypatch.setattr(server, "DB_PATH", db_path)
+        # the client fixture also needs to be called to setup app state if needed,
+        # but mostly we need server.DB_PATH correctly monkeypatched.
+        client = _client(tmp_path, monkeypatch)
+        
+        q = BUS.subscribe()
+        
+        # Simulate a tick. The simulator roll may not produce an event if items is empty 
+        # and new items is empty, but we seeded 1 shop with 1 item.
+        # Insert an event manually via simulator bypassing the random rolls
+        # Or actually just monkeypatch random.random to return a guaranteed value
+        import random
+        monkeypatch.setattr(random, "random", lambda: 0.1) # 0.1 < 0.55 so sale
+        
+        # We also need to monkeypatch choice so we definitely select our item, 
+        # but there's only 1 shop and 1 item seeded so random.choice is deterministic anyway.
+        monkeypatch.setattr(random, "choice", lambda seq: list(seq)[0])
+
+        # Force the event_bus module to be loaded from the same place
+        # to avoid the duplicate module issue where `api.event_bus` and
+        # `reachout.api.event_bus` have different BUS instances.
+        import sys
+        import reachout.api.event_bus as eb
+        sys.modules["api.event_bus"] = eb
+        
+        await server.tick_once()
+        try:
+            event = q.get_nowait()
+        except asyncio.QueueEmpty:
+            pytest.fail("No event published despite fixed random roll")
+        
+        # an event should be published
+        assert event["type"] in ("sale", "restock", "new_item")
+        assert event["shop_id"] == "osm:node:1001"
+        assert event["region_id"] == "malasana"
+        assert "qty_now" in event
+        BUS.unsubscribe(q)
+
+    asyncio.run(_test())
