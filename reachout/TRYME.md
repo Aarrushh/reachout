@@ -73,7 +73,18 @@ Any LLM output that fails schema validation is discarded and the
 deterministic result is used instead — so this is safe to try even if
 something goes wrong.
 
-## 6. Optional: API + frontend
+## 6. Optional: Live End-to-End Verification
+
+You can verify that a running backend is healthy, correctly paginates inventory, and streams events via our verification script.
+With a local instance running (`REACHOUT_SIM=1 uvicorn api.server:app --reload`), in another terminal run:
+
+```bash
+python scripts/verify_live.py
+```
+
+It should pass all assertions. You can override the base URL by passing `--url http://other-host:8000`.
+
+## 7. Optional: API + frontend
 
 ```bash
 # Optional: run with the background inventory simulator ticking
