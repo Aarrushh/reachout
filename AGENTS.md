@@ -496,12 +496,11 @@ visual/UI decisions; that is a separate future phase (ui-ux-pro-max /
 
 **Input contract:** W8 done (a working pipeline to wrap).
 
-**Output contract:** `GET /api/search` → ranked_shops JSON,
-`GET /api/search.geojson` → the FeatureCollection, `GET /api/health` →
-`{"status":"ok"}`; responses validate against their schemas. Frontend:
-React Router with URL-as-state, TanStack Query keyed on URL params, types
-GENERATED from the schemas (never hand-edited), no styling or layout of any
-kind.
+**Output contract:** Endpoints function exactly as documented in the `PROJECT_OVERVIEW.md` 
+endpoints table (e.g. `GET /api/search` → ranked_shops JSON, `GET /api/search.geojson` → 
+the FeatureCollection, `GET /api/health` → `{"status":"ok"}`). All responses validate 
+against their schemas. Frontend: React Router with URL-as-state, TanStack Query keyed on 
+URL params, types GENERATED from the schemas (never hand-edited), no styling or layout of any kind.
 
 **Blockers:** W8. (Parallel with W9 — disjoint files.)
 
