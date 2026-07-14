@@ -8,8 +8,10 @@ description: Build/launch/drive recipe for verifying ReachOut end to end (FastAP
 ## Launch
 
 ```bash
-# Backend (from reachout/api/). REACHOUT_OFFLINE=1 avoids live Overpass/Nominatim.
-REACHOUT_OFFLINE=1 python -m uvicorn server:app --port 8000
+# Backend (from reachout/, repo root on PYTHONPATH — event_bus imports
+# reachout.scripts.*). REACHOUT_OFFLINE=1 avoids live Overpass/Nominatim;
+# REACHOUT_SIM=1 runs the inventory simulator (feeds /api/inventory/stream).
+REACHOUT_OFFLINE=1 REACHOUT_SIM=1 PYTHONPATH=.. python -m uvicorn api.server:app --port 8000
 
 # Frontend (from frontend/)
 npm run dev        # serves http://localhost:5173
