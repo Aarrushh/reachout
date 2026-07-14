@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "RegionsResponse",
-  "description": "Envelope for GET /api/regions",
+  "description": "Producer: /api/regions. Consumer: frontend / API clients. additionalProperties:false is the hallucination gate. Envelope for GET /api/regions",
   "type": "object",
   "additionalProperties": false,
   "required": ["status"],

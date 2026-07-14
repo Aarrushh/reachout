@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SearchPage",
-  "description": "Paginated envelope for GET /api/search. The ranks stay the GLOBAL ranks (page 2 starts at rank 11). result_count equals the slice length.",
+  "description": "Producer: /api/search. Consumer: frontend search results. additionalProperties:false is the hallucination gate. Paginated envelope for GET /api/search. The ranks stay the GLOBAL ranks (page 2 starts at rank 11). result_count equals the slice length.",
   "type": "object",
   "additionalProperties": false,
   "required": ["status"],

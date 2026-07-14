@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ShopsGeoJSON",
-  "description": "RFC 7946 FeatureCollection of ALL known shops (no inventory, no ranking) for the map's always-on network layer. Facts only: id, name, category, position. Same coordinate-order guard as map_geojson.schema.json.",
+  "description": "Producer: /api/shops.geojson. Consumer: map network layer + entry backdrop. additionalProperties:false is the hallucination gate. RFC 7946 FeatureCollection of ALL known shops (no inventory, no ranking) for the map's always-on network layer. Facts only: id, name, category, position. Same coordinate-order guard as map_geojson.schema.json.",
   "type": "object",
   "additionalProperties": false,
   "required": ["type", "metadata", "features"],

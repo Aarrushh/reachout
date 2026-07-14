@@ -138,7 +138,15 @@ Every structured artifact has a schema in `reachout/shared/schemas/`:
 | `ranked_shops.schema.json` | stage 04 | `/api/search` → frontend cards |
 | `map_geojson.schema.json` | stage 05 | `/api/search.geojson` → map matched layer |
 | `shops_geojson.schema.json` | `/api/shops.geojson` (validated at request time) | map network layer + entry backdrop |
-| `shop_record` / `inventory_record` | ingest/seeder | DB rows |
+| `shop_record.schema.json` | `osm_ingest.py` | DB rows |
+| `inventory_record.schema.json` | `inventory_seeder.py` / `inventory_simulator.py` | DB rows |
+| `inventory_response.schema.json` | `/api/inventory` | frontend / API clients |
+| `health_response.schema.json` | `/api/health` | frontend / monitoring |
+| `regions_response.schema.json` | `/api/regions` | frontend / API clients |
+| `region_record.schema.json` | `db_seeder` / `gazetteer` | SQLite DB / API responses |
+| `search_page.schema.json` | `/api/search` | frontend search results |
+| `sku_catalog.schema.json` | static data (`sku_catalog.json`) | inventory seeder / search engine |
+| `stock_event.schema.json` | `inventory_simulator.py` / event bus | `/api/events` SSE stream |
 
 **The iron rule:** if the frontend needs a field that isn't in a schema —
 schema first, backend second, `npm run gen-types` third. Never invent
