@@ -73,11 +73,38 @@ Any LLM output that fails schema validation is discarded and the
 deterministic result is used instead — so this is safe to try even if
 something goes wrong.
 
-## 6. Optional: API + frontend
+## 6. Optional: Live End-to-End Verification
+
+You can verify that a running backend is healthy, correctly paginates inventory, and streams events via our verification script.
+With a local instance running (`REACHOUT_SIM=1 uvicorn api.server:app --reload`), in another terminal run:
 
 ```bash
-uvicorn api.server:app --reload
+python scripts/verify_live.py
 ```
 
-then hit `http://localhost:8000/api/search?query=...&lat=...&lng=...`.
+It should pass all assertions. You can override the base URL by passing `--url http://other-host:8000`.
+
+## 7. Optional: API + frontend
+
+```bash
+# Optional: run with the background inventory simulator ticking
+REACHOUT_SIM=1 uvicorn api.server:app --reload
+```
+
+Then try the endpoints:
+
+```bash
+# List all regions
+curl -s "http://localhost:8000/api/regions"
+
+# View paginated inventory
+curl -s "http://localhost:8000/api/inventory?page=1&page_size=10"
+
+# Search with pagination
+curl -s "http://localhost:8000/api/search?q=cargador&near=Malasana&page=1"
+
+# Stream live stock events (use -N to disable curl buffering)
+curl -N "http://localhost:8000/api/inventory/stream"
+```
+
 The frontend skeleton lives in `../frontend/` (see its own README).

@@ -1,5 +1,23 @@
 import os
 import sys
+import pytest
+import requests
+
+@pytest.fixture(autouse=True)
+def block_network_if_offline(monkeypatch):
+    """Enforce offline isolation for tests.
+    
+    If REACHOUT_OFFLINE=1 is set, blocks any network calls via requests.
+    Raises RuntimeError to fail the test immediately.
+    """
+    if os.environ.get("REACHOUT_OFFLINE") == "1":
+        def block_request(*args, **kwargs):
+            raise RuntimeError(f"Network calls are blocked in offline mode! Blocked call to: {args}")
+        monkeypatch.setattr(requests, "get", block_request)
+        monkeypatch.setattr(requests, "post", block_request)
+        monkeypatch.setattr(requests, "put", block_request)
+        monkeypatch.setattr(requests, "patch", block_request)
+        monkeypatch.setattr(requests, "delete", block_request)
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 if SCRIPTS_DIR not in sys.path:

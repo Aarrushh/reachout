@@ -14,7 +14,9 @@ need and nearby stores answer.
 Madrid is the test market. Shop identities are **real** (OpenStreetMap
 snapshot, ~3,300 shops); stock is **synthetic**, seeded deterministically per
 shop and flagged `synthetic: true`. In production the simulator is replaced
-by real point-of-sale feeds; everything else stays the same.
+by real point-of-sale feeds; everything else stays the same. To support filtering
+and scoped Server-Sent Events (SSE) views, shops are assigned to physical
+**regions** (barrios) during the ingest process.
 
 ## 2. The one design rule
 
@@ -36,6 +38,8 @@ Browser (React SPA, localhost:5173)
   ▼                                                  (shops_geojson.schema.json)
 FastAPI (reachout/api/server.py, localhost:8000, CORS *)
   │  per request: throwaway output dir → run_pipeline.run()
+  │
+  │  [AsyncIOScheduler] ─(ticks)→ Simulator ─(events)→ [Event Bus] ─(SSE)→ /api/inventory/stream
   ▼
 Pipeline (reachout/run_pipeline.py) — halts on any non-"ok" or schema failure
   01 parse-query      Agentic    free text → intent.json (rule-based default,
@@ -49,6 +53,18 @@ Data (reachout/data/): reachout.db (SQLite WAL: shops + inventory),
   osm_cache/ (committed Madrid snapshot), gazetteer_madrid.json (barrio
   centroids), sku_catalog.json (synthetic item templates)
 ```
+
+### Endpoints
+
+| Method | Path | Returns | Notes |
+|---|---|---|---|
+| GET | `/api/search` | `ranked_shops.json` / `search_page.json` | Search pipeline results (paginated) |
+| GET | `/api/search.geojson` | `map_geojson.json` | Matched shops as a GeoJSON FeatureCollection |
+| GET | `/api/shops.geojson` | `shops_geojson.json` | All known shops (network layer), cached |
+| GET | `/api/inventory` | `inventory_response.json` | Paginated inventory (can be filtered by region/in_stock) |
+| GET | `/api/inventory/stream` | Server-Sent Events (SSE) | Stream of `stock_event`s (optional region filter) |
+| GET | `/api/regions` | `regions_response.json` | List of known regions with shop counts |
+| GET | `/api/health` | `health_response.json` | API health, stats, and simulator state |
 
 ## 4. Repository map
 
@@ -138,7 +154,15 @@ Every structured artifact has a schema in `reachout/shared/schemas/`:
 | `ranked_shops.schema.json` | stage 04 | `/api/search` → frontend cards |
 | `map_geojson.schema.json` | stage 05 | `/api/search.geojson` → map matched layer |
 | `shops_geojson.schema.json` | `/api/shops.geojson` (validated at request time) | map network layer + entry backdrop |
-| `shop_record` / `inventory_record` | ingest/seeder | DB rows |
+| `shop_record.schema.json` | `osm_ingest.py` | DB rows |
+| `inventory_record.schema.json` | `inventory_seeder.py` / `inventory_simulator.py` | DB rows |
+| `inventory_response.schema.json` | `/api/inventory` | frontend / API clients |
+| `health_response.schema.json` | `/api/health` | frontend / monitoring |
+| `regions_response.schema.json` | `/api/regions` | frontend / API clients |
+| `region_record.schema.json` | `db_seeder` / `gazetteer` | SQLite DB / API responses |
+| `search_page.schema.json` | `/api/search` | frontend search results |
+| `sku_catalog.schema.json` | static data (`sku_catalog.json`) | inventory seeder / search engine |
+| `stock_event.schema.json` | `inventory_simulator.py` / event bus | `/api/events` SSE stream |
 
 **The iron rule:** if the frontend needs a field that isn't in a schema —
 schema first, backend second, `npm run gen-types` third. Never invent
@@ -177,6 +201,8 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 | Wrong/missing shops | `data/reachout.db` shops table (from `scripts/osm_ingest.py` + `data/osm_cache/`). `--refresh` re-pulls from Overpass. |
 | Barrio not resolving | `scripts/nominatim.py` → offline fallback `data/gazetteer_madrid.json`. The frontend autocomplete list is generated from the same file (`npm run gen-barrios`). |
 | Frontend shows CORS errors | `reachout/api/server.py` CORSMiddleware (GET-only, `*`). |
+| SSE not streaming | `REACHOUT_SIM` environment variable not set to `1` (which starts the simulator/scheduler), or an issue in `api/event_bus.py`. |
+| Region empty | The `region_seeder` assignment radius may be too small or missing shops for that specific region. |
 | Frontend types don't match API | Regenerate: `npm run gen-types`. Types are slaved to schemas — never edit `src/types/`. |
 | Map pins wrong color / theme drift | `frontend/src/styles/tokens.css` — MapPanel reads the same CSS custom properties at map init (`cssVar()`); there is no second palette. |
 | Ping animation issues | `frontend/src/hooks/usePingSequence.ts` (unit-tested with fake timers) + the ping/selection effect in `MapPanel.tsx`. Reduced-motion pings everything instantly. |

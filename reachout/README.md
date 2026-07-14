@@ -117,9 +117,37 @@ result is used instead.
 The shops come from a real OpenStreetMap snapshot of Madrid (committed at
 `data/osm_cache/madrid_shops.json`, refreshable live via Overpass). The
 stock levels and the inventory simulator are synthetic, seeded
-deterministically per shop for the MVP. In production the simulator is
-replaced by a real sync from each shop's point-of-sale or inventory system.
-The matching engine, the schemas, and the stage structure stay the same.
+deterministically per shop for the MVP. The product catalog itself is sourced 
+from DummyJSON (using a 1:1 EUR conversion rate convention) and cached 
+offline. In production the simulator is replaced by a real sync from each 
+shop's point-of-sale or inventory system. The matching engine, the schemas, 
+and the stage structure stay the same.
+
+## API
+
+The backend runs a read-only FastAPI service:
+
+```bash
+cd reachout
+# Optional: run with the background inventory simulator ticking
+REACHOUT_SIM=1 uvicorn api.server:app --reload
+```
+
+Examples of calling the endpoints:
+
+```bash
+# List all regions
+curl -s "http://localhost:8000/api/regions"
+
+# View paginated inventory
+curl -s "http://localhost:8000/api/inventory?page=1&page_size=10"
+
+# Search with pagination
+curl -s "http://localhost:8000/api/search?q=cargador&near=Malasana&page=1"
+
+# Stream live stock events (use -N to disable curl buffering)
+curl -N "http://localhost:8000/api/inventory/stream"
+```
 
 ## Tests
 

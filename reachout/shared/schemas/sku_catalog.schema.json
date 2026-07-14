@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SKU Catalog",
-  "description": "Schema for data/sku_catalog.json which contains template and dummyjson products per category.",
+  "description": "Producer: static data (sku_catalog.json). Consumer: inventory seeder / search engine. additionalProperties:false is the hallucination gate. Schema for data/sku_catalog.json which contains template and dummyjson products per category.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

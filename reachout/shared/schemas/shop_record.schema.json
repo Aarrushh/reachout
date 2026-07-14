@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ShopRecord",
-  "description": "One real shop sourced from OpenStreetMap. Identity fields are never AI-generated; osm_ingest.py validates every row against this before upsert.",
+  "description": "Producer: osm_ingest.py. Consumer: SQLite DB. additionalProperties:false is the hallucination gate. One real shop sourced from OpenStreetMap. Identity fields are never AI-generated; osm_ingest.py validates every row against this before upsert.",
   "type": "object",
   "additionalProperties": false,
   "required": ["shop_id", "osm_id", "name", "categories", "lat", "lng", "address", "source", "fetched_at"],

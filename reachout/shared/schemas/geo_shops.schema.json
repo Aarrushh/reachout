@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "GeoShops",
-  "description": "Stage 02 output: real shops inside the radius, sorted nearest-first, with no stock information yet. Script invariants (tested, not expressible here): shop_count == shops.length; shops sorted ascending by distance_km.",
+  "description": "Producer: stage 02. Consumer: stage 03. additionalProperties:false is the hallucination gate. Stage 02 output: real shops inside the radius, sorted nearest-first, with no stock information yet. Script invariants (tested, not expressible here): shop_count == shops.length; shops sorted ascending by distance_km.",
   "type": "object",
   "additionalProperties": false,
   "required": ["status"],
