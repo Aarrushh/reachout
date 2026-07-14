@@ -209,7 +209,7 @@ def apply_changeset(session, nn, title):
     as a pushed branch: apply it to the integration branch ourselves."""
     patches = [o["changeSet"]["gitPatch"]
                for o in session.get("outputs", [])
-               if "gitPatch" in o.get("changeSet", {})]
+               if "unidiffPatch" in o.get("changeSet", {}).get("gitPatch", {})]
     if not patches:
         return False
     gp = patches[-1]  # the final artifact is the finished state
