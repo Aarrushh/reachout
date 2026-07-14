@@ -1,3 +1,7 @@
+# FROZEN-SIMPLE RULE: Tech stack is strictly frozen to SQLite WAL, APScheduler, asyncio.Queue,
+# and FastAPI StreamingResponse. NO Redis, NO Kafka, NO Celery, NO websockets, NO sse-starlette,
+# NO ORMs, and NO new services. Do not add these or attempt to "upgrade" the architecture.
+
 # Required for schema validation (the hallucination gate).
 jsonschema>=4.0
 

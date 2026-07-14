@@ -12,6 +12,10 @@
 | Tests | `pytest` | TDD per superpowers; offline via fixtures |
 | Optional AI | `anthropic` SDK | stages 01/04 only, opt-in via --use-llm |
 | Optional API | FastAPI + uvicorn | thin read-only wrapper for the future frontend; last build step |
+| Scheduler | APScheduler | in-process background ticks for inventory simulator; no external broker |
+| SSE Tests | httpx (test) | test-only async client to verify in-process SSE streaming |
+
+**FROZEN-SIMPLE RULE:** The technology stack is STRICTLY FROZEN to SQLite WAL, APScheduler, asyncio.Queue, and FastAPI StreamingResponse. NO Redis, NO Kafka, NO Celery, NO websockets, NO sse-starlette, NO ORMs, and NO new microservices are permitted. Do not attempt to "upgrade" this architecture.
 
 ## External data sources (all free / open)
 
