@@ -9,6 +9,9 @@ in real time.
     python demo.py
     REACHOUT_OFFLINE=1 python demo.py   # no network at all
 
+To run the simulator inside the API server instead, use REACHOUT_SIM=1 
+when starting the server. This demo always runs the thread-based simulator directly.
+
 This is the whole product in miniature: live inventory on one side, a
 shopper searching on the other, and an instant ping connecting them.
 """
@@ -43,6 +46,9 @@ def main():
     conn = db.connect()
     try:
         osm_ingest.ingest(conn=conn)
+        num_regions = len(db.all_regions(conn))
+        num_shops = len(db.all_shops(conn))
+        print(f"Loaded {num_shops} shops across {num_regions} regions.")
     finally:
         conn.close()
 
