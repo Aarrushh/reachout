@@ -76,8 +76,24 @@ something goes wrong.
 ## 6. Optional: API + frontend
 
 ```bash
-uvicorn api.server:app --reload
+# Optional: run with the background inventory simulator ticking
+REACHOUT_SIM=1 uvicorn api.server:app --reload
 ```
 
-then hit `http://localhost:8000/api/search?query=...&lat=...&lng=...`.
+Then try the endpoints:
+
+```bash
+# List all regions
+curl -s "http://localhost:8000/api/regions"
+
+# View paginated inventory
+curl -s "http://localhost:8000/api/inventory?page=1&page_size=10"
+
+# Search with pagination
+curl -s "http://localhost:8000/api/search?q=cargador&near=Malasana&page=1"
+
+# Stream live stock events (use -N to disable curl buffering)
+curl -N "http://localhost:8000/api/inventory/stream"
+```
+
 The frontend skeleton lives in `../frontend/` (see its own README).
