@@ -1,6 +1,7 @@
-# FROZEN-SIMPLE RULE: Tech stack is strictly frozen to SQLite WAL, APScheduler, asyncio.Queue,
-# and FastAPI StreamingResponse. NO Redis, NO Kafka, NO Celery, NO websockets, NO sse-starlette,
-# NO ORMs, and NO new services. Do not add these or attempt to "upgrade" the architecture.
+# FROZEN-SIMPLE RULE (v1 pipeline): the SQLite pipeline stack stays frozen to SQLite WAL,
+# APScheduler, asyncio.Queue, and FastAPI StreamingResponse. NO Redis, NO Kafka, NO Celery,
+# NO websockets, NO sse-starlette, NO ORMs. Backend v2 (see "Backend v2" block below) is the
+# one user-approved exception: Supabase (hosted Postgres + pgvector) and Gemini via REST.
 
 # Required for schema validation (the hallucination gate).
 jsonschema>=4.0
@@ -25,3 +26,13 @@ apscheduler>=3.10
 # (tests/test_sse_stream.py) — the one declared Phase-4 test-only exception
 # to TASK 01's "no other deps" rule.
 httpx>=0.27
+
+# --- Backend v2: Supabase inventory + NLP search + shopkeeper chat ---
+supabase>=2.15          # PostgREST/RPC client (data ops only; DDL is via schema.sql)
+faker>=37.0             # es_ES store names / product flavour in data/seed_inventory.py
+python-dotenv>=1.0      # loads reachout/.env
+# Gemini is called via plain REST (requests/httpx) — the google-generativeai SDK is
+# deprecated and unnecessary; gemini-embedding-001 + gemini-2.5-flash-lite endpoints only.
+# Optional: only needed if SUPABASE_DB_URL is set so seed_inventory.py can apply
+# data/schema.sql itself over a direct Postgres connection.
+# psycopg[binary]>=3.2

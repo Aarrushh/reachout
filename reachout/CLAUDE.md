@@ -107,3 +107,22 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+---
+
+# Jules Handoff Note (backend v2)
+
+Phase 1 — Supabase DB seeded with products across Madrid barrios.
+Schema: `stores` + `products` tables with pgvector embeddings
+(`data/schema.sql`, seeded by `data/seed_inventory.py`; check
+`SHARED_CONTRACT.md` for the live PHASE_1_DB_READY flag before trusting
+the DB is populated).
+Your job: implement Phases 2, 3, 4 from the backend-v2 brief.
+Keys are in `.env` (gitignored; see `.env.example`). `SHARED_CONTRACT.md`
+has the API contract.
+Do not modify `data/schema.sql` or `data/seed_inventory.py`.
+All new code goes in `api/search.py` and `api/chat.py`; shared Gemini/
+Supabase helpers live in `api/gemini.py` and `api/supa.py`.
+Mount both routers on the existing FastAPI app in `api/server.py`.
+Embedding model is `gemini-embedding-001` @ 768 dims (NOT text-embedding-004
+— unavailable on this key); chat model is `gemini-2.5-flash-lite`; both read
+from env. Vectors are L2-normalized client-side before insert/query.
