@@ -1,7 +1,7 @@
 /** Results: split view. URL stays the state of record; this file only adds
  * presentation state (selection, ping sequence) on top of the two queries. */
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 
 import { fetchAllShops, fetchRankedShops, fetchShopsGeoJSON, type SearchParams } from "../api/client";
@@ -12,6 +12,9 @@ import { useLang } from "../hooks/useLang";
 import { usePingSequence } from "../hooks/usePingSequence";
 import type { RankedShops } from "../types/RankedShops";
 import "../components/results.css";
+
+// Chat is off the critical path — keep it out of the initial bundle.
+const ChatPanel = lazy(() => import("../components/ChatPanel"));
 
 export type RankedResult = NonNullable<RankedShops["results"]>[number];
 
@@ -38,6 +41,7 @@ export default function ResultsRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [lang, setLang] = useLang();
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [chatResult, setChatResult] = useState<RankedResult | null>(null);
   const params = paramsFromUrl(searchParams);
   const radiusKm = params.radius ?? 2;
   const enabled = params.q.length > 0;
@@ -115,13 +119,26 @@ export default function ResultsRoute() {
           onCategory={(c) => (c ? setParam("category", c) : deleteParam("category"))}
           inStockOnly={inStockOnly}
           onInStockOnly={(v) => (v ? setParam("stock", "1") : deleteParam("stock"))}
-          page={page} onPage={(p) => setParam("page", String(p))} />
+          page={page} onPage={(p) => setParam("page", String(p))}
+          onChat={setChatResult} />
         <MapPanel matched={shopsGeoJSON.data} network={allShops.data}
           pingedIds={pingedIds} selectedShopId={selectedShopId} onSelect={setSelectedShopId} lang={lang}
           region={region}
           onRegion={(r) => (r ? setParam("region", r) : deleteParam("region"))}
           networkCount={allShops.data?.metadata.shop_count ?? 0} />
       </div>
+      {chatResult && (
+        <Suspense fallback={null}>
+          <ChatPanel lang={lang} onClose={() => setChatResult(null)}
+            ctx={{
+              shopId: chatResult.shop_id,
+              shopName: chatResult.shop_name,
+              itemName: chatResult.item_name,
+              price: chatResult.price,
+              stockQty: chatResult.stock_qty,
+            }} />
+        </Suspense>
+      )}
     </div>
   );
 }

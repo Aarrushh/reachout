@@ -35,11 +35,12 @@ interface Props {
   onInStockOnly: (v: boolean) => void;
   page: number;
   onPage: (p: number) => void;
+  onChat: (r: RankedResult) => void;
 }
 
 export default function ResultsPanel({
   query, pingedIds, selectedShopId, onSelect, lang, radiusKm, onWiden, onRetry,
-  sort, onSort, category, onCategory, inStockOnly, onInStockOnly, page, onPage,
+  sort, onSort, category, onCategory, inStockOnly, onInStockOnly, page, onPage, onChat,
 }: Props) {
   const { data, isPending, isError, error } = query;
   const panelRef = useRef<HTMLDivElement>(null);
@@ -145,7 +146,7 @@ export default function ResultsPanel({
             <ShopCard key={r.shop_id} result={r} lang={lang}
               pinged={pingedIds.has(r.shop_id)}
               selected={selectedShopId === r.shop_id}
-              onSelect={onSelect} />
+              onSelect={onSelect} onChat={onChat} />
           ))}
           <nav className="pagination" aria-label={t(lang, "page.of", { p: safePage, total: totalPages })}>
             <button disabled={safePage <= 1} onClick={() => onPage(safePage - 1)}>

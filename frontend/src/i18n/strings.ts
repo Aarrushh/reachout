@@ -57,6 +57,17 @@ const STRINGS = {
   "landing.how2":          { es: "Las tiendas cercanas reciben un ping al instante", en: "Nearby shops get pinged instantly" },
   "landing.how3":          { es: "Elige por distancia, precio y stock real", en: "Choose by distance, price and live stock" },
   "landing.categoriesTitle": { es: "Compra por categoría", en: "Shop by category" },
+  "chat.ask":              { es: "Preguntar a la tienda", en: "Ask the shop" },
+  "chat.title":            { es: "Chat con {shop}", en: "Chat with {shop}" },
+  "chat.openNow":          { es: "Abierto ahora", en: "Open now" },
+  "chat.close":            { es: "Cerrar chat", en: "Close chat" },
+  "chat.placeholder":      { es: "Escribe tu pregunta…", en: "Type your question…" },
+  "chat.send":             { es: "Enviar", en: "Send" },
+  "chat.typing":           { es: "Escribiendo…", en: "Typing…" },
+  "chat.mockNotice":       { es: "Vista previa — respuestas simuladas", en: "Preview — simulated replies" },
+  "chat.suggestStock":     { es: "¿Lo tenéis en stock?", en: "Is it in stock?" },
+  "chat.suggestPrice":     { es: "¿Cuánto cuesta?", en: "How much is it?" },
+  "chat.suggestReserve":   { es: "¿Me lo puedes apartar?", en: "Can you hold one for me?" },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

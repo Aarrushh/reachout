@@ -62,6 +62,8 @@ src/
 ├── data/barrios.ts          GENERATED barrio names
 ├── types/                   GENERATED schema types
 ├── hooks/                   useLang (URL param), usePingSequence
+├── chat/shopkeeper.ts       chat types (SHARED_CONTRACT shapes) + mock reply
+│                            engine — swaps for POST /api/chat when it ships
 ├── map/map-layers.ts        pure GeoJSON builders (unit-tested, no maplibre)
 ├── components/              entry + results UI, MapPanel (all maplibre code)
 └── routes/                  search.tsx (entry), results.tsx (split view)

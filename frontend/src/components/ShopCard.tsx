@@ -16,6 +16,7 @@ interface Props {
   pinged: boolean;
   selected: boolean;
   onSelect: (shopId: string | null) => void;
+  onChat: (result: RankedResult) => void;
   lang: Lang;
 }
 
@@ -50,7 +51,7 @@ function SplitPrice({ price }: { price: number }) {
   );
 }
 
-export default function ShopCard({ result, pinged, selected, onSelect, lang }: Props) {
+export default function ShopCard({ result, pinged, selected, onSelect, onChat, lang }: Props) {
   const r = result as MaybeRated;
   const stockKey: StringKey =
     r.stock_qty > 5 ? "results.inStock" : r.stock_qty >= 1 ? "results.onlyNLeft" : "results.outOfStock";
@@ -89,6 +90,10 @@ export default function ShopCard({ result, pinged, selected, onSelect, lang }: P
           {r.shop_name} · <span className="mono">{formatDistance(r.distance_km, lang)}</span>
           {r.address && <> · {r.address}</>}
         </p>
+        <button className="chat-ask microcaps"
+          onClick={(e) => { e.stopPropagation(); onChat(result); }}>
+          💬 {t(lang, "chat.ask")}
+        </button>
       </div>
       {pinged && (
         <span className="ping-badge microcaps">
