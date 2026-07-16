@@ -619,5 +619,5 @@ Supabase project and Gemini key before writing any code:
       429s — see commits d6de1b2 and the gemini.py pacing fix.)
 - [x] PHASE 2 — POST /api/search (240 tests passed)
 - [x] PHASE 3 — POST /api/chat (completed)
-- [ ] PHASE 4 — GET /api/products, /api/stores, /api/neighbourhoods, CORS
+- [x] PHASE 4 — GET /api/products, /api/stores, /api/neighbourhoods, CORS
 - [ ] PHASE 5 — quality loop + BACKEND_DONE.md

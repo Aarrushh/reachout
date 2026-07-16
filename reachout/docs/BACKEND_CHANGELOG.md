@@ -37,3 +37,8 @@ Schema-first like everything else: add `chat_request.schema.json` /
 frontend runs `npm run gen-types` and swaps the body of `sendChatMessage`.
 When live, set `PHASE_3_CHAT_READY` in `SHARED_CONTRACT.md`. Full details in
 `docs/frontend_contract_note.md`.
+
+## Backend v2 (TASKs 53–68)
+* **New Endpoints:** Added `/api/search` (pgvector semantic search + deterministic re-rank), `/api/chat` (AI shopkeeper), `/api/products` (paginated product list), `/api/stores` (store list with rating order), and `/api/neighbourhoods` (Madrid barrios list).
+* **Models Used:** Integrated `gemini-embedding-001` (768 dims, batched at seed time) for vector search and `gemini-2.5-flash-lite` for intent extraction and chat replies via plain REST helper (`api/gemini.py`).
+* **Testing:** Expanded test suite offline utilizing monkeypatched APIs. The full backend suite (v1 + v2) is 100% green with 265 passing tests.
