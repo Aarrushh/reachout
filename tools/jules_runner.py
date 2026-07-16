@@ -37,11 +37,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = "https://jules.googleapis.com/v1alpha"
 SOURCE = "sources/github/Aarrushh/reachout"
 REPO = "Aarrushh/reachout"
+# Overridable via --branch/--tasks/--state (main() rewrites these globals);
+# defaults preserve the original v1 run's behaviour.
 BRANCH = "jules-integration"
 TASKS_FILE = os.path.join(ROOT, "docs", "JULES_BACKEND.md")
 STATE_FILE = os.path.join(ROOT, "tools", ".jules_runner_state.json")
 WORKTREE = os.path.join(ROOT, "tools", ".jules-wt")
-MAIN_WORKTREE = os.path.join(ROOT, "tools", ".jules-wt-main")
 
 POLL_INTERVAL = 30          # seconds between session polls
 SESSION_TIMEOUT = 3 * 60 * 60  # heavy tasks (SSE tests) can exceed an hour
@@ -171,8 +172,6 @@ def ensure_worktree():
         git("fetch", "origin")
     if not os.path.exists(WORKTREE):
         git("worktree", "add", "-B", BRANCH, WORKTREE, "origin/" + BRANCH)
-    if not os.path.exists(MAIN_WORKTREE):
-        git("worktree", "add", "-B", "main", MAIN_WORKTREE, "origin/main")
 
 
 def find_output_branch(session, before):
@@ -251,20 +250,26 @@ def merge_into_integration(branch, nn, title):
 
 
 def merge_integration_into_main(nn, title):
-    git("fetch", "origin", cwd=MAIN_WORKTREE)
-    git("reset", "--hard", "origin/main", cwd=MAIN_WORKTREE)
+    """Land the integration branch on main WITHOUT a second checkout of main
+    (the primary checkout has main and other sessions work in it): merge
+    origin/main INTO the integration worktree so it becomes a superset, then
+    push it to main as a guaranteed fast-forward."""
+    git("fetch", "origin", cwd=WORKTREE)
+    git("reset", "--hard", "origin/" + BRANCH, cwd=WORKTREE)
     p = subprocess.run(
         ["git", "merge", "--no-edit", "-m",
-         f"merge {BRANCH} into main after TASK {nn}: {title}",
-         "origin/" + BRANCH],
-        cwd=MAIN_WORKTREE, capture_output=True, text=True,
+         f"merge origin/main into {BRANCH} after TASK {nn}: {title}",
+         "origin/main"],
+        cwd=WORKTREE, capture_output=True, text=True,
     )
     if p.returncode != 0:
-        git("merge", "--abort", cwd=MAIN_WORKTREE, check=False)
+        git("merge", "--abort", cwd=WORKTREE, check=False)
         raise RuntimeError(
-            f"merge conflict {BRANCH} -> main:\n{p.stdout}\n{p.stderr}")
-    git("push", "origin", "main", cwd=MAIN_WORKTREE)
-    log(f"merged {BRANCH} -> main and pushed (through TASK {nn})")
+            f"merge conflict origin/main -> {BRANCH}:\n{p.stdout}\n{p.stderr}")
+    git("push", "origin", BRANCH, cwd=WORKTREE)
+    git("push", "origin", f"{BRANCH}:main", cwd=WORKTREE)
+    log(f"merged main into {BRANCH}, pushed {BRANCH} and fast-forwarded main "
+        f"(through TASK {nn})")
 
 
 # ---------------------------------------------------------------- sessions
@@ -345,7 +350,19 @@ def main():
     ap.add_argument("--from", dest="from_nn")
     ap.add_argument("--only")
     ap.add_argument("--max", type=int, default=0)
+    ap.add_argument("--tasks", help="tasks markdown file (default: v1 series)")
+    ap.add_argument("--state", help="state json file (default: v1 state)")
+    ap.add_argument("--branch", help="integration branch (default: v1 branch)")
     args = ap.parse_args()
+
+    global TASKS_FILE, STATE_FILE, BRANCH, WORKTREE
+    if args.tasks:
+        TASKS_FILE = os.path.join(ROOT, args.tasks)
+    if args.state:
+        STATE_FILE = os.path.join(ROOT, args.state)
+    if args.branch:
+        BRANCH = args.branch
+        WORKTREE = os.path.join(ROOT, "tools", f".jules-wt-{BRANCH}")
 
     load_env()
     master, tasks = parse_tasks()

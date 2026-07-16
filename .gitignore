@@ -7,3 +7,6 @@ tools/.jules_runner_state.json
 tools/jules_runner.log
 tools/.jules-wt/
 tools/.jules-wt-main/
+tools/.jules_runner_state_v2.json
+tools/.jules-wt-*/
+tools/jules_runner_v2.log
