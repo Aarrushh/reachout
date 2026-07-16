@@ -114,10 +114,14 @@ def build_catalog_pool() -> dict[str, list[dict]]:
             })
 
     dj = json.loads((DATA_DIR / "dummyjson_cache" / "products.json").read_text(encoding="utf-8"))
+    seen = {c: {it["name"] for it in items} for c, items in pool.items()}
     for p in (dj["products"] if isinstance(dj, dict) else dj):
         category = DJ_CATEGORY_MAP.get(p["category"])
-        if not category:
+        # the cache contains duplicate entries (overlapping fetch pages) —
+        # keep first occurrence only
+        if not category or p["title"] in seen[category]:
             continue
+        seen[category].add(p["title"])
         pool[category].append({
             "name": p["title"],
             "description": (p.get("description") or "").strip()[:400],
@@ -127,11 +131,14 @@ def build_catalog_pool() -> dict[str, list[dict]]:
             "image_url": p.get("thumbnail") or f"https://picsum.photos/seed/dj{p['id']}/400/300",
         })
 
-    # widen thin categories with pack/size variants of existing items
+    # widen thin categories with pack/size variants of existing items.
+    # i is bounded by every possible (base, suffix) pair: a category with few
+    # base items (stationery: 10) simply tops out below MIN_POOL_PER_CATEGORY
+    # instead of looping forever on duplicate names.
     for category, items in pool.items():
         base = list(items)
         i = 0
-        while len(items) < MIN_POOL_PER_CATEGORY and base:
+        while len(items) < MIN_POOL_PER_CATEGORY and i < len(base) * len(VARIANT_SUFFIXES):
             src = base[i % len(base)]
             suffix = VARIANT_SUFFIXES[(i // len(base)) % len(VARIANT_SUFFIXES)]
             i += 1
