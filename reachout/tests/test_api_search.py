@@ -141,3 +141,65 @@ def test_search_empty_results(tmp_path, monkeypatch, mock_gemini_embed, mock_gem
     assert data["results"] == []
     assert data["interpreted_as"] == "pizza near Sol"
 
+
+from api.gemini import GeminiError
+
+def test_search_embed_failure(tmp_path, monkeypatch, mock_gemini_chat, mock_supa_client, rpc_spy):
+    def _embed_fail(text):
+        raise GeminiError("embed fail")
+    monkeypatch.setattr("api.search.gemini.embed_query", _embed_fail)
+    
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/api/search", json={"query": "pizza"})
+    assert resp.status_code == 502
+    assert "embed fail" in resp.json()["detail"]
+
+def test_search_rpc_failure(tmp_path, monkeypatch, mock_gemini_embed, mock_gemini_chat):
+    class FakeRPCErrorSupabase(FakeSupabase):
+        def rpc(self, name, params=None):
+            raise Exception("rpc fail")
+
+    monkeypatch.setattr("api.search.get_client", FakeRPCErrorSupabase)
+    
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/api/search", json={"query": "pizza"})
+    assert resp.status_code == 502
+    assert "rpc fail" in resp.json()["detail"]
+
+def test_search_attach_stores_failure(tmp_path, monkeypatch, mock_gemini_embed, mock_gemini_chat, rpc_spy):
+    class FakeAttachErrorSupabase(FakeSupabase):
+        def __init__(self, tables=None, rpcs=None, spy_list=None):
+            super().__init__(tables, rpcs)
+            self.spy_list = spy_list if spy_list is not None else []
+            
+        def rpc(self, name, params=None):
+            return SpyRPCBuilder(self.rpcs.get(name, []), name, params, self.spy_list)
+
+        def table(self, name):
+            if name == "stores":
+                raise Exception("db attach error")
+            return super().table(name)
+
+    def _get_client():
+        return FakeAttachErrorSupabase(
+            tables={"stores": _MOCK_STORES},
+            rpcs={"match_products": _MOCK_PRODUCTS},
+            spy_list=rpc_spy
+        )
+    monkeypatch.setattr("api.search.get_client", _get_client)
+    
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/api/search", json={"query": "pizza"})
+    
+    # Assert successful response despite failure
+    assert resp.status_code == 200
+    data = resp.json()
+    
+    # Results should be returned intact
+    results = data["results"]
+    assert len(results) == 1
+    res = results[0]
+    assert res["name"] == "Pepperoni Pizza"
+    
+    # Store fields should be missing
+    assert "store_name" not in res

@@ -92,9 +92,12 @@ def _attach_stores(sb, rows: list[dict]) -> None:
     ids = list({r["store_id"] for r in rows})
     if not ids:
         return
-    stores = sb.table("stores").select(
-        "id,name,neighbourhood,avg_delivery_mins,is_open,rating"
-    ).in_("id", ids).execute().data
+    try:
+        stores = sb.table("stores").select(
+            "id,name,neighbourhood,avg_delivery_mins,is_open,rating"
+        ).in_("id", ids).execute().data
+    except Exception:
+        return
     by_id = {s["id"]: s for s in stores}
     for r in rows:
         s = by_id.get(r["store_id"])
@@ -111,21 +114,27 @@ async def search(req: SearchRequest):
     if not query:
         raise HTTPException(status_code=400, detail="query must be non-empty")
 
-    intent, embedding = await asyncio.gather(
-        asyncio.to_thread(_extract_intent, query),
-        asyncio.to_thread(gemini.embed_query, query),
-    )
+    try:
+        intent, embedding = await asyncio.gather(
+            asyncio.to_thread(_extract_intent, query),
+            asyncio.to_thread(gemini.embed_query, query),
+        )
+    except gemini.GeminiError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
     # explicit request param wins over location extracted from the text
     barrio = match_barrio(req.neighbourhood) or match_barrio(intent.get("location"))
 
     def _match():
         sb = get_client()
-        rows = sb.rpc("match_products", {
-            "query_embedding": embedding,
-            "match_count": _RPC_CANDIDATES,
-            "p_neighbourhood": barrio,
-        }).execute().data or []
+        try:
+            rows = sb.rpc("match_products", {
+                "query_embedding": embedding,
+                "match_count": _RPC_CANDIDATES,
+                "p_neighbourhood": barrio,
+            }).execute().data or []
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=str(e))
         rows = _rerank(rows, intent)
         _attach_stores(sb, rows)
         return rows
