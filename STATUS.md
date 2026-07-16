@@ -610,7 +610,13 @@ Supabase project and Gemini key before writing any code:
 
 - [x] PHASE 0 — env (.env keys appended, .env.example added), requirements.txt
       v2 block, this section. Supabase REST + Gemini key probed live.
-- [ ] PHASE 1 — schema.sql + seed_inventory.py + seeded DB verified
+- [x] PHASE 1 — schema.sql + seed_inventory.py + seeded DB verified
+      (2026-07-16: user applied schema.sql in the SQL editor; seeder run
+      landed 50 stores / 3,381 products with 337 unique embeddings; live
+      search sanity-checked: paracetamol top for "algo para el dolor de
+      cabeza", exact match for "cargador usb c". Two seeder bugs found and
+      fixed on the way: infinite variant loop + Gemini per-minute burst
+      429s — see commits d6de1b2 and the gemini.py pacing fix.)
 - [x] PHASE 2 — POST /api/search (240 tests passed)
 - [x] PHASE 3 — POST /api/chat (completed)
 - [ ] PHASE 4 — GET /api/products, /api/stores, /api/neighbourhoods, CORS

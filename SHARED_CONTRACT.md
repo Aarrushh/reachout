@@ -47,7 +47,7 @@ Response: { "neighbourhoods": string[] }  # Madrid barrios
 
 ## Status Flags
 # Backend agent writes to this file when a phase is done:
-# [ ] PHASE_1_DB_READY       — Supabase schema + seed complete
+# [x] PHASE_1_DB_READY       — Supabase schema + seed complete
 # [x] PHASE_2_SEARCH_READY   — /api/search endpoint live
 # [x] PHASE_3_CHAT_READY     — /api/chat endpoint live
 # [ ] PHASE_4_PRODUCTS_READY — /api/products + /api/stores live
