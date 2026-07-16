@@ -179,7 +179,7 @@ def embed_pool(pool: dict[str, list[dict]]) -> None:
     print(f"[embed] {len(texts)} unique catalog items "
           f"-> {(len(texts) + 99) // 100} batchEmbedContents calls")
     t0 = time.time()
-    vectors = gemini.embed_texts(texts, task_type="RETRIEVAL_DOCUMENT")
+    vectors = gemini.embed_texts(texts, task_type="RETRIEVAL_DOCUMENT", pause=15.0)
     for it, vec in zip(items, vectors):
         it["embedding"] = vec
     print(f"[embed] done in {time.time() - t0:.1f}s")
