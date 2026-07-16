@@ -3,6 +3,13 @@ import sys
 import pytest
 import requests
 
+from fake_supa import FakeSupabase
+
+@pytest.fixture
+def fake_supa():
+    """Returns the FakeSupabase class for testing."""
+    return FakeSupabase
+
 @pytest.fixture(autouse=True)
 def block_network_if_offline(monkeypatch):
     """Enforce offline isolation for tests.
