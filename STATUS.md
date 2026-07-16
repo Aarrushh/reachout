@@ -611,7 +611,7 @@ Supabase project and Gemini key before writing any code:
 - [x] PHASE 0 — env (.env keys appended, .env.example added), requirements.txt
       v2 block, this section. Supabase REST + Gemini key probed live.
 - [ ] PHASE 1 — schema.sql + seed_inventory.py + seeded DB verified
-- [ ] PHASE 2 — POST /api/search
+- [x] PHASE 2 — POST /api/search (240 tests passed)
 - [ ] PHASE 3 — POST /api/chat
 - [ ] PHASE 4 — GET /api/products, /api/stores, /api/neighbourhoods, CORS
 - [ ] PHASE 5 — quality loop + BACKEND_DONE.md
