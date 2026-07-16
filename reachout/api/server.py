@@ -111,8 +111,11 @@ async def products_list(neighbourhood: Optional[str] = None,
         if category:
             q = q.eq("category", category)
         return q.order("name").range(offset, offset + limit - 1).execute()
-    res = await asyncio.to_thread(_q)
-    return {"products": res.data, "total": res.count or 0}
+    try:
+        res = await asyncio.to_thread(_q)
+        return {"products": res.data, "total": res.count or 0}
+    except Exception:
+        raise HTTPException(status_code=502, detail="Supabase error")
 
 
 @app.get("/api/stores")
@@ -123,8 +126,11 @@ async def stores_list(neighbourhood: Optional[str] = None):
         if neighbourhood:
             q = q.eq("neighbourhood", neighbourhood)
         return q.order("rating", desc=True).execute()
-    res = await asyncio.to_thread(_q)
-    return {"stores": res.data}
+    try:
+        res = await asyncio.to_thread(_q)
+        return {"stores": res.data}
+    except Exception:
+        raise HTTPException(status_code=502, detail="Supabase error")
 
 
 @app.get("/api/neighbourhoods")

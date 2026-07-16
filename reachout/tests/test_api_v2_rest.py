@@ -183,3 +183,43 @@ def test_neighbourhoods(tmp_path, monkeypatch):
     
     from api.madrid import BARRIOS
     assert data["neighbourhoods"] == BARRIOS
+
+def test_products_list_supabase_error(tmp_path, monkeypatch, query_spy):
+    client = _client(tmp_path, monkeypatch)
+    
+    # We patch FakeQueryBuilder.execute to raise Exception
+    from tests.fake_supa import FakeQueryBuilder
+    original_execute = FakeQueryBuilder.execute
+    
+    def boom(self):
+        raise Exception("fake supa boom")
+    
+    monkeypatch.setattr(FakeQueryBuilder, "execute", boom)
+    
+    resp = client.get("/api/products")
+    assert resp.status_code == 502
+    assert "detail" in resp.json()
+    assert resp.json()["detail"] == "Supabase error"
+
+def test_stores_list_supabase_error(tmp_path, monkeypatch, query_spy):
+    client = _client(tmp_path, monkeypatch)
+    
+    from tests.fake_supa import FakeQueryBuilder
+    
+    def boom(self):
+        raise Exception("fake supa boom")
+    
+    monkeypatch.setattr(FakeQueryBuilder, "execute", boom)
+    
+    resp = client.get("/api/stores")
+    assert resp.status_code == 502
+    assert "detail" in resp.json()
+    assert resp.json()["detail"] == "Supabase error"
+
+def test_neighbourhoods_no_supabase(tmp_path, monkeypatch, query_spy):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/api/neighbourhoods")
+    assert resp.status_code == 200
+    
+    # Assert query_spy is empty indicating no Supabase call was made
+    assert len(query_spy) == 0
