@@ -71,8 +71,66 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="ReachOut API", lifespan=lifespan)
 
-# Read-only public API, no credentials: any browser origin may fetch it.
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
+# Backend v2: the API now takes POSTs (search/chat), so the previous
+# wide-open GET-only CORS is narrowed to the real frontend origins:
+# local Vite dev + any Netlify deploy.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origin_regex=r"https://.*\.netlify\.app",
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+# Backend v2 routers (Supabase + Gemini): POST /api/search, POST /api/chat.
+# NOTE: GET /api/search below is the legacy v1 pipeline endpoint; the v2
+# NLP search is the POST on the same path (different method, no clash).
+from api.search import router as search_router  # noqa: E402
+from api.chat import router as chat_router  # noqa: E402
+from api.madrid import BARRIOS  # noqa: E402
+from api.supa import get_client as _supa_client  # noqa: E402
+
+app.include_router(search_router)
+app.include_router(chat_router)
+
+_V2_PRODUCT_FIELDS = ("id,name,description,category,price,stock_qty,store_id,"
+                      "neighbourhood,tags,image_url")
+
+
+@app.get("/api/products")
+async def products_list(neighbourhood: Optional[str] = None,
+                        category: Optional[str] = None,
+                        limit: int = Query(50, ge=1, le=200),
+                        offset: int = Query(0, ge=0)):
+    """Paginated product list from Supabase (backend v2)."""
+    def _q():
+        q = _supa_client().table("products").select(
+            _V2_PRODUCT_FIELDS, count="exact")
+        if neighbourhood:
+            q = q.eq("neighbourhood", neighbourhood)
+        if category:
+            q = q.eq("category", category)
+        return q.order("name").range(offset, offset + limit - 1).execute()
+    res = await asyncio.to_thread(_q)
+    return {"products": res.data, "total": res.count or 0}
+
+
+@app.get("/api/stores")
+async def stores_list(neighbourhood: Optional[str] = None):
+    """Store list from Supabase (backend v2)."""
+    def _q():
+        q = _supa_client().table("stores").select("*")
+        if neighbourhood:
+            q = q.eq("neighbourhood", neighbourhood)
+        return q.order("rating", desc=True).execute()
+    res = await asyncio.to_thread(_q)
+    return {"stores": res.data}
+
+
+@app.get("/api/neighbourhoods")
+async def neighbourhoods():
+    """All Madrid barrios the seeder places stores in (canonical list)."""
+    return {"neighbourhoods": BARRIOS}
 
 
 import sqlite3

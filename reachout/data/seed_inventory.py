@@ -34,19 +34,12 @@ sys.path.insert(0, str(REACHOUT_DIR))
 load_dotenv(REACHOUT_DIR / ".env")
 
 from api import gemini  # noqa: E402
+from api.madrid import BARRIOS  # noqa: E402
 from api.supa import get_client  # noqa: E402
 
 RNG = random.Random(42)  # deterministic store/product composition
 fake = Faker("es_ES")
 Faker.seed(42)
-
-BARRIOS = [
-    "Malasaña", "Lavapiés", "Salamanca", "Chueca", "La Latina", "Retiro",
-    "Moncloa", "Chamberí", "Argüelles", "Embajadores", "Sol", "Las Letras",
-    "Chamartín", "Tetuán", "Usera", "Carabanchel", "Puente de Vallecas",
-    "Prosperidad", "Arganzuela", "Legazpi", "Cuatro Caminos", "Guindalera",
-    "Pacífico", "Conde Duque",
-]
 
 # stores per category (sums to 50)
 CATEGORY_STORE_COUNTS = {
