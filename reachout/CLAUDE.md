@@ -1,3 +1,38 @@
+## JULES HANDOFF — ACTIVE
+Jules: pick up from here. Phase 1 is done. Supabase is seeded.
+
+Your tasks are Phases 2, 3, and 4:
+- Phase 2: reachout/api/search.py — NLP search endpoint using Gemini Flash Lite + pgvector
+- Phase 3: reachout/api/chat.py — AI shopkeeper chat endpoint
+- Phase 4: Mount both on server.py, add /api/products, /api/stores, /api/neighbourhoods
+
+Rules:
+- Keys are in .env (SUPABASE_URL, SUPABASE_KEY, GEMINI_API_KEY)
+- Read SHARED_CONTRACT.md for the full API contract
+- Commit each phase to main with git push origin main
+- Update SHARED_CONTRACT.md status flags as each phase completes
+- Do NOT modify schema.sql or seed_inventory.py
+- All endpoints must be async FastAPI
+- CORS must allow http://localhost:5173 and *.netlify.app
+
+### STATUS NOTE (2026-07-16, pre-handoff session — read before starting)
+1. **Seed state**: check `SHARED_CONTRACT.md` for `[x] PHASE_1_DB_READY`
+   before trusting the DB. If it is still `[ ]`, the one-time
+   `data/schema.sql` apply in the Supabase SQL editor hasn't happened yet
+   (the sb_secret key cannot run DDL); after it does, run
+   `python data/seed_inventory.py`.
+2. **Phases 2-4 scaffolding already exists** (commit a094580):
+   `api/search.py`, `api/chat.py`, `api/madrid.py`, and the server.py
+   mounts/GET endpoints/CORS are implemented and TestClient-verified.
+   Your job is to VERIFY them against the seeded DB, fix what fails, and
+   tick the contract flags — do not rewrite from scratch.
+3. Embedding model is `gemini-embedding-001` @ 768 dims
+   (NOT text-embedding-004 — unavailable on this key); chat model
+   `gemini-2.5-flash-lite`; both read from env via `api/gemini.py`.
+   Vectors are L2-normalized client-side.
+
+---
+
 # CLAUDE.md  (Layer 0: Where am I?)
 
 This is a ReachOut workspace. It follows ICM (Interpretable Context
@@ -107,22 +142,3 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
----
-
-# Jules Handoff Note (backend v2)
-
-Phase 1 — Supabase DB seeded with products across Madrid barrios.
-Schema: `stores` + `products` tables with pgvector embeddings
-(`data/schema.sql`, seeded by `data/seed_inventory.py`; check
-`SHARED_CONTRACT.md` for the live PHASE_1_DB_READY flag before trusting
-the DB is populated).
-Your job: implement Phases 2, 3, 4 from the backend-v2 brief.
-Keys are in `.env` (gitignored; see `.env.example`). `SHARED_CONTRACT.md`
-has the API contract.
-Do not modify `data/schema.sql` or `data/seed_inventory.py`.
-All new code goes in `api/search.py` and `api/chat.py`; shared Gemini/
-Supabase helpers live in `api/gemini.py` and `api/supa.py`.
-Mount both routers on the existing FastAPI app in `api/server.py`.
-Embedding model is `gemini-embedding-001` @ 768 dims (NOT text-embedding-004
-— unavailable on this key); chat model is `gemini-2.5-flash-lite`; both read
-from env. Vectors are L2-normalized client-side before insert/query.
