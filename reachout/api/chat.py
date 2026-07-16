@@ -68,9 +68,17 @@ def _system_prompt(store: dict, products: list[dict]) -> str:
 def _suggest(reply: str, message: str, products: list[dict]) -> list[dict]:
     """Products the reply mentions by name; else keyword matches on the message."""
     folded_reply = _fold(reply)
-    mentioned = [p for p in products if _fold(p["name"]) in folded_reply]
-    if mentioned:
-        return mentioned[:_MAX_SUGGESTIONS]
+    
+    mentioned_with_pos = []
+    for p in products:
+        pos = folded_reply.find(_fold(p["name"]))
+        if pos != -1:
+            mentioned_with_pos.append((pos, p))
+            
+    if mentioned_with_pos:
+        mentioned_with_pos.sort(key=lambda x: x[0])
+        return [p for _, p in mentioned_with_pos[:_MAX_SUGGESTIONS]]
+        
     tokens = set(re.findall(r"\w{4,}", _fold(message)))
     scored = []
     for p in products:
