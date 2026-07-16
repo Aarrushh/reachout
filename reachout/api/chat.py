@@ -45,10 +45,18 @@ def _fold(s: str) -> str:
 
 
 def _system_prompt(store: dict, products: list[dict]) -> str:
+    in_stock = [p for p in products if p['stock_qty'] > 0]
+    out_of_stock = [p for p in products if p['stock_qty'] <= 0]
+    combined = in_stock + out_of_stock
+    
     inventory_lines = "\n".join(
         f"- {p['name']} — {p['price']}€ (stock: {p['stock_qty']})"
-        for p in products
+        for p in combined[:120]
     )
+    
+    if len(combined) > 120:
+        inventory_lines += f"\n…y {len(combined) - 120} artículos más"
+        
     return (
         f"You are {store['name']}, a friendly local shopkeeper in "
         f"{store['neighbourhood']}, Madrid.\n"
@@ -97,13 +105,18 @@ async def chat(req: ChatRequest):
         raise HTTPException(status_code=400, detail="message must be non-empty")
 
     def _load():
-        sb = get_client()
-        store_rows = sb.table("stores").select("*").eq("id", req.store_id).execute().data
-        if not store_rows:
-            raise HTTPException(status_code=404, detail=f"store {req.store_id} not found")
-        products = (sb.table("products").select(_PRODUCT_FIELDS)
-                    .eq("store_id", req.store_id).order("name").execute().data)
-        return store_rows[0], products
+        try:
+            sb = get_client()
+            store_rows = sb.table("stores").select("*").eq("id", req.store_id).execute().data
+            if not store_rows:
+                raise HTTPException(status_code=404, detail=f"store {req.store_id} not found")
+            products = (sb.table("products").select(_PRODUCT_FIELDS)
+                        .eq("store_id", req.store_id).order("name").execute().data)
+            return store_rows[0], products
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise
+            raise HTTPException(status_code=502, detail=f"Database connection failed: {e}")
 
     store, products = await asyncio.to_thread(_load)
 
