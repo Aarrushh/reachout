@@ -332,7 +332,7 @@ def test_lat_without_lng_is_a_bad_request(tmp_path, monkeypatch):
 def test_cors_allows_browser_frontends(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     resp = client.get("/api/health", headers={"Origin": "http://localhost:5173"})
-    assert resp.headers.get("access-control-allow-origin") == "*"
+    assert resp.headers.get("access-control-allow-origin") == "http://localhost:5173"
 
 
 def test_all_shops_geojson_lists_every_shop(tmp_path, monkeypatch):
