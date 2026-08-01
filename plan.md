@@ -1,3 +1,5 @@
+> **SUPERSEDED by docs/PLAN_V2_PROMPT.md (2026-08-01)** — tick-scheduler micro-plan; the work already shipped (see STATUS.md).
+
 1. Modify `reachout/api/server.py` to add `lifespan` manager:
    - Import `asynccontextmanager` from `contextlib`.
    - Import `asyncio`.
