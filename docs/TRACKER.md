@@ -1,10 +1,10 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (seeded by the Phase-2 planning session)
+**Last updated:** 2026-08-02 (M1 landed)
 **Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 0 of 32 tasks done.
-**Next action:** Build the `demand/` folder and its layer docs (task **M1**) — the
-Jules task fuel already claims this folder exists, and it does not.
+**Progress:** 1 of 32 tasks done.
+**Next action:** Write the five data contracts and DB table definitions for the
+demand service (task **M2**).
 
 ---
 
@@ -30,7 +30,7 @@ human, live credentials, or a decision).
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **M1** | Build the `demand/` folder: its two layer docs, its seed-keyword list, and the empty folders and test helpers the Jules tasks expect. The task fuel already says this exists; it does not. | Claude | nothing | M2, M7, T69, T70, T71 | `[ ]` |
+| **M1** | Build the `demand/` folder: its two layer docs, its seed-keyword list, and the empty folders and test helpers the Jules tasks expect. The task fuel already says this exists; it does not. | Claude | nothing | M2, M7, T69, T70, T71 | `[x] 2026-08-02` |
 | **M2** | Write the five data contracts (JSON Schemas) and the database table definitions for the demand service, plus the spec for what the practice data must look like. | Claude | M1 | M3, M7, M13, T69–T71, T77, U3 | `[ ]` |
 | **M3** | **Apply the database table definitions to Supabase.** The key we have cannot do this — it has to be pasted into the Supabase SQL editor, same as last time. | **You (founder)** | M2 | V1 | `[ ]` |
 | **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[ ]` |
