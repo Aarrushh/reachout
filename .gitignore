@@ -10,6 +10,10 @@ tools/.jules-wt-main/
 tools/.jules_runner_state_v2.json
 tools/.jules-wt-*/
 tools/jules_runner_v2.log
+tools/.jules_runner_state_demand.json
+tools/.jules_runner_state_picks.json
+tools/jules_runner_demand.log
+tools/jules_runner_picks.log
 
 # Local Netlify folder
 .netlify

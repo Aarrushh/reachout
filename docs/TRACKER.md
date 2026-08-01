@@ -1,10 +1,9 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (M4 landed)
+**Last updated:** 2026-08-02 (M6 landed)
 **Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 3 of 32 tasks done.
-**Next action:** Apply `demand/data/schema.sql` to Supabase (task **M3**,
-founder).
+**Progress:** 4 of 32 tasks done.
+**Next action:** Create and push the two work branches, one per parallel lane (task **M5**, Claude).
 
 ---
 
@@ -35,7 +34,7 @@ human, live credentials, or a decision).
 | **M3** | **Apply the database table definitions to Supabase.** The key we have cannot do this — it has to be pasted into the Supabase SQL editor, same as last time. | **You (founder)** | M2 | V1 | `[ ]` |
 | **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[x] 2026-08-02` |
 | **M5** | Create and push the two work branches, one per parallel lane. | Claude | M4 | T69–T71, T76 | `[ ]` |
-| **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[ ]` |
+| **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[x] 2026-08-02` |
 | **M7** | Update the Jules task file: replace task 74 with the no-login version, add the new task 77, and stop the shared preamble from claiming the `demand/` folder already exists. | Claude | M1, M2 | T69–T71, T74, T77 | `[ ]` |
 | **M8** | Fix the runner so it tells each task to run *its own* test suite. Right now it tells every task to run the old backend's tests — which would pass without testing any of the new code. | Claude | nothing | M9, M10, T69–T71, T76 | `[ ]` |
 | **M9** | Stop two runner processes from fighting over the same files. The old run-book tells you to run two in parallel on one branch and one state file. | Claude | M8 | T69–T71, T76 | `[ ]` |
