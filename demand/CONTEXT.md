@@ -17,7 +17,7 @@ kept honest on purpose (see "Build status" below).
 | 3 | `ingest/snapshot_store.py` | TASK 71 | PLANNED | step 2's capture dicts, validated against `shared/schemas/trend_snapshot.schema.json` | `demand.trend_snapshots` (idempotent upsert on keyword/geo/timeframe/date) |
 | 4 | `scripts/compute_signals.py` | TASK 72 | PLANNED | `demand.trend_snapshots` | `demand.demand_signals`, validated against `shared/schemas/demand_signal.schema.json` |
 | 5 | `scripts/recommend.py` | TASK 73 | PLANNED | `demand.demand_signals` + `public.stores` / `public.products` composition | `demand.recommendations`, validated against `shared/schemas/recommendation.schema.json` |
-| 6 | `api/app.py` | TASK 74 (amended, no-auth) / TASK 77 | PLANNED | `demand.trend_snapshots`, `demand.demand_signals`, `demand.recommendations` | `GET /demand/api/health`, `/trends`, `/signals`, `/recommendations` — the `/recommendations` body validates against `shared/schemas/recommendations_response.schema.json` |
+| 6 | `api/app.py` | TASK 74 (amended, no-auth) / TASK 77 | PLANNED | `demand.trend_snapshots`, `demand.demand_signals`, `demand.recommendations`, `public.products` | `GET /demand/api/health`, `/trends`, `/signals`, `/recommendations`, `/analytics` — the `/recommendations` body validates against `shared/schemas/recommendations_response.schema.json` and the `/analytics` body (TASK 77) against `shared/schemas/analytics_response.schema.json` |
 | 7 | `scripts/run_ingest.py` | TASK 75 | PLANNED | chains steps 1-5 | batch entrypoint; `--dry-run` writes nothing, `--provider fixture\|trendspy` |
 
 ## Run it
@@ -43,11 +43,12 @@ test helpers.
   (Spanish), the static half of TASK 70's keyword union.
 - `ingest/`, `scripts/`, `api/` — empty Python packages (`__init__.py`
   only; no chain files yet).
-- `shared/schemas/` — empty directory (`.gitkeep`); the four schemas named
+- `shared/schemas/` — empty directory (`.gitkeep`); the five schemas named
   in the chain table above (`trend_snapshot`, `demand_signal`,
-  `recommendation`, `recommendations_response`) do not exist yet — M2
-  writes them, and once written they are DO-NOT-MODIFY for every later
-  task.
+  `recommendation`, `recommendations_response`, `analytics_response` —
+  the last one backs TASK 77's `/analytics` endpoint, IMPLEMENTATION_PLAN_V2.md
+  §4 and §5.5) do not exist yet — M2 writes them, and once written they
+  are DO-NOT-MODIFY for every later task.
 - `data/` — empty directory (`.gitkeep`); `data/schema.sql` (the Postgres
   `demand` schema DDL) does not exist yet — M2 writes it.
 - `tests/conftest.py` — sys.path setup so `demand/` modules import cleanly
@@ -58,7 +59,7 @@ test helpers.
   first canned trends payloads under `tests/fixtures/trends/`.
 
 **What is PLANNED (not yet created, do not assume it exists):** every file
-in the "File" column of the chain table above, plus the four JSON Schemas
+in the "File" column of the chain table above, plus the five JSON Schemas
 and `data/schema.sql` (both M2).
 
 ## Module kinds
