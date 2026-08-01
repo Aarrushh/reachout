@@ -1,11 +1,10 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (M2 landed)
+**Last updated:** 2026-08-02 (M4 landed)
 **Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 2 of 32 tasks done.
+**Progress:** 3 of 32 tasks done.
 **Next action:** Apply `demand/data/schema.sql` to Supabase (task **M3**,
-founder) / add the three missing tracker flags to `SHARED_CONTRACT.md`
-(task **M4**).
+founder).
 
 ---
 
@@ -34,7 +33,7 @@ human, live credentials, or a decision).
 | **M1** | Build the `demand/` folder: its two layer docs, its seed-keyword list, and the empty folders and test helpers the Jules tasks expect. The task fuel already says this exists; it does not. | Claude | nothing | M2, M7, T69, T70, T71 | `[x] 2026-08-02` |
 | **M2** | Write the five data contracts (JSON Schemas) and the database table definitions for the demand service, plus the spec for what the practice data must look like. | Claude | M1 | M3, M7, M13, T69–T71, T77, U3 | `[x] 2026-08-02` |
 | **M3** | **Apply the database table definitions to Supabase.** The key we have cannot do this — it has to be pasted into the Supabase SQL editor, same as last time. | **You (founder)** | M2 | V1 | `[ ]` |
-| **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[ ]` |
+| **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[x] 2026-08-02` |
 | **M5** | Create and push the two work branches, one per parallel lane. | Claude | M4 | T69–T71, T76 | `[ ]` |
 | **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[ ]` |
 | **M7** | Update the Jules task file: replace task 74 with the no-login version, add the new task 77, and stop the shared preamble from claiming the `demand/` folder already exists. | Claude | M1, M2 | T69–T71, T74, T77 | `[ ]` |
@@ -209,9 +208,9 @@ existing pipeline endpoint, not the Supabase one.
 [ ] PICKS_READY             ← added by M4, ticked by T76
 ```
 
-The three `DEMAND_*` / `PICKS_*` lines **are not in `SHARED_CONTRACT.md` yet.**
-Task M4 adds them. Until it does, three tasks are instructed to tick lines that
-do not exist — which is why M4 is in wave 0.
+The three `DEMAND_*` / `PICKS_*` lines **are now in `SHARED_CONTRACT.md`.**
+Task M4 added them on 2026-08-02. All three flags are present and unticked,
+ready for T72, T75, and T76 to tick them in turn.
 
 ---
 

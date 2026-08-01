@@ -6,10 +6,9 @@
 > `GET /api/shops.geojson`, `GET /api/inventory`, `GET /api/regions`,
 > `GET /api/inventory/stream`, `GET /api/health` — schema-first, see
 > `reachout/shared/schemas/` and `frontend/README.md`. The frontend consumes
-> those real endpoints. `POST /api/chat` is the one thing still wanted from
-> this contract: the chat UI ships with a client-side mock
-> (`frontend/src/chat/shopkeeper.ts`) using the request/response shapes below,
-> ready to swap in the real endpoint when `PHASE_3_CHAT_READY` is set.
+> those real endpoints. `POST /api/chat` is now live: the chat UI originally
+> shipped with a client-side mock (`frontend/src/chat/shopkeeper.ts`) and
+> consumes the real backend endpoint (`reachout/api/chat.py`).
 
 ## Base URL
 Backend runs on: http://localhost:8000
@@ -51,4 +50,7 @@ Response: { "neighbourhoods": string[] }  # Madrid barrios
 # [x] PHASE_2_SEARCH_READY   — /api/search endpoint live
 # [x] PHASE_3_CHAT_READY     — /api/chat endpoint live
 # [x] PHASE_4_PRODUCTS_READY — /api/products + /api/stores live
+# [ ] DEMAND_INGEST_READY    — demand ingest chain green through compute_signals
+# [ ] DEMAND_API_READY       — demand API + analytics live
+# [ ] PICKS_READY            — /api/picks live
 # Frontend agent checks these flags before building each feature
