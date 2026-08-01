@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TrendSnapshot",
+  "description": "Producer: TASK 69/71 (demand.trend_snapshots row). Consumer: TASK 72. additionalProperties:false is the hallucination gate. Raw Google Trends capture for one keyword/geo/timeframe, as sent to and returned by the provider. IMPLEMENTATION_PLAN.md 3.1 / IMPLEMENTATION_PLAN_V2.md 5.1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "keyword", "geo", "timeframe", "provider", "captured_at", "series"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "keyword": {
+      "type": "string",
+      "minLength": 1,
+      "description": "As sent to the provider."
+    },
+    "geo": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Madrid community scope, e.g. ES-MD."
+    },
+    "timeframe": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Provider timeframe string, e.g. 'today 3-m'."
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "description": "trendspy now; paid adapter later (D1)."
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["date", "value"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      }
+    },
+    "region_breakdown": {
+      "type": ["array", "null"],
+      "description": "Interest-by-region payload if available (region names only, never below ES-MD scope). No barrio field: Google Trends does not resolve below ES-MD.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["region", "value"],
+        "properties": {
+          "region": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Recommendation",
+  "description": "Producer: TASK 73, recommend.py (demand.recommendations row). Consumer: GET /demand/api/recommendations. additionalProperties:false is the hallucination gate. Retailer-facing, template-generated pure Python, no AI. IMPLEMENTATION_PLAN.md 3.3 / IMPLEMENTATION_PLAN_V2.md 5.3. confidence and caveat are required so a recommendation without a caveat cannot validate and cannot be served.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "store_id",
+    "signal_id",
+    "headline",
+    "body",
+    "action",
+    "confidence",
+    "caveat",
+    "created_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "store_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "signal_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "headline": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Template-generated, pure Python. No AI."
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Template-generated, pure Python. No AI."
+    },
+    "action": {
+      "type": "string",
+      "enum": ["stock_up", "feature_in_window", "watch"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Copied verbatim from the signal, never recomputed."
+    },
+    "caveat": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required, non-empty. Canonical text: \"Basado en interés de búsqueda en Madrid, no en compras reales.\""
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

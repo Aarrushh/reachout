@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DemandSignal",
+  "description": "Producer: TASK 72, compute_signals.py (demand.demand_signals row). Consumer: TASK 73, TASK 77, GET /demand/api/signals. additionalProperties:false is the hallucination gate. Derived, pure-Python, never model-assigned. IMPLEMENTATION_PLAN.md 3.2 / IMPLEMENTATION_PLAN_V2.md 5.2. geo is ES-MD scope only: Trends does not resolve to barrio, and this schema has no barrio column so nothing can pretend otherwise.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "keyword",
+    "category",
+    "geo",
+    "window_start",
+    "window_end",
+    "interest_avg",
+    "delta_pct",
+    "direction",
+    "rank",
+    "confidence",
+    "snapshot_ids",
+    "computed_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "keyword": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": ["string", "null"],
+      "description": "Mapped product category, nullable."
+    },
+    "geo": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ES-MD (Madrid community scope) only."
+    },
+    "window_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "window_end": {
+      "type": "string",
+      "format": "date"
+    },
+    "interest_avg": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "delta_pct": {
+      "type": "number",
+      "description": "Vs prior window."
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["rising", "falling", "flat"]
+    },
+    "rank": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Dense rank within window."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "snapshot_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "description": "Provenance."
+    },
+    "computed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AnalyticsResponse",
+  "description": "Producer: GET /demand/api/analytics?store_id=&inventory_type= (TASK 77). Consumer: retail dashboard charts (U3). additionalProperties:false is the hallucination gate. Fixture-first, inventory-type keyed; fixture and live modes are byte-identical in shape. IMPLEMENTATION_PLAN_V2.md 4 (TASK 77) / 5.5. No footfall segment and no field that could be relabelled as one (S1). No barrio field: Google Trends does not resolve below ES-MD.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["inventory_type", "generated_from", "generated_at", "caveat", "segments"],
+  "properties": {
+    "inventory_type": {
+      "const": "convenience_store"
+    },
+    "generated_from": {
+      "type": "string",
+      "enum": ["fixture", "live"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "caveat": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required, non-empty. Canonical text: \"Basado en interés de búsqueda en Madrid, no en compras reales.\" An analytics response without one cannot validate and cannot be served."
+    },
+    "segments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top_movers", "category_mix", "stock_out_risk"],
+      "properties": {
+        "top_movers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["confidence", "points"],
+          "properties": {
+            "confidence": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            },
+            "points": {
+              "type": "array",
+              "description": "MAY be empty. Empty-but-shaped is a valid, expected response, not an error.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["keyword", "category", "interest_avg", "delta_pct", "direction"],
+                "properties": {
+                  "keyword": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "category": {
+                    "type": ["string", "null"]
+                  },
+                  "interest_avg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "delta_pct": {
+                    "type": "number"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": ["rising", "falling", "flat"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "category_mix": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["confidence", "points"],
+          "properties": {
+            "confidence": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            },
+            "points": {
+              "type": "array",
+              "description": "MAY be empty. Empty-but-shaped is a valid, expected response, not an error.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["category", "share_pct", "product_count"],
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "share_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "product_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "stock_out_risk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["confidence", "points"],
+          "properties": {
+            "confidence": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            },
+            "points": {
+              "type": "array",
+              "description": "MAY be empty. Empty-but-shaped is a valid, expected response, not an error.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["category", "at_risk_count", "total_count", "risk_pct"],
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "at_risk_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "risk_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

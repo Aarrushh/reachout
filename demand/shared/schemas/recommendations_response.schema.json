@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RecommendationsResponse",
+  "description": "Producer: GET /demand/api/recommendations?store_id=. Consumer: retail dashboard (STITCH_DASHBOARD.md), API clients. additionalProperties:false is the hallucination gate. Envelope shape per docs/STITCH_DASHBOARD.md 'API shapes': { store_id, recommendations: [...] }. IMPLEMENTATION_PLAN.md 3.3 / IMPLEMENTATION_PLAN_V2.md 5.3.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["store_id", "recommendations"],
+  "properties": {
+    "store_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "store_id",
+          "signal_id",
+          "headline",
+          "body",
+          "action",
+          "confidence",
+          "caveat",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "store_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "signal_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "headline": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action": {
+            "type": "string",
+            "enum": ["stock_up", "feature_in_window", "watch"]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "caveat": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Required, non-empty. Canonical text: \"Basado en interés de búsqueda en Madrid, no en compras reales.\" A caveat-less recommendation cannot validate and cannot be served."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}
