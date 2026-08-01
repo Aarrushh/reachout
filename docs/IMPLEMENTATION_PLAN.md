@@ -1,3 +1,5 @@
+> **SUPERSEDED by docs/PLAN_V2_PROMPT.md (2026-08-01)** — the product shape changed (one shell + retail-mode toggle, no POC auth); the D1–D8 decision-table pattern carries forward, the task routing does not.
+
 # ReachOut — Overnight Implementation Plan
 
 *Authored 2026-07-30 by the planning session on branch

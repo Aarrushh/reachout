@@ -1,3 +1,5 @@
+> **SUPERSEDED by docs/PLAN_V2_PROMPT.md (2026-08-01)** — mislabelled as an API call series (Stitch has no API); keep as a design specification, implemented directly by the coding agent, optionally pasteable into stitch.withgoogle.com for a visual reference.
+
 # STITCH_DASHBOARD.md — Demand Dashboard, Prompt Series for Google Stitch (D1–D5)
 
 *Planning document for Track A's retailer-facing dashboard UI

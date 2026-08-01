@@ -1,3 +1,5 @@
+> **Still current (2026-08-01)** — except TASK 74's auth section, which is superseded by the no-auth POC decision; the v2 plan must amend TASK 74 before it is submitted to the runner. See docs/PLAN_V2_PROMPT.md §B.
+
 # JULES_DEMAND.md — Demand dashboard + picks series (TASKs 69–76)
 
 *Task series for Jules covering Track A (demand service, TASKs 69–75) and

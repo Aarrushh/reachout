@@ -13,3 +13,6 @@ tools/jules_runner_v2.log
 
 # Local Netlify folder
 .netlify
+
+# macOS
+.DS_Store

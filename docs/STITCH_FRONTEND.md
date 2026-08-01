@@ -1,3 +1,5 @@
+> **SUPERSEDED by docs/PLAN_V2_PROMPT.md (2026-08-01)** — mislabelled as an API call series (Stitch has no API); the 12 prompts were executed and merged, keep as the design record of that work.
+
 # STITCH_FRONTEND.md — Amazon-Style Redesign, Prompt Series for Google Stitch
 
 *Planning document. Hand each PROMPT below to Google Stitch (via API, key placeholder

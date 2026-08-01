@@ -1,3 +1,5 @@
+> **SUPERSEDED by docs/PLAN_V2_PROMPT.md (2026-08-01)** — mislabelled as an API call series (Stitch has no API); keep as a design specification, implemented directly by the coding agent, optionally pasteable into stitch.withgoogle.com for a visual reference.
+
 # STITCH_CONSUMER.md — Consumer Shopping PWA, Prompt Series for Google Stitch (C1–C8)
 
 *Planning document for Track B's Blinkit/Amazon-style consumer experience

@@ -1,3 +1,5 @@
+> **SUPERSEDED by docs/PLAN_V2_PROMPT.md (2026-08-01)** — the preflight blocks every terminal on a Stitch API key that cannot exist (Stitch has no API), and the run-book targets the superseded two-route product shape.
+
 # EXECUTION_PROMPTS.md — Terminal Run-Book for the Overnight Build
 
 *The operational layer for `docs/IMPLEMENTATION_PLAN.md`. Everything here is
