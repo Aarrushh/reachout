@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-02 (M6 landed)
 **Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 5 of 32 tasks done.
+**Progress:** 6 of 32 tasks done.
 **Next action:** Create and push the two work branches, one per parallel lane (task **M5**, Claude).
 
 ---
@@ -37,7 +37,7 @@ human, live credentials, or a decision).
 | **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[x] 2026-08-02` |
 | **M7** | Update the Jules task file: replace task 74 with the no-login version, add the new task 77, and stop the shared preamble from claiming the `demand/` folder already exists. | Claude | M1, M2 | T69–T71, T74, T77 | `[ ]` |
 | **M8** | Fix the runner so it tells each task to run *its own* test suite. Right now it tells every task to run the old backend's tests — which would pass without testing any of the new code. | Claude | nothing | M9, M10, T69–T71, T76 | `[x] 2026-08-02` |
-| **M9** | Stop two runner processes from fighting over the same files. The old run-book tells you to run two in parallel on one branch and one state file. | Claude | M8 | T69–T71, T76 | `[ ]` |
+| **M9** | Stop two runner processes from fighting over the same files. The old run-book tells you to run two in parallel on one branch and one state file. | Claude | M8 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M10** | Stop the runner pushing straight to `main` after every task with no tests run and nobody looking. Run the tests first; make the push to `main` an explicit choice. | Claude | M8 | T69–T71, T76 | `[ ]` |
 | **M11** | Fix `reachout/CONTEXT.md`. It tells every arriving agent that two pipeline stages don't exist yet. They shipped. | Claude | nothing | M13 | `[ ]` |
 | **M12** | Give the `frontend/` folder the two layer docs every other workspace has, before we split it into consumer and retail halves. | Claude | nothing | M13, U0 | `[ ]` |

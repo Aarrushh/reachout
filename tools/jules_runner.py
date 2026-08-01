@@ -25,6 +25,16 @@ Usage:
 Reads JULES_API_KEY from the environment or the repo-root .env file.
 State (completed tasks, session ids) persists in tools/.jules_runner_state.json.
 
+Only one runner may touch a given state file at a time. On start, the runner
+atomically creates a lock file next to the state file (<state>.json.lock, via
+O_CREAT|O_EXCL) containing its PID, and removes it on exit — normal or via
+exception (registered with atexit right after the lock is taken). A second
+process pointed at the same --state exits immediately with a non-zero status
+and a message naming the lock path and the holding PID; no stack trace. If
+the lock file's PID is not a live process (or its content is malformed), the
+runner treats it as stale, removes it, logs "stale lock removed", and takes
+the lock itself.
+
 The command appended to each prompt ("run the backend suite (...) and make
 it fully green") is resolved per run, precedence CLI > tasks-file > default:
   1. --test-cmd, if given.
@@ -34,6 +44,7 @@ it fully green") is resolved per run, precedence CLI > tasks-file > default:
 """
 
 import argparse
+import atexit
 import json
 import os
 import re
@@ -180,6 +191,61 @@ def load_state():
 
 def save_state(state):
     json.dump(state, open(STATE_FILE, "w", encoding="utf-8"), indent=2)
+
+
+# ---------------------------------------------------------------- lock file
+
+def _read_lock_pid(lock_path):
+    """PID stored in lock_path, or None if the content is malformed."""
+    try:
+        pid = int(open(lock_path, encoding="utf-8").read().strip())
+    except (OSError, ValueError):
+        return None
+    return pid if pid > 0 else None
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def acquire_lock(lock_path):
+    """Atomically create lock_path (O_CREAT|O_EXCL) with our PID inside.
+
+    If a lock is already present: a live holder means we exit immediately
+    (clear message, non-zero status, no stack trace); a dead or malformed
+    one is stale, so we remove it, log, and take the lock ourselves."""
+    while True:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            pid = _read_lock_pid(lock_path)
+            if pid is not None and _pid_alive(pid):
+                sys.exit(
+                    "another jules_runner is already running against this "
+                    f"state file — lock held by pid {pid} ({lock_path}); "
+                    "exiting")
+            try:
+                os.remove(lock_path)
+            except FileNotFoundError:
+                pass
+            log(f"stale lock removed ({lock_path})")
+            continue
+        else:
+            with os.fdopen(fd, "w") as f:
+                f.write(str(os.getpid()))
+            atexit.register(release_lock, lock_path)
+            return
+
+
+def release_lock(lock_path):
+    try:
+        os.remove(lock_path)
+    except FileNotFoundError:
+        pass
 
 
 # ---------------------------------------------------------------- git plumbing
@@ -393,6 +459,8 @@ def main():
         BRANCH = args.branch
         WORKTREE = os.path.join(ROOT, "tools", f".jules-wt-{BRANCH}")
     TEST_CMD = resolve_test_cmd(args.test_cmd)
+
+    acquire_lock(STATE_FILE + ".lock")
 
     load_env()
     master, tasks = parse_tasks()
