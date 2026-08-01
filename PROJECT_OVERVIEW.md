@@ -1,6 +1,9 @@
 # ReachOut — Project Overview & Debugging Guide
 
-*The single orientation document for the whole repository. Last updated 2026-07-08, after the UI phase (`feature/ui-madrid`) merged into `main`.*
+*The single orientation document for the whole repository. Shipped-system
+sections (§4–§10) last updated 2026-07-08, after the UI phase
+(`feature/ui-madrid`) merged into `main`. §1–§3 updated 2026-08-01 with the
+aim, the approved plan, and the method the build runs on.*
 
 ## 1. What ReachOut is
 
@@ -18,7 +21,40 @@ by real point-of-sale feeds; everything else stays the same. To support filterin
 and scoped Server-Sent Events (SSE) views, shops are assigned to physical
 **regions** (barrios) during the ingest process.
 
-## 2. The one design rule
+**The aim.** What ships today serves one side of a two-sided market: the
+shopper. The other side — the shops — is what the platform actually needs, and
+it is blocked by a cold start. Live inventory, AI shop-chat and delivery all
+wait on merchants integrating; merchants don't integrate with a platform that
+has no shoppers. So the next phase builds the **supply side first**, using the
+only data that requires zero merchant participation: public search demand for
+Madrid. A retailer gets something useful on day one with nothing to install —
+that is what buys the first real inventory feed, and everything else unlocks
+behind it.
+
+## 2. What is being added (planned, not yet built)
+
+Approved plan: `docs/IMPLEMENTATION_PLAN.md`. Run-book:
+`docs/EXECUTION_PROMPTS.md`. Three tracks, run in parallel:
+
+| Track | What | How |
+|---|---|---|
+| **A — Demand Solutions** | New `demand/` service: Google Trends batch ingest → snapshots → signals → per-store recommendations → its own FastAPI app; plus the retailer dashboard UI. Every surfaced number carries a confidence label and an always-visible caveat. | Jules TASK 69–75 (`docs/JULES_DEMAND.md`), Stitch D1–D5 (`docs/STITCH_DASHBOARD.md`) |
+| **B — Consumer UI** | Blinkit/Amazon-style mobile-first shopping surface over the existing Supabase products/stores, plus a deterministic `GET /api/picks`. Installable PWA — "phone" means responsive web, not a native app. | Jules TASK 76, Stitch C1–C8 (`docs/STITCH_CONSUMER.md`) |
+| **C — Gated** | Two memos, no code: delivery partner-vs-build (Spain/EU rider-classification exposure), and the preconditions that un-gate AI shop-chat. | Written directly |
+
+**Why this order.** The dashboard needs nothing from any shop, so it can ship
+before a single merchant signs up → a signed-up merchant is what makes live
+inventory sync possible → only with live inventory does AI shop-chat become
+answerable rather than a hallucination surface, and only with real order flow
+is delivery a decision worth costing. Chat stays **gated** (retrieval-then-
+template over a fresh stock read, schema-gated — never open-ended generation
+about stock). Delivery stays a **decision**, not a build.
+
+Nothing here changes the shipped pipeline below: `demand` is a separate
+Postgres schema, `demand/` is a separate service, and `reachout/data/schema.sql`
+is untouched.
+
+## 3. The one design rule
 
 **Work that must be exact is pure Python; AI only touches language.**
 Locations, distances, stock, matching, ranking, GeoJSON, DB writes live in
@@ -28,7 +64,63 @@ against JSON Schemas (`reachout/shared/schemas/`) before anything trusts it.
 The schemas are the hallucination gate: `additionalProperties: false`
 everywhere, so no invented field can pass.
 
-## 3. System at a glance
+## 4. Method: ICM layers + graph engineering
+
+Two conventions carry the rule above from principle into structure. Both are
+load-bearing — they are why an agent session can change one thing without
+reading ninety files, and why the build can run unattended.
+
+### 4.1 ICM — the folder structure *is* the architecture
+
+Context is layered, and each layer is opened only if the job needs it:
+
+| Layer | File(s) | Holds |
+|---|---|---|
+| L0 | `CLAUDE.md` | workspace identity, the rules — read first |
+| L1 | `CONTEXT.md` | routing table: which stage does what |
+| L2 | `stages/NN/CONTEXT.md` + `prompt.md` | that one stage's contract and acceptance tests |
+| L3 | `_config/` (product, constraints, tech_stack) + `shared/schemas/` | cross-cutting truth |
+| L4 | `stages/NN/output/` | working files — outputs, never inputs to a reader |
+
+**Navigation rule:** read `CLAUDE.md` → `CONTEXT.md` → the one stage
+`CONTEXT.md` you need. Load nothing else.
+
+The planned `demand/` service repeats this exact shape as a **second ICM
+workspace** — its own `CLAUDE.md`, `CONTEXT.md`, `_config/`,
+`shared/schemas/`, `ingest/`, `scripts/`, `api/`, `tests/`, its own `demand`
+Postgres schema, its own FastAPI app. That is what "own service boundary"
+means, and it is why the demand work is *not* added into
+`reachout/api/server.py`: a service whose context you can load in four files
+stays changeable; one bolted into an existing tangle does not.
+
+### 4.2 Graph engineering — tasks are a dependency graph, not a checklist
+
+Work is decomposed into a DAG and executed by whatever is unblocked:
+
+- **Nodes** — tasks. Jules TASK 69–76 (`docs/JULES_DEMAND.md`), Stitch prompts
+  D1–D5 and C1–C8, and the manual scaffold / auth / live-verify steps that
+  need keys.
+- **Edges** — data contracts, not prose. A JSON Schema in `shared/schemas/`,
+  or a phase flag in `SHARED_CONTRACT.md`
+  (`DEMAND_INGEST_READY` → `DEMAND_API_READY` → `PICKS_READY`, the same
+  convention as the shipped `PHASE_*_READY` flags). A node consumes fixtures
+  shaped by its input schema — never another node's live output — so nodes are
+  developed and tested independently.
+- **Parallelism is derived, not scheduled.** Anything with no unmet edge runs
+  now; that is why the build runs in three terminals, and why Track B waits
+  only on Track A's *branch*, not its completion. `AGENTS.md`
+  ("Dependency graph — who can run in parallel") is the precedent: the
+  original ten workstreams were built this way.
+- **State lives on the edges, not in a conversation** — runner state JSON,
+  `STATUS.md` ticks, contract flags. Any node can fail and be retried without
+  replaying the graph, which is what makes an unattended overnight run
+  restartable.
+- **The runtime is a graph too.** The shipped pipeline is 01→05 with schema
+  validation on every edge and a hard halt on any failure; the demand chain
+  (trends → snapshots → signals → recommendations → API) is built the same
+  way. Same discipline at build time and at run time.
+
+## 5. System at a glance
 
 ```
 Browser (React SPA, localhost:5173)
@@ -66,13 +158,24 @@ Data (reachout/data/): reachout.db (SQLite WAL: shops + inventory),
 | GET | `/api/regions` | `regions_response.json` | List of known regions with shop counts |
 | GET | `/api/health` | `health_response.json` | API health, stats, and simulator state |
 
-## 4. Repository map
+## 6. Repository map
 
 ```
 reachout/  (repo root)
 ├── PROJECT_OVERVIEW.md      ← you are here
+├── AGENTS.md                the original 10 workstreams + their dependency graph
+├── SHARED_CONTRACT.md       phase flags between backend and frontend agents
+├── STATUS.md                live build state — ticked by every agent session
 ├── .claude/skills/verify/   how to launch + drive the app for verification
-├── docs/superpowers/        UI design spec + implementation plan (history)
+├── docs/
+│   ├── IMPLEMENTATION_PLAN.md   the approved plan (§0 decisions D1–D8)
+│   ├── EXECUTION_PROMPTS.md     terminal run-book for the unattended loop
+│   ├── JULES_DEMAND.md          Jules TASK 69–76 specs
+│   ├── STITCH_DASHBOARD.md      dashboard prompt series D1–D5
+│   ├── STITCH_CONSUMER.md       consumer prompt series C1–C8
+│   ├── JULES_BACKEND*.md        earlier Jules task files (history)
+│   └── superpowers/             UI design spec + implementation plan (history)
+├── tools/jules_runner.py    submits task files to Jules, patches + merges
 ├── frontend/                React SPA (see frontend/README.md)
 │   ├── scripts/             gen-types.ts, gen-barrios.ts (code generators)
 │   └── src/
@@ -100,15 +203,29 @@ reachout/  (repo root)
     ├── agent/               optional LLM adapter + rule-based fallback
     ├── api/server.py        FastAPI wrapper (thin; no business logic)
     ├── tests/               pytest suite (93 tests, offline via fixtures)
-    ├── data/                live SQLite DB, event log, caches (see §3)
+    ├── data/                live SQLite DB, event log, caches (see §5)
+    ├── data/schema.sql      Supabase/Postgres DDL for the public schema
     ├── run_pipeline.py      orchestrator
     └── demo.py              live demo with stock moving in the background
+
+PLANNED (Track A — does not exist yet; created by docs/EXECUTION_PROMPTS.md A-P1):
+demand/                     second ICM workspace, own service boundary
+├── CLAUDE.md / CONTEXT.md  Layers 0–1, same convention as reachout/
+├── _config/                seed_keywords.json, constraints, tech_stack
+├── shared/schemas/         trend_snapshot / demand_signal / recommendation /
+│                           api response schemas (authored before any code)
+├── data/schema.sql         idempotent DDL for the `demand` Postgres schema
+├── ingest/                 trends_client.py, keywords.py, snapshot_store.py
+├── scripts/                compute_signals.py, recommend.py, run_ingest.py
+├── api/app.py              own FastAPI app (NOT mounted into reachout/api)
+└── tests/                  offline pytest suite + fixtures
 ```
 
 **Navigation rule (ICM):** read `reachout/CLAUDE.md` → `CONTEXT.md` → the one
-stage `CONTEXT.md` you need. Load nothing else.
+stage `CONTEXT.md` you need. Load nothing else. See §4.1 for the full layer
+table; `demand/` follows the same rule with its own L0/L1.
 
-## 5. Complete tech stack
+## 7. Complete tech stack
 
 ### Backend
 | Part | Choice | Notes |
@@ -142,7 +259,7 @@ stage `CONTEXT.md` you need. Load nothing else.
 | OpenRouteService (optional key) | walking distance | haversine (`scripts/geo.py`) |
 | Carto Dark Matter | map tiles | — (frontend only) |
 
-## 6. Data contracts
+## 8. Data contracts
 
 Every structured artifact has a schema in `reachout/shared/schemas/`:
 
@@ -170,7 +287,7 @@ frontend-side. ("Pinged" is deliberately NOT data: every matched shop is
 pinged by definition; the frontend's `usePingSequence` only staggers the
 animation.)
 
-## 7. Running everything
+## 9. Running everything
 
 ```bash
 # Backend API (from reachout/api/):
@@ -189,7 +306,7 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 `REACHOUT_OFFLINE=1` uses the committed OSM cache + gazetteer (no network).
 `--use-llm` + `ANTHROPIC_API_KEY` switches stages 01/04 to an LLM.
 
-## 8. Debugging guide (symptom → where to look)
+## 10. Debugging guide (symptom → where to look)
 
 | Symptom | Look at |
 |---|---|
@@ -210,7 +327,7 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 | Verifying a change end-to-end | `.claude/skills/verify/SKILL.md` — launch recipe + Playwright drive script patterns + known gotchas. |
 | Shop pings on disk | `data/notifications/<shop_id>/` — one JSON per ping, written by `scripts/ping.py` (stage 03). |
 
-## 9. Invariants worth knowing before changing anything
+## 11. Invariants worth knowing before changing anything
 
 1. **Schema-first.** No response field exists unless a schema defines it.
 2. **No AI in `scripts/`.** Facts (stock, distance, coordinates) are computed, never generated.
@@ -220,7 +337,21 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 6. **Error copy is verbatim** from the API's status envelope — the UI never invents narrative around facts.
 7. **All numbers render in IBM Plex Mono**; all UI copy lives in `i18n/strings.ts`, both languages.
 
-## 10. Document index
+## 12. Document index
+
+**The plan (next phase):**
+
+- `docs/IMPLEMENTATION_PLAN.md` — the approved plan: §0 decision table D1–D8
+  (each default explicitly reversible), §2 tagged task list per track, §3 data
+  contracts, §4 risk/mitigation, §5 out of scope
+- `docs/EXECUTION_PROMPTS.md` — the run-book: §0 overview, preflight, the
+  per-terminal prompt loops, the skills × repo × task matrix, morning checklist
+- `docs/JULES_DEMAND.md` — Jules TASK 69–76 specs (fed to
+  `tools/jules_runner.py`; every task offline-testable, Jules VMs hold no keys)
+- `docs/STITCH_DASHBOARD.md` — retailer dashboard prompt series D1–D5
+- `docs/STITCH_CONSUMER.md` — consumer PWA prompt series C1–C8
+
+**The shipped system:**
 
 - `reachout/README.md` — backend intro; `reachout/TRYME.md` — 5-minute hands-on; `reachout/TUTORIAL.md` — guided walkthrough
 - `reachout/CLAUDE.md` / `CONTEXT.md` / `stages/*/CONTEXT.md` — the ICM contract chain
@@ -229,3 +360,6 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 - `docs/superpowers/specs/2026-07-07-reachout-ui-design.md` — approved UI design spec
 - `docs/superpowers/plans/2026-07-07-reachout-ui.md` — the executed implementation plan
 - `.claude/skills/verify/SKILL.md` — end-to-end verification recipe
+- `AGENTS.md` — the original 10 parallel workstreams and their dependency graph
+  (§"Dependency graph"); the precedent for §4.2
+- `SHARED_CONTRACT.md` — phase flags; `STATUS.md` — live build state
