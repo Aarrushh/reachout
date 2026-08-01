@@ -18,9 +18,19 @@ Usage:
   python tools/jules_runner.py --from 07     # resume from TASK 07
   python tools/jules_runner.py --only 14     # run a single task
   python tools/jules_runner.py --max 5       # stop after 5 tasks this run
+  python tools/jules_runner.py --test-cmd 'cd demand && python -m pytest'
+                                              # override the suite command
+                                              # appended to every prompt
 
 Reads JULES_API_KEY from the environment or the repo-root .env file.
 State (completed tasks, session ids) persists in tools/.jules_runner_state.json.
+
+The command appended to each prompt ("run the backend suite (...) and make
+it fully green") is resolved per run, precedence CLI > tasks-file > default:
+  1. --test-cmd, if given.
+  2. Else a `<!-- TEST_CMD: <command> -->` line anywhere in the tasks file
+     (e.g. `<!-- TEST_CMD: cd demand && python -m pytest -->`), if present.
+  3. Else the v1 default: `cd reachout/tests && python -m pytest`.
 """
 
 import argparse
@@ -43,6 +53,10 @@ BRANCH = "jules-integration"
 TASKS_FILE = os.path.join(ROOT, "docs", "JULES_BACKEND.md")
 STATE_FILE = os.path.join(ROOT, "tools", ".jules_runner_state.json")
 WORKTREE = os.path.join(ROOT, "tools", ".jules-wt")
+# Overridable via --test-cmd or a tasks-file `<!-- TEST_CMD: ... -->` header
+# (see resolve_test_cmd()); this default preserves the v1 prompt verbatim.
+TEST_CMD = "cd reachout/tests && python -m pytest"
+TEST_CMD_RE = re.compile(r"<!--\s*TEST_CMD:\s*(.*?)\s*-->")
 
 POLL_INTERVAL = 30          # seconds between session polls
 SESSION_TIMEOUT = 3 * 60 * 60  # heavy tasks (SSE tests) can exceed an hour
@@ -130,6 +144,18 @@ def parse_tasks():
     return master, tasks
 
 
+def resolve_test_cmd(cli_value):
+    """CLI flag > tasks-file `<!-- TEST_CMD: ... -->` header > v1 default."""
+    if cli_value:
+        return cli_value
+    if os.path.exists(TASKS_FILE):
+        text = open(TASKS_FILE, encoding="utf-8").read()
+        m = TEST_CMD_RE.search(text)
+        if m:
+            return m.group(1).strip()
+    return TEST_CMD
+
+
 def build_prompt(master, task):
     return (
         master
@@ -138,8 +164,7 @@ def build_prompt(master, task):
         "(a runner merges it automatically before the next task).\n\n"
         + f"TASK {task['nn']} — {task['title']}\n{task['body']}\n\n"
         "Work ONLY this task — nothing from any other task. Before finishing, "
-        "run the backend suite (cd reachout/tests && python -m pytest) and "
-        "make it fully green."
+        f"run the backend suite ({TEST_CMD}) and make it fully green."
     )
 
 
@@ -353,9 +378,13 @@ def main():
     ap.add_argument("--tasks", help="tasks markdown file (default: v1 series)")
     ap.add_argument("--state", help="state json file (default: v1 state)")
     ap.add_argument("--branch", help="integration branch (default: v1 branch)")
+    ap.add_argument("--test-cmd", dest="test_cmd",
+                     help="command appended to every prompt in place of the "
+                          "v1 default (default: tasks-file TEST_CMD header, "
+                          "else v1 default)")
     args = ap.parse_args()
 
-    global TASKS_FILE, STATE_FILE, BRANCH, WORKTREE
+    global TASKS_FILE, STATE_FILE, BRANCH, WORKTREE, TEST_CMD
     if args.tasks:
         TASKS_FILE = os.path.join(ROOT, args.tasks)
     if args.state:
@@ -363,6 +392,7 @@ def main():
     if args.branch:
         BRANCH = args.branch
         WORKTREE = os.path.join(ROOT, "tools", f".jules-wt-{BRANCH}")
+    TEST_CMD = resolve_test_cmd(args.test_cmd)
 
     load_env()
     master, tasks = parse_tasks()
