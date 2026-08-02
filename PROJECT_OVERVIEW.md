@@ -33,8 +33,14 @@ behind it.
 
 ## 2. What is being added (planned, not yet built)
 
-Approved plan: `docs/IMPLEMENTATION_PLAN.md`. Run-book:
-`docs/EXECUTION_PROMPTS.md`. Three tracks, run in parallel:
+**Plan in force:** `docs/IMPLEMENTATION_PLAN_V2.md` (decisions D1–D10 +
+sub-decisions S1–S6, the M/T/U/V/H task list, data contracts, risks, out of
+scope). **Live board:** `docs/TRACKER.md` — what's done, what's next, who
+owns what; read it before either plan. The v1 `docs/IMPLEMENTATION_PLAN.md`
+and its run-book `docs/EXECUTION_PROMPTS.md` are **superseded for routing** —
+do not follow them as instructions — but v1's §3 remains the source text for
+the demand data contracts and its §3.4 the preserved authentication reversal
+path. Three tracks, run in parallel:
 
 | Track | What | How |
 |---|---|---|
@@ -158,6 +164,15 @@ Data (reachout/data/): reachout.db (SQLite WAL: shops + inventory),
 | GET | `/api/regions` | `regions_response.json` | List of known regions with shop counts |
 | GET | `/api/health` | `health_response.json` | API health, stats, and simulator state |
 
+**Two search backends, one mount point.** `reachout/api/server.py` also
+mounts a second, independent search implementation from backend v2:
+`POST /api/search` (pgvector + Gemini rerank over the Supabase
+products/stores schema, `reachout/api/search.py`) plus `POST /api/chat`.
+Same path, different HTTP method, no clash with the `GET /api/search` above.
+Decision **S6** (`docs/IMPLEMENTATION_PLAN_V2.md`) keeps the consumer UI on
+the pipeline `GET /api/search` — the Supabase path stays mounted and
+available but unused by the frontend.
+
 ## 6. Repository map
 
 ```
@@ -166,17 +181,38 @@ reachout/  (repo root)
 ├── AGENTS.md                the original 10 workstreams + their dependency graph
 ├── SHARED_CONTRACT.md       phase flags between backend and frontend agents
 ├── STATUS.md                live build state — ticked by every agent session
+├── plan.md                  superseded tick-scheduler micro-plan, shipped;
+│                            scheduled for deletion by H1 (see docs/TRACKER.md BLOAT)
+├── debug_tick.py, debug_tick2.py,
+│   test_tick2.py, test_tick_debug.py
+│                            one-off debug scratch from the tick work, shipped;
+│                            scheduled for deletion by H1 (see docs/TRACKER.md BLOAT)
+├── netlify.toml             frontend deploy config (base frontend/, publish dist/)
+├── render.yaml              backend deploy config (uvicorn on Render, free plan)
 ├── .claude/skills/verify/   how to launch + drive the app for verification
 ├── docs/
-│   ├── IMPLEMENTATION_PLAN.md   the approved plan (§0 decisions D1–D8)
-│   ├── EXECUTION_PROMPTS.md     terminal run-book for the unattended loop
+│   ├── TRACKER.md               the live board — read first, updated every session
+│   ├── IMPLEMENTATION_PLAN_V2.md the plan in force: decisions D1–D10 + S1–S6,
+│   │                              M/T/U/V/H task list, data contracts, risks
+│   ├── PLAN_V2_PROMPT.md        the prompt that produced Implementation Plan v2
+│   ├── IMPLEMENTATION_PLAN.md   v1 plan — superseded for routing, §3/§3.4 still
+│   │                             source text (see §2 above)
+│   ├── EXECUTION_PROMPTS.md     v1 run-book — superseded (see docs/TRACKER.md)
 │   ├── JULES_DEMAND.md          Jules TASK 69–76 specs
 │   ├── STITCH_DASHBOARD.md      dashboard prompt series D1–D5
 │   ├── STITCH_CONSUMER.md       consumer prompt series C1–C8
+│   ├── STITCH_FRONTEND.md       v1 UI redesign prompt series, executed + merged
+│   │                             (design record, history)
+│   ├── FINAL_SUMMARY.md         compiled summary of the 52-task backend run +
+│   │                             12-prompt Stitch frontend redesign (history)
+│   ├── frontend_contract_note.md  fields added to the schemas for the frontend
+│   │                             (history)
 │   ├── JULES_BACKEND*.md        earlier Jules task files (history)
 │   └── superpowers/             UI design spec + implementation plan (history)
 ├── tools/jules_runner.py    submits task files to Jules, patches + merges
 ├── frontend/                React SPA (see frontend/README.md)
+│   ├── CLAUDE.md            Layer 0: workspace identity + rules
+│   ├── CONTEXT.md           Layer 1: what exists today vs. planned (task U0 on)
 │   ├── scripts/             gen-types.ts, gen-barrios.ts (code generators)
 │   └── src/
 │       ├── routes/          search.tsx (entry), results.tsx (split view)
@@ -202,23 +238,33 @@ reachout/  (repo root)
     │                        search_engine, ping, validate, inventory_*
     ├── agent/               optional LLM adapter + rule-based fallback
     ├── api/server.py        FastAPI wrapper (thin; no business logic)
-    ├── tests/               pytest suite (93 tests, offline via fixtures)
+    ├── tests/               pytest suite (~228 test functions, offline via
+    │                        fixtures; see §9 for how that count is sourced)
     ├── data/                live SQLite DB, event log, caches (see §5)
     ├── data/schema.sql      Supabase/Postgres DDL for the public schema
     ├── run_pipeline.py      orchestrator
-    └── demo.py              live demo with stock moving in the background
+    ├── demo.py              live demo with stock moving in the background
+    └── test_tick_debug.py   stray debug scratch at the workspace root (breaks
+                             the layer rule); scheduled for deletion by H1
 
-PLANNED (Track A — does not exist yet; created by docs/EXECUTION_PROMPTS.md A-P1):
-demand/                     second ICM workspace, own service boundary
+demand/  (second ICM workspace, own service boundary — scaffolded by M1/M2;
+          Lane D. The `.py` chain files below are still PLANNED, built by
+          Jules TASK 69–77, not yet run):
 ├── CLAUDE.md / CONTEXT.md  Layers 0–1, same convention as reachout/
-├── _config/                seed_keywords.json, constraints, tech_stack
-├── shared/schemas/         trend_snapshot / demand_signal / recommendation /
-│                           api response schemas (authored before any code)
-├── data/schema.sql         idempotent DDL for the `demand` Postgres schema
-├── ingest/                 trends_client.py, keywords.py, snapshot_store.py
-├── scripts/                compute_signals.py, recommend.py, run_ingest.py
-├── api/app.py              own FastAPI app (NOT mounted into reachout/api)
-└── tests/                  offline pytest suite + fixtures
+├── _config/                seed_keywords.json — the curated Madrid keyword list
+├── shared/schemas/         5 schemas authored before any code: trend_snapshot,
+│                           demand_signal, recommendation, recommendations_response,
+│                           analytics_response
+├── data/schema.sql         idempotent DDL for the `demand` Postgres schema —
+│                           written, not yet applied to Supabase (task M3, founder)
+├── ingest/                 PLANNED: trends_client.py, keywords.py, snapshot_store.py
+│                           (TASK 69–71); only `__init__.py` exists today
+├── scripts/                PLANNED: compute_signals.py, recommend.py, run_ingest.py
+│                           (TASK 72/73/75); only `__init__.py` exists today
+├── api/                    PLANNED: app.py, own FastAPI app, NOT mounted into
+│                           reachout/api (TASK 74/77); only `__init__.py` exists today
+└── tests/                  conftest.py, fake_supa.py, fixtures/ scaffolded by M1;
+                            test files PLANNED alongside their chain file
 ```
 
 **Navigation rule (ICM):** read `reachout/CLAUDE.md` → `CONTEXT.md` → the one
@@ -231,7 +277,7 @@ table; `demand/` follows the same rule with its own L0/L1.
 | Part | Choice | Notes |
 |---|---|---|
 | Language | Python 3.11+ | stdlib-first |
-| API | FastAPI + uvicorn | thin read-only wrapper; CORS `*` (GET only) |
+| API | FastAPI + uvicorn | thin read-only wrapper; CORS `*` (GET only); mounts two independent search implementations — see §5 |
 | Store | SQLite, WAL mode | `data/reachout.db`; concurrent sim writes + search reads |
 | Validation | `jsonschema` (Draft-07, tolerant multipleOf) | `scripts/validate.py` |
 | HTTP client | `requests` | Overpass / Nominatim / ORS |
@@ -299,12 +345,20 @@ REACHOUT_OFFLINE=1 python run_pipeline.py "algo para el dolor de cabeza" --near 
 # Live demo with moving stock:
 python demo.py
 # Tests:
-cd reachout/tests && python -m pytest          # 93 backend tests
+cd reachout/tests && python -m pytest          # ~228 backend tests
 cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 ```
 
 `REACHOUT_OFFLINE=1` uses the committed OSM cache + gazetteer (no network).
 `--use-llm` + `ANTHROPIC_API_KEY` switches stages 01/04 to an LLM.
+
+**On the test count:** this doc previously claimed a stale count of 93 for
+the backend suite. `grep -rc "def test_" reachout/tests/ demand/tests/` currently counts 228 test
+functions (approximate: it undercounts parametrized cases pytest expands at
+collection time and misses any Jules-added suites not yet merged).
+`STATUS.md`'s PHASE 2 entry separately records 240 passing at that point in
+the build; the two numbers come from different methods and different
+moments, both trustworthy for "many more than 93," neither exact right now.
 
 ## 10. Debugging guide (symptom → where to look)
 
@@ -341,11 +395,17 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 
 **The plan (next phase):**
 
-- `docs/IMPLEMENTATION_PLAN.md` — the approved plan: §0 decision table D1–D8
-  (each default explicitly reversible), §2 tagged task list per track, §3 data
-  contracts, §4 risk/mitigation, §5 out of scope
-- `docs/EXECUTION_PROMPTS.md` — the run-book: §0 overview, preflight, the
-  per-terminal prompt loops, the skills × repo × task matrix, morning checklist
+- `docs/TRACKER.md` — **read this first.** The live board: what's done, what's
+  next, who owns what, updated in the same commit as the work it tracks
+- `docs/IMPLEMENTATION_PLAN_V2.md` — the plan in force: §0 decision table
+  D1–D10 + sub-decisions S1–S6 (each reversible), §2 M/T/U/V/H task list,
+  §5 data contracts, §6 risk/mitigation, §7 out of scope
+- `docs/PLAN_V2_PROMPT.md` — the prompt that produced Implementation Plan v2
+- `docs/IMPLEMENTATION_PLAN.md` — the v1 plan: superseded for routing, but
+  its §3 remains the source text for the demand data contracts and its §3.4
+  the preserved authentication reversal path (see §2 above)
+- `docs/EXECUTION_PROMPTS.md` — the v1 run-book: superseded, see
+  `docs/TRACKER.md`'s "SKIP THIS"
 - `docs/JULES_DEMAND.md` — Jules TASK 69–76 specs (fed to
   `tools/jules_runner.py`; every task offline-testable, Jules VMs hold no keys)
 - `docs/STITCH_DASHBOARD.md` — retailer dashboard prompt series D1–D5
@@ -356,7 +416,8 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 - `reachout/README.md` — backend intro; `reachout/TRYME.md` — 5-minute hands-on; `reachout/TUTORIAL.md` — guided walkthrough
 - `reachout/CLAUDE.md` / `CONTEXT.md` / `stages/*/CONTEXT.md` — the ICM contract chain
 - `reachout/_config/` — product.md, constraints.md, tech_stack.md
-- `frontend/README.md` — frontend architecture + commands
+- `frontend/README.md` — frontend architecture + commands; `frontend/CLAUDE.md` /
+  `CONTEXT.md` — the frontend's own ICM L0/L1, same convention as `reachout/`
 - `docs/superpowers/specs/2026-07-07-reachout-ui-design.md` — approved UI design spec
 - `docs/superpowers/plans/2026-07-07-reachout-ui.md` — the executed implementation plan
 - `.claude/skills/verify/SKILL.md` — end-to-end verification recipe

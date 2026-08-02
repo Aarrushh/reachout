@@ -1,9 +1,13 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (M12 landed)
+**Last updated:** 2026-08-02 (M13 landed)
 **Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 9 of 32 tasks done.
-**Next action:** Create and push the two work branches, one per parallel lane (task **M5**, Claude).
+**Progress:** 10 of 32 tasks done.
+**Next action:** Two wave-0 tasks remain before wave 1 can start: create and
+push the two work branches (**M5**, Claude) and amend `docs/JULES_DEMAND.md`
+with the no-login TASK 74 + new TASK 77 (**M7**, Claude — waits on M1, M2,
+both done). Independently, **M3** (apply the schema to Supabase) needs the
+founder.
 
 ---
 
@@ -41,7 +45,7 @@ human, live credentials, or a decision).
 | **M10** | Stop the runner pushing straight to `main` after every task with no tests run and nobody looking. Run the tests first; make the push to `main` an explicit choice. | Claude | M8 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M11** | Fix `reachout/CONTEXT.md`. It tells every arriving agent that two pipeline stages don't exist yet. They shipped. | Claude | nothing | M13 | `[x] 2026-08-02` |
 | **M12** | Give the `frontend/` folder the two layer docs every other workspace has, before we split it into consumer and retail halves. | Claude | nothing | M13, U0 | `[x] 2026-08-02` |
-| **M13** | Bring `PROJECT_OVERVIEW.md` back in line with what is actually in the repo (missing files, wrong test count, two search backends, the new folders). | Claude | M11, M12 | — | `[ ]` |
+| **M13** | Bring `PROJECT_OVERVIEW.md` back in line with what is actually in the repo (missing files, wrong test count, two search backends, the new folders). | Claude | M11, M12 | — | `[x] 2026-08-02` |
 
 ### Wave 1 — demand ingest ‖ consumer picks
 
