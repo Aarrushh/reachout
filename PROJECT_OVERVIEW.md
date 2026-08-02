@@ -135,7 +135,7 @@ Browser (React SPA, localhost:5173)
   │  GET /api/search.geojson    → matched shops map  (map_geojson.schema.json)
   │  GET /api/shops.geojson     → ALL shops (network layer, cached 1h)
   ▼                                                  (shops_geojson.schema.json)
-FastAPI (reachout/api/server.py, localhost:8000, CORS *)
+FastAPI (reachout/api/server.py, localhost:8000, CORS: localhost:5173 + Netlify)
   │  per request: throwaway output dir → run_pipeline.run()
   │
   │  [AsyncIOScheduler] ─(ticks)→ Simulator ─(events)→ [Event Bus] ─(SSE)→ /api/inventory/stream
@@ -372,7 +372,7 @@ moments, both trustworthy for "many more than 93," neither exact right now.
 | Stock numbers changing between searches | Expected: `scripts/inventory_simulator.py` writes live; watch `tail -f data/events.jsonl`. |
 | Wrong/missing shops | `data/reachout.db` shops table (from `scripts/osm_ingest.py` + `data/osm_cache/`). `--refresh` re-pulls from Overpass. |
 | Barrio not resolving | `scripts/nominatim.py` → offline fallback `data/gazetteer_madrid.json`. The frontend autocomplete list is generated from the same file (`npm run gen-barrios`). |
-| Frontend shows CORS errors | `reachout/api/server.py` CORSMiddleware (GET-only, `*`). |
+| Frontend shows CORS errors | `reachout/api/server.py` CORSMiddleware (localhost:5173 + Netlify origins only, GET+POST). |
 | SSE not streaming | `REACHOUT_SIM` environment variable not set to `1` (which starts the simulator/scheduler), or an issue in `api/event_bus.py`. |
 | Region empty | The `region_seeder` assignment radius may be too small or missing shops for that specific region. |
 | Frontend types don't match API | Regenerate: `npm run gen-types`. Types are slaved to schemas — never edit `src/types/`. |
