@@ -282,6 +282,11 @@ Commit both, tick STATUS.md Track C. Print: PAPER DONE. Stop.
 
 ## §8 Launch order (TL;DR)
 
+> **SUPERSEDED — see `docs/TRACKER.md`'s "Wave 1 — runner launch commands"**
+> for the two correct, current `tools/jules_runner.py` invocations; §3's
+> `--from 69 --max 7` and §4's `--state`/`--branch` below are stale (wrong
+> task count, TASK 77 unreachable, and A/B given the same lock file).
+
 | Terminal | Paste order | Parallel from |
 |---|---|---|
 | A | P0 → A-P1 → A-P2 → A-P3 → A-P4 | start |

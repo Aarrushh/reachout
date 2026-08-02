@@ -14,6 +14,8 @@ tools/.jules_runner_state_demand.json
 tools/.jules_runner_state_picks.json
 tools/jules_runner_demand.log
 tools/jules_runner_picks.log
+tools/.jules_runner_state*.json.lock
+tools/.jules_runner_state*.json.lock.*.tmp
 
 # Local Netlify folder
 .netlify

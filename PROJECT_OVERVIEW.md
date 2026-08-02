@@ -45,7 +45,7 @@ current M/T/U/V/H lanes in flight, see `docs/IMPLEMENTATION_PLAN_V2.md` §2:
 
 | Track | What | How |
 |---|---|---|
-| **A — Demand Solutions** | New `demand/` service: Google Trends batch ingest → snapshots → signals → per-store recommendations → its own FastAPI app; plus the retailer dashboard UI. Every surfaced number carries a confidence label and an always-visible caveat. | Jules TASK 69–75 (`docs/JULES_DEMAND.md`), Stitch D1–D5 (`docs/STITCH_DASHBOARD.md`) |
+| **A — Demand Solutions** | New `demand/` service: Google Trends batch ingest → snapshots → signals → per-store recommendations → its own FastAPI app; plus the retailer dashboard UI. Every surfaced number carries a confidence label and an always-visible caveat. | Jules TASK 69–75, 77 (`docs/JULES_DEMAND.md`), Stitch D1–D5 (`docs/STITCH_DASHBOARD.md`) |
 | **B — Consumer UI** | Blinkit/Amazon-style mobile-first shopping surface over the existing Supabase products/stores, plus a deterministic `GET /api/picks`. Installable PWA — "phone" means responsive web, not a native app. | Jules TASK 76, Stitch C1–C8 (`docs/STITCH_CONSUMER.md`) |
 | **C — Gated** | Two memos, no code: delivery partner-vs-build (Spain/EU rider-classification exposure), and the preconditions that un-gate AI shop-chat. | Written directly |
 
@@ -104,7 +104,7 @@ stays changeable; one bolted into an existing tangle does not.
 
 Work is decomposed into a DAG and executed by whatever is unblocked:
 
-- **Nodes** — tasks. Jules TASK 69–76 (`docs/JULES_DEMAND.md`), Stitch prompts
+- **Nodes** — tasks. Jules TASK 69–77 (`docs/JULES_DEMAND.md`), Stitch prompts
   D1–D5 and C1–C8, and the manual scaffold / auth / live-verify steps that
   need keys.
 - **Edges** — data contracts, not prose. A JSON Schema in `shared/schemas/`,
@@ -407,7 +407,7 @@ moments, both trustworthy for "many more than 93," neither exact right now.
   the preserved authentication reversal path (see §2 above)
 - `docs/EXECUTION_PROMPTS.md` — the v1 run-book: superseded, see
   `docs/TRACKER.md`'s "SKIP THIS"
-- `docs/JULES_DEMAND.md` — Jules TASK 69–76 specs (fed to
+- `docs/JULES_DEMAND.md` — Jules TASK 69–77 specs (fed to
   `tools/jules_runner.py`; every task offline-testable, Jules VMs hold no keys)
 - `docs/STITCH_DASHBOARD.md` — retailer dashboard prompt series D1–D5
 - `docs/STITCH_CONSUMER.md` — consumer PWA prompt series C1–C8

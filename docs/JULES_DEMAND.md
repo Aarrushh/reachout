@@ -2,7 +2,7 @@
 
 # JULES_DEMAND.md — Demand dashboard + picks series (TASKs 69–77)
 
-<!-- TEST_CMD: cd demand && python -m pytest -->
+<!-- TEST_CMD: cd demand && python3 -m pytest -->
 
 *Task series for Jules covering Track A (demand service, TASKs 69–75, 77) and
 Track B's one backend task (picks endpoint, TASK 76) from

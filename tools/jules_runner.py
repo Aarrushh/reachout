@@ -27,7 +27,7 @@ Usage:
   python tools/jules_runner.py --from 07     # resume from TASK 07
   python tools/jules_runner.py --only 14     # run a single task
   python tools/jules_runner.py --max 5       # stop after 5 tasks this run
-  python tools/jules_runner.py --test-cmd 'cd demand && python -m pytest'
+  python tools/jules_runner.py --test-cmd 'cd demand && python3 -m pytest'
                                               # override the suite command
                                               # appended to every prompt
   python tools/jules_runner.py --promote-main
@@ -56,12 +56,22 @@ The command appended to each prompt ("run the backend suite (...) and make
 it fully green") is resolved per run, precedence CLI > tasks-file > default:
   1. --test-cmd, if given.
   2. Else a `<!-- TEST_CMD: <command> -->` line anywhere in the tasks file
-     (e.g. `<!-- TEST_CMD: cd demand && python -m pytest -->`), if present.
-  3. Else the v1 default: `cd reachout/tests && python -m pytest`.
+     (e.g. `<!-- TEST_CMD: cd demand && python3 -m pytest -->`), if present.
+  3. Else the v1 default: `cd reachout/tests && python3 -m pytest`.
 The resolved command is also the in-worktree test gate's command: it runs
 with cwd = the worktree root, so any `cd` inside it must resolve to a path
 under the worktree — an absolute target or a `../`-escape is rejected at
 startup (before any task runs), not discovered mid-run.
+
+MULTI-LANE WARNING: --tasks is a shared tasks file, not a per-lane one — two
+lanes both fed docs/JULES_DEMAND.md resolve step 2 to the SAME `<!--
+TEST_CMD: ... -->` header regardless of which --only task each lane runs.
+If a lane's own code lives outside what that header tests (e.g. a lane
+running `--only 76`, which writes only in reachout/, while the file's
+header points at `cd demand && ...`), that lane's gate is green having
+tested nothing — the exact defect this precedence chain exists to prevent.
+Any lane whose code isn't covered by the tasks-file TEST_CMD header MUST
+pass its own --test-cmd explicitly; do not rely on step 2 for it.
 """
 
 import argparse
@@ -87,7 +97,7 @@ STATE_FILE = os.path.join(ROOT, "tools", ".jules_runner_state.json")
 WORKTREE = os.path.join(ROOT, "tools", ".jules-wt")
 # Overridable via --test-cmd or a tasks-file `<!-- TEST_CMD: ... -->` header
 # (see resolve_test_cmd()); this default preserves the v1 prompt verbatim.
-TEST_CMD = "cd reachout/tests && python -m pytest"
+TEST_CMD = "cd reachout/tests && python3 -m pytest"
 TEST_CMD_RE = re.compile(r"<!--\s*TEST_CMD:\s*(.*?)\s*-->")
 
 POLL_INTERVAL = 30          # seconds between session polls
@@ -401,9 +411,31 @@ def apply_changeset(session, nn, title):
     finally:
         os.remove(pfile)
     git("add", "-A", cwd=WORKTREE)
-    git("commit", "-m",
-        f"TASK {nn}: {msg}\n\n(applied from Jules {session['name']})",
-        cwd=WORKTREE)
+    commit_msg = f"TASK {nn}: {msg}\n\n(applied from Jules {session['name']})"
+    p = subprocess.run(["git", "commit", "-m", commit_msg], cwd=WORKTREE,
+                        capture_output=True, text=True)
+    if p.returncode != 0:
+        # I4 fix: a rerun after an interruption between the BRANCH push and
+        # state["done"].append(nn) (crash, Ctrl-C, SIGTERM, sleep) lands here
+        # with the patch already committed AND pushed on a prior run. reset
+        # --hard above already pulled that prior commit in, so `git apply
+        # --3way` on the same patch resolves as a no-op (the blobs it names
+        # are already the tree's blobs) and `git add -A` stages nothing.
+        # git prints "nothing to commit, working tree clean" to STDOUT (not
+        # stderr, unlike most git failures — this is why we use subprocess
+        # directly here instead of the git() helper, which only surfaces
+        # stderr in its RuntimeError). That message means the work is
+        # already here, not that anything failed: continue so the task can
+        # reach the test gate and state["done"] instead of wedging forever.
+        # Any other commit failure still raises (check=True is not weakened
+        # anywhere — this is a narrow, explicit substitute for it here).
+        if "nothing to commit" in p.stdout + p.stderr:
+            log(f"TASK {nn}: patch already applied in worktree (resuming "
+                "after an interrupted prior run) — nothing new to commit, "
+                "continuing")
+        else:
+            raise RuntimeError(
+                f"git commit failed:\n{p.stdout}{p.stderr}")
     log(f"TASK {nn}: patch applied in worktree (not yet pushed — "
         "pending test gate)")
     return True

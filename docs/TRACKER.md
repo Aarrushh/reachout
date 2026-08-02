@@ -60,6 +60,48 @@ human, live credentials, or a decision).
 | **T71** | TASK 71 — save captured trend data to the database without ever creating duplicates. | Jules | M1, M2, M5, M7, M8 | T72 | `[ ]` |
 | **T76** | TASK 76 — the "picks for you" endpoint for shoppers. Runs in its own lane, in parallel with everything above. Ticks `PICKS_READY`. | Jules | M4, M5, M8 | U4 | `[ ]` |
 
+**Wave 1 — runner launch commands.** `docs/EXECUTION_PROMPTS.md` §3/§4 are
+stale (wrong parsed-task count, TASK 77 unreachable by either lane, and
+Terminal A/B given the *same* `--state`/`--branch` — M9's lock now turns
+that collision into an immediate exit for whichever terminal loses the
+race). These two commands are current against the actual `argparse` block
+in `tools/jules_runner.py` and the task order in `docs/JULES_DEMAND.md`
+(`python3`, not `python` — see M10-fix). Run each in its own terminal;
+they touch disjoint state/branch/worktree so nothing races:
+
+Lane D (`jules-demand-integration`, TASKs 69–75 — 72 needs 69+71 done and
+75 needs 73/74/77, but the runner does one task at a time in file order so
+this single background run resolves the chain correctly on its own):
+
+```
+python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_demand.json --branch jules-demand-integration --from 69 --max 7
+```
+
+Lane P (`jules-picks-integration`, TASK 76 only — its own `--test-cmd` is
+required, not optional: the shared tasks-file `TEST_CMD` header resolves to
+`cd demand && python3 -m pytest`, which tests none of TASK 76's code in
+`reachout/`; see I1 in the wave-0 review and the MULTI-LANE WARNING in
+`tools/jules_runner.py`'s module docstring):
+
+```
+python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_picks.json --branch jules-picks-integration --only 76 --test-cmd "cd reachout/tests && REACHOUT_OFFLINE=1 python3 -m pytest -q"
+```
+
+Both default to **not** touching `main` — work lands on the integration
+branch only. Append `--promote-main` to either command to opt into also
+fast-forwarding `main` after each green task; this is a deliberate choice
+per task, not a default.
+
+**TASK 77 is not in wave 1** (it needs T73, wave 3) and is not reachable by
+either command above — `--from 69 --max 7` stops at 75, and 76 sits
+between 75 and 77 in the tasks file, so no single contiguous `--from`/
+`--max` range can cover 69–75 and 77 while skipping lane P's 76. Once T73
+is done, submit it as its own run on lane D's same state/branch:
+
+```
+python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_demand.json --branch jules-demand-integration --only 77
+```
+
 ### Wave 2 — signals
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
