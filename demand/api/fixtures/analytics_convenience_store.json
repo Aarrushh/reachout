@@ -1,0 +1,41 @@
+{
+  "inventory_type": "convenience_store",
+  "generated_from": "fixture",
+  "generated_at": "2026-08-02T17:56:05.535386+00:00",
+  "caveat": "Basado en inter\u00e9s de b\u00fasqueda en Madrid, no en compras reales.",
+  "segments": {
+    "top_movers": {
+      "confidence": "high",
+      "points": [
+        {
+          "keyword": "cerveza",
+          "category": "Alcohol",
+          "interest_avg": 85.5,
+          "delta_pct": 15.2,
+          "direction": "rising"
+        }
+      ]
+    },
+    "category_mix": {
+      "confidence": "medium",
+      "points": [
+        {
+          "category": "Alcohol",
+          "share_pct": 25.0,
+          "product_count": 10
+        }
+      ]
+    },
+    "stock_out_risk": {
+      "confidence": "low",
+      "points": [
+        {
+          "category": "Alcohol",
+          "at_risk_count": 2,
+          "total_count": 10,
+          "risk_pct": 20.0
+        }
+      ]
+    }
+  }
+}

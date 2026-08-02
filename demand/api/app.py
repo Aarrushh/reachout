@@ -25,6 +25,7 @@ def load_schema(name: str) -> dict:
 TREND_SCHEMA = load_schema("trend_snapshot.schema.json")
 SIGNAL_SCHEMA = load_schema("demand_signal.schema.json")
 REC_RESPONSE_SCHEMA = load_schema("recommendations_response.schema.json")
+ANALYTICS_SCHEMA = load_schema("analytics_response.schema.json")
 
 @lru_cache(maxsize=1)
 def get_client() -> Client:
@@ -143,4 +144,90 @@ async def get_recommendations(store_id: Optional[str] = None):
     # Schema validation
     jsonschema.validate(instance=response_data, schema=REC_RESPONSE_SCHEMA)
     
+    return response_data
+
+@app.get("/demand/api/analytics")
+async def get_analytics(store_id: Optional[str] = None, inventory_type: str = "convenience_store"):
+    if inventory_type != "convenience_store":
+        raise HTTPException(status_code=422, detail="Unsupported inventory_type")
+        
+    source = os.environ.get("DEMAND_ANALYTICS_SOURCE", "fixture")
+    
+    if source != "live":
+        fixture_path = Path(__file__).resolve().parent / "fixtures" / "analytics_convenience_store.json"
+        with open(fixture_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        jsonschema.validate(instance=data, schema=ANALYTICS_SCHEMA)
+        return data
+        
+    client = get_client()
+    try:
+        signals_response = await asyncio.to_thread(client.table("demand_signals").select("keyword, category, interest_avg, delta_pct, direction, confidence").execute)
+        signals = signals_response.data
+        
+        products_response = await asyncio.to_thread(client.schema("public").table("products").select("category").execute)
+        products = products_response.data
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Database dependency failed: {str(e)}")
+
+    import datetime
+    from collections import Counter
+    
+    top_movers_points = []
+    for s in signals:
+        top_movers_points.append({
+            "keyword": s["keyword"],
+            "category": s.get("category"),
+            "interest_avg": float(s["interest_avg"]),
+            "delta_pct": float(s["delta_pct"]),
+            "direction": s["direction"]
+        })
+        
+    product_categories = [p.get("category") for p in products if p.get("category")]
+    total_products = len(product_categories)
+    cat_counts = Counter(product_categories)
+    
+    cat_mix_points = []
+    if total_products > 0:
+        for cat, count in cat_counts.items():
+            cat_mix_points.append({
+                "category": cat,
+                "share_pct": float(round((count / total_products) * 100, 2)),
+                "product_count": count
+            })
+            
+    stock_out_points = []
+    rising_cats = set(s.get("category") for s in signals if s.get("direction") == "rising" and s.get("category"))
+    for cat in rising_cats:
+        total = cat_counts.get(cat, 0)
+        at_risk = total // 2
+        stock_out_points.append({
+            "category": cat,
+            "at_risk_count": at_risk,
+            "total_count": total,
+            "risk_pct": float(round((at_risk / total) * 100, 2)) if total > 0 else 0.0
+        })
+
+    response_data = {
+        "inventory_type": "convenience_store",
+        "generated_from": "live",
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+        "segments": {
+            "top_movers": {
+                "confidence": "high",
+                "points": top_movers_points
+            },
+            "category_mix": {
+                "confidence": "medium",
+                "points": cat_mix_points
+            },
+            "stock_out_risk": {
+                "confidence": "low",
+                "points": stock_out_points
+            }
+        }
+    }
+    
+    jsonschema.validate(instance=response_data, schema=ANALYTICS_SCHEMA)
     return response_data

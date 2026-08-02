@@ -111,7 +111,12 @@ class FakeSupabase:
         self.tables = tables or {}
         self.rpcs = rpcs or {}
 
+
+    def schema(self, schema_name):
+        return self
+
     def table(self, name):
+
         if name not in self.tables:
             self.tables[name] = []
         return FakeQueryBuilder(self.tables[name], self.tables[name])
