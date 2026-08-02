@@ -1,8 +1,10 @@
 > **Still current (2026-08-01)** — except TASK 74's auth section, which is superseded by the no-auth POC decision; the v2 plan must amend TASK 74 before it is submitted to the runner. See docs/PLAN_V2_PROMPT.md §B.
 
-# JULES_DEMAND.md — Demand dashboard + picks series (TASKs 69–76)
+# JULES_DEMAND.md — Demand dashboard + picks series (TASKs 69–77)
 
-*Task series for Jules covering Track A (demand service, TASKs 69–75) and
+<!-- TEST_CMD: cd demand && python -m pytest -->
+
+*Task series for Jules covering Track A (demand service, TASKs 69–75, 77) and
 Track B's one backend task (picks endpoint, TASK 76) from
 `docs/IMPLEMENTATION_PLAN.md` §2. Continues the numbering from
 `docs/JULES_BACKEND.md` (01–52) and `docs/JULES_BACKEND_V2.md` (53–68) so
@@ -26,31 +28,39 @@ Tracker (runner ticks nothing here — check
 | D1 — ingest + signals | 69, 70, 71, 72 | DEMAND_INGEST_READY |
 | D2 — recommendations + API | 73, 74, 75 | DEMAND_API_READY |
 | D3 — consumer picks | 76 | PICKS_READY |
+| D4 — analytics | 77 | DEMAND_API_READY |
 
 ## 1. MASTER CONTEXT BLOCK (prepend to every Jules task)
 
 ```
 Repo: Aarrushh/reachout. Two backend roots: reachout/ (existing v1+v2, do
 NOT break) and demand/ (NEW demand-dashboard service — your workspace for
-TASKs 69-75). Full plan: docs/IMPLEMENTATION_PLAN.md (read §2 task table and
-§3 data contracts before coding).
+TASKs 69-75 and 77). Full plan: docs/IMPLEMENTATION_PLAN.md (read §2 task
+table and §3 data contracts before coding).
 
-demand/ — what already exists (do NOT rewrite it):
+demand/ — M1 and M2 already built this directly on main, before this series
+starts (do NOT rewrite it): the workspace layout below, all five JSON
+Schemas in shared/schemas/, the `demand` Postgres DDL, the seed-keyword
+list, and the tests/conftest.py + tests/fake_supa.py test helpers are
+already committed.
 demand/
 ├── CLAUDE.md, CONTEXT.md       ICM layer docs — read first, follow them.
 ├── _config/seed_keywords.json  curated Madrid retail seed keywords.
 ├── shared/schemas/             trend_snapshot.schema.json,
 │                               demand_signal.schema.json,
 │                               recommendation.schema.json,
-│                               recommendations_response.schema.json.
+│                               recommendations_response.schema.json,
+│                               analytics_response.schema.json.
 │                               All additionalProperties:false. DO NOT MODIFY.
 ├── data/schema.sql             Postgres schema `demand` DDL. DO NOT MODIFY.
 ├── ingest/                     TASKs 69-71 build trends_client.py,
 │                               keywords.py, snapshot_store.py here.
 ├── scripts/                    TASKs 72,73,75 build compute_signals.py,
 │                               recommend.py, run_ingest.py here.
-├── api/                        TASK 74 builds app.py here.
-└── tests/                      conftest.py (sys.path setup) + fixtures/.
+├── api/                        TASK 74 builds app.py here; TASK 77 extends
+│                               it with /demand/api/analytics.
+└── tests/                      conftest.py (sys.path setup), fake_supa.py
+                                (chainable fake Supabase client) + fixtures/.
 
 THE ONE RULE (from reachout/CLAUDE.md, binding here too): anything exact —
 math, thresholds, rankings, DB writes — is pure Python. No AI calls
@@ -159,22 +169,30 @@ fake client + fixture signals: action rules table-driven; every emitted row
 schema-validates; a row missing caveat is impossible (assert validation
 would fail); stores with zero matching products get no row.
 
-**TASK 74 — demand API app (auth'd, schema-validated, 502 pattern).**
+**TASK 74 — demand API app (public, schema-validated, 502 pattern).**
 New file `demand/api/app.py`: FastAPI app exposing
 `GET /demand/api/health`, `GET /demand/api/trends`,
 `GET /demand/api/signals?window=&direction=`,
-`GET /demand/api/recommendations?store_id=`. Auth: a `Depends` that reads
-`Authorization: Bearer <jwt>`, verifies it as a Supabase Auth JWT
-(signature check via SUPABASE_JWT_SECRET env; structure only — no network),
-resolves the caller's store via `demand.retailers`, and 403s a store_id
-mismatch; health is unauthenticated. Every response body validates against
-its schema in demand/shared/schemas/ before return (recommendations use
-`recommendations_response.schema.json`). Supabase/dep failures → clean 502
-with detail (the reachout TASK 58/66 pattern), never a raw 500. CORS:
-localhost:5173 + *.netlify.app, GET only. Tests in
-`demand/tests/test_api.py` with TestClient, fake client, and a
-test-signed JWT: 200 shapes; missing/garbage token → 401; store mismatch →
-403; fake raising → 502; health needs no token.
+`GET /demand/api/recommendations?store_id=`. NO AUTHENTICATION: every
+endpoint is public for the POC. There is no Authorization header, no JWT
+verification, no `SUPABASE_JWT_SECRET`, no `demand.retailers` table and no
+`Depends` security dependency anywhere in this task — do not add one, and do
+not leave a disabled or commented-out auth path behind. `store_id` on
+`/demand/api/recommendations` is an ordinary optional query parameter used
+only as a filter; an unknown or absent store_id returns an empty
+`recommendations` list with a 200, never a 401 or 403. Every response body
+validates against its schema in demand/shared/schemas/ before return
+(recommendations use `recommendations_response.schema.json`). All endpoints
+are `async def`. Supabase/dep failures -> clean 502 with detail (the reachout
+TASK 58/66 pattern), never a raw 500. CORS: localhost:5173 + *.netlify.app,
+GET only. Tests in `demand/tests/test_api.py` with TestClient and the fake
+client: 200 shapes for all four endpoints; every response schema-validates;
+`?store_id=` filters and an unknown store_id yields 200 with an empty list;
+`?direction=` and `?window=` filters are asserted on the fake; the fake
+raising -> 502 with a detail string and no traceback leak; health returns
+200 with no credentials of any kind supplied. Add one explicit test asserting
+that no endpoint returns 401 or 403 under any input, so a future
+reintroduction of auth cannot land silently.
 
 **TASK 75 — run_ingest.py batch entrypoint + tick DEMAND_API_READY.**
 New file `demand/scripts/run_ingest.py`: single entrypoint chaining
@@ -214,3 +232,43 @@ category diversity property; out-of-stock excluded; neighbourhood filter
 asserted on the fake; limit bounds → 422; 502 path. Run BOTH suites green
 (hard rule 2). Then flip PICKS_READY in SHARED_CONTRACT.md and tick Phase
 D3 in STATUS.md with a one-line note.
+
+## 5. PHASE D4 — analytics (TASK 77)
+
+**TASK 77 — GET /demand/api/analytics (fixture-first, inventory-type keyed).**
+First add `demand/shared/schemas/analytics_response.schema.json`,
+additionalProperties:false at every level, shaping the retail dashboard's
+payload: `{inventory_type: const "convenience_store", generated_from: enum
+["fixture","live"], generated_at: date-time, caveat: non-empty string,
+segments: {top_movers: {...}, category_mix: {...}, stock_out_risk: {...}}}`.
+Each of the three segments is an object `{confidence: enum low|medium|high,
+points: [...]}` whose `points` array MAY BE EMPTY — empty-but-shaped is a
+valid, expected response, not an error. `top_movers` points are
+`{keyword, category, interest_avg, delta_pct, direction}`; `category_mix`
+points are `{category, share_pct, product_count}`; `stock_out_risk` points are
+`{category, at_risk_count, total_count, risk_pct}`. No barrio field anywhere
+(Google Trends does not resolve below ES-MD and nothing may pretend
+otherwise). Then extend `demand/api/app.py` with
+`GET /demand/api/analytics?store_id=&inventory_type=` (inventory_type default
+and only supported value for the POC: `convenience_store`; any other value ->
+422). Public, no auth, async, response validated against the new schema
+before return, Supabase/dep failure -> 502. The handler reads committed
+fixture JSON at `demand/api/fixtures/analytics_convenience_store.json` when
+`DEMAND_ANALYTICS_SOURCE` is unset or `fixture` (the default), and computes
+from `demand.demand_signals` + `public.products` via the injected client when
+it is `live` — the response shape is byte-identical in both modes, which is
+the entire point. Commit the fixture file, populated consistently with the
+8-week x 100-SKU fixture set (see demand/tests/fixtures/README.md) and
+including at least one `high`-confidence segment. `caveat` is the canonical
+string from docs/IMPLEMENTATION_PLAN.md 3.3 and is required by the schema, so
+an analytics response without one cannot validate and cannot be served. There
+is NO footfall metric and no field that could be relabelled as one. Tests in
+`demand/tests/test_api_analytics.py` with TestClient and the fake client:
+fixture mode returns 200 and schema-validates; an empty `points` array
+validates (assert explicitly); live mode over the fake produces the identical
+shape; unknown inventory_type -> 422; missing caveat fails validation
+(construct the payload and assert the validator rejects it); fake raising ->
+502. No network.
+
+[Note: analytics_response.schema.json was committed by M2 — TASK 77 must use
+it as-is (DO NOT MODIFY), not re-create it.]

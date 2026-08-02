@@ -1,13 +1,17 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (M5 landed)
-**Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 11 of 32 tasks done.
-**Next action:** One wave-0 task remains before wave 1 can start: amend
-`docs/JULES_DEMAND.md` with the no-login TASK 74 + new TASK 77 (**M7**,
-Claude — waits on M1, M2, both done). The two Jules work branches (**M5**)
-have landed. Independently, **M3** (apply the schema to Supabase) needs the
-founder.
+**Last updated:** 2026-08-02 (M7 landed)
+**Wave in flight:** Wave 0's Claude tasks are all done; wave 1 — demand
+ingest ‖ consumer picks — is unblocked but not yet submitted to the runner.
+**Progress:** 12 of 32 tasks done.
+**Next action:** Wave 0 is done on the Claude side — `docs/JULES_DEMAND.md`
+now carries the no-login TASK 74, the new TASK 77, a truthful master context
+block, and a `TEST_CMD` header (**M7**, landed). Wave 1 (**T69, T70, T71,
+T76**) is unblocked and ready to submit to the runner: lane D
+(`jules-demand-integration`, TASKs 69–71) and lane P
+(`jules-picks-integration`, TASK 76) per **M5**. Independently, **M3**
+(apply the schema to Supabase) still needs the founder — nothing in wave 1
+waits on it, but **V1** (wave 6/7, live verify) does.
 
 ---
 
@@ -39,7 +43,7 @@ human, live credentials, or a decision).
 | **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[x] 2026-08-02` |
 | **M5** | Create and push the two work branches, one per parallel lane. | Claude | M4 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[x] 2026-08-02` |
-| **M7** | Update the Jules task file: replace task 74 with the no-login version, add the new task 77, and stop the shared preamble from claiming the `demand/` folder already exists. | Claude | M1, M2 | T69–T71, T74, T77 | `[ ]` |
+| **M7** | Update the Jules task file: replace task 74 with the no-login version, add the new task 77, and stop the shared preamble from claiming the `demand/` folder already exists. | Claude | M1, M2 | T69–T71, T74, T77 | `[x] 2026-08-02` |
 | **M8** | Fix the runner so it tells each task to run *its own* test suite. Right now it tells every task to run the old backend's tests — which would pass without testing any of the new code. | Claude | nothing | M9, M10, T69–T71, T76 | `[x] 2026-08-02` |
 | **M9** | Stop two runner processes from fighting over the same files. The old run-book tells you to run two in parallel on one branch and one state file. | Claude | M8 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M10** | Stop the runner pushing straight to `main` after every task with no tests run and nobody looking. Run the tests first; make the push to `main` an explicit choice. | Claude | M8 | T69–T71, T76 | `[x] 2026-08-02` |
