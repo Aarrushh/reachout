@@ -18,7 +18,13 @@ def get_fake_supa_client():
                 "provider": "trendspy",
                 "captured_at": "2024-01-01T12:00:00Z",
                 "series": [{"date": "2024-01-01", "value": 50}],
-                "region_breakdown": None
+                "region_breakdown": None,
+                # DB-only generated column: present in demand.trend_snapshots,
+                # deliberately absent from trend_snapshot.schema.json
+                # (additionalProperties:false). See the HARD RULE in
+                # docs/JULES_DEMAND.md. Here so that a select("*") regression
+                # fails this test instead of only failing in production.
+                "captured_date": "2024-01-01"
             }
         ],
         "demand_signals": [
