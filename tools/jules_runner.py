@@ -26,14 +26,17 @@ Reads JULES_API_KEY from the environment or the repo-root .env file.
 State (completed tasks, session ids) persists in tools/.jules_runner_state.json.
 
 Only one runner may touch a given state file at a time. On start, the runner
-atomically creates a lock file next to the state file (<state>.json.lock, via
-O_CREAT|O_EXCL) containing its PID, and removes it on exit — normal or via
-exception (registered with atexit right after the lock is taken). A second
-process pointed at the same --state exits immediately with a non-zero status
-and a message naming the lock path and the holding PID; no stack trace. If
-the lock file's PID is not a live process (or its content is malformed), the
-runner treats it as stale, removes it, logs "stale lock removed", and takes
-the lock itself.
+atomically creates a lock file next to the state file (<state>.json.lock)
+containing its PID, and removes it on exit — normal or via exception
+(registered with atexit right after the lock is taken). The lock is taken
+via a temp-file + os.link, not O_CREAT|O_EXCL, so it's never observable in
+an empty/unpopulated state (see acquire_lock() docstring). A second process
+pointed at the same --state exits immediately with a non-zero status and a
+message naming the lock path and the holding PID; no stack trace. If the
+lock file's PID is not a live process (or its content is malformed), the
+runner treats it as stale, removes it, logs "stale lock removed", and
+retries. Release only ever removes a lock file that still names our own
+PID, so a runner never deletes a successor's lock out from under it.
 
 The command appended to each prompt ("run the backend suite (...) and make
 it fully green") is resolved per run, precedence CLI > tasks-file > default:
@@ -205,43 +208,78 @@ def _read_lock_pid(lock_path):
 
 
 def _pid_alive(pid):
+    """True unless the PID is definitively gone (ESRCH). EPERM means a live
+    process we merely can't signal (e.g. owned by another user) — alive."""
     try:
         os.kill(pid, 0)
-    except OSError:
+    except ProcessLookupError:
         return False
+    except PermissionError:
+        return True
     return True
 
 
+LOCK_MAX_ATTEMPTS = 10
+
+
 def acquire_lock(lock_path):
-    """Atomically create lock_path (O_CREAT|O_EXCL) with our PID inside.
+    """Atomically create lock_path via temp-file + os.link, with our PID
+    inside. O_CREAT|O_EXCL alone would create lock_path empty and then write
+    the PID as a second step, leaving a window where a racing reader sees an
+    empty (so "malformed", so "stale") file and removes a lock that is in
+    fact live. Writing the PID to a uniquely-named temp file first and then
+    os.link()-ing it onto lock_path makes the lock file appear fully
+    populated or not at all: link() raises FileExistsError iff lock_path
+    already exists, never observably empty.
 
     If a lock is already present: a live holder means we exit immediately
     (clear message, non-zero status, no stack trace); a dead or malformed
-    one is stale, so we remove it, log, and take the lock ourselves."""
-    while True:
-        try:
-            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            pid = _read_lock_pid(lock_path)
-            if pid is not None and _pid_alive(pid):
-                sys.exit(
-                    "another jules_runner is already running against this "
-                    f"state file — lock held by pid {pid} ({lock_path}); "
-                    "exiting")
+    one is stale, so we remove it, log, and retry the link (never a blind
+    create). Capped at LOCK_MAX_ATTEMPTS to avoid pathological spinning."""
+    tmp_path = f"{lock_path}.{os.getpid()}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.write(str(os.getpid()))
+    try:
+        for _ in range(LOCK_MAX_ATTEMPTS):
             try:
-                os.remove(lock_path)
-            except FileNotFoundError:
-                pass
-            log(f"stale lock removed ({lock_path})")
-            continue
-        else:
-            with os.fdopen(fd, "w") as f:
-                f.write(str(os.getpid()))
-            atexit.register(release_lock, lock_path)
-            return
+                os.link(tmp_path, lock_path)
+            except FileExistsError:
+                pid = _read_lock_pid(lock_path)
+                if pid is not None and _pid_alive(pid):
+                    sys.exit(
+                        "another jules_runner is already running against "
+                        f"this state file — lock held by pid {pid} "
+                        f"({lock_path}); exiting")
+                try:
+                    os.remove(lock_path)
+                except FileNotFoundError:
+                    pass
+                log(f"stale lock removed ({lock_path})")
+                time.sleep(0.05)
+                continue
+            else:
+                atexit.register(release_lock, lock_path)
+                return
+        raise RuntimeError(
+            f"failed to acquire lock {lock_path} after "
+            f"{LOCK_MAX_ATTEMPTS} attempts")
+    finally:
+        try:
+            os.remove(tmp_path)
+        except FileNotFoundError:
+            pass
 
 
 def release_lock(lock_path):
+    """Remove lock_path only if it still names us — a successor may already
+    have removed our stale lock and taken it themselves by the time we
+    (normal exit or atexit) get here."""
+    pid = _read_lock_pid(lock_path)
+    if pid != os.getpid():
+        if pid is not None:
+            log(f"lock {lock_path} is now held by pid {pid}, not us — "
+                "leaving it in place")
+        return
     try:
         os.remove(lock_path)
     except FileNotFoundError:
