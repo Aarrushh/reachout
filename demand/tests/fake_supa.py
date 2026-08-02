@@ -13,8 +13,9 @@ class FakeResult:
         self.count = count
 
 class FakeQueryBuilder:
-    def __init__(self, data):
+    def __init__(self, data, source_list=None):
         self._data = list(data)
+        self._source_list = source_list
         self._count = None
         self._limit = None
         self._range = None
@@ -53,7 +54,37 @@ class FakeQueryBuilder:
     def insert(self, data):
         if not isinstance(data, list):
             data = [data]
+        if self._source_list is not None:
+            self._source_list.clear()
+            self._source_list.extend(data)
         self._data = data
+        return self
+
+    def upsert(self, data, on_conflict=None):
+        if not isinstance(data, list):
+            data = [data]
+            
+        target_list = self._source_list if self._source_list is not None else self._data
+        
+        if on_conflict:
+            keys = [k.strip() for k in on_conflict.split(",")]
+            for new_row in data:
+                match_idx = -1
+                for i, existing_row in enumerate(target_list):
+                    if all(existing_row.get(k) == new_row.get(k) for k in keys):
+                        match_idx = i
+                        break
+                
+                if match_idx >= 0:
+                    target_list[match_idx].update(new_row)
+                else:
+                    target_list.append(new_row)
+        else:
+            target_list.extend(data)
+            
+        if self._source_list is not None:
+            self._data = list(self._source_list)
+            
         return self
 
     def execute(self):
@@ -81,7 +112,9 @@ class FakeSupabase:
         self.rpcs = rpcs or {}
 
     def table(self, name):
-        return FakeQueryBuilder(self.tables.get(name, []))
+        if name not in self.tables:
+            self.tables[name] = []
+        return FakeQueryBuilder(self.tables[name], self.tables[name])
 
     def rpc(self, name, params=None):
         return FakeRPCBuilder(self.rpcs.get(name, []))
