@@ -1,17 +1,27 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (M7 landed)
-**Wave in flight:** Wave 0's Claude tasks are all done; wave 1 — demand
-ingest ‖ consumer picks — is unblocked but not yet submitted to the runner.
-**Progress:** 12 of 32 tasks done.
-**Next action:** Wave 0 is done on the Claude side — `docs/JULES_DEMAND.md`
-now carries the no-login TASK 74, the new TASK 77, a truthful master context
-block, and a `TEST_CMD` header (**M7**, landed). Wave 1 (**T69, T70, T71,
-T76**) is unblocked and ready to submit to the runner: lane D
-(`jules-demand-integration`, TASKs 69–71) and lane P
-(`jules-picks-integration`, TASK 76) per **M5**. Independently, **M3**
-(apply the schema to Supabase) still needs the founder — nothing in wave 1
-waits on it, but **V1** (wave 6/7, live verify) does.
+**Last updated:** 2026-08-02 (wave 1 running; T69, T70, T71, T76 landed)
+**Wave in flight:** Wave 1. Lane P is **finished**; lane D is mid-run on T72.
+**Progress:** 16 of 32 tasks done.
+**Next action:** Nothing to dispatch — the lane D runner is live in the
+background and walks T72 → T75 on its own. Two things need a human:
+
+- **M3** (apply `demand/data/schema.sql` to Supabase) still waits on the
+  founder. Nothing in wave 1 needs it; **V1** (live verify) does. The file
+  changed on 2026-08-02 (natural keys + `captured_date`) — paste the current
+  version, not an earlier copy.
+- **T74 will trip the lane D test gate.** That runner resolved its test
+  command before **W1-FIX-A** landed, so it still gates on the machine's
+  Python 3.9, which cannot import FastAPI-annotated modules. When it stops,
+  the task is left pending and nothing is pushed — just re-run the lane D
+  command below and it picks up the 3.12 interpreter.
+
+Landed on `jules-demand-integration`: T69 `76e751e`, T70 `10ffc7d`, T71
+`bef4254`. Landed on `jules-picks-integration`: T76 `c50e966` + controller
+fix `54284c6` (that fix was not optional — `select("*")` against an
+`additionalProperties:false` schema made every real `/api/picks` request a
+500, invisible to the tests because the fixtures were trimmed to exactly the
+schema's keys). Neither lane touches `main`.
 
 ---
 
@@ -55,10 +65,10 @@ human, live credentials, or a decision).
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **T69** | TASK 69 — the Google Trends reader, plus a fake one that replays saved files, plus the saved practice files themselves. | Jules | M1, M2, M5, M7, M8 | T72 | `[ ]` |
-| **T70** | TASK 70 — build the list of search terms to track, from our product categories plus a curated Madrid list. | Jules | M1, M2, M5, M7, M8 | — | `[ ]` |
-| **T71** | TASK 71 — save captured trend data to the database without ever creating duplicates. | Jules | M1, M2, M5, M7, M8 | T72 | `[ ]` |
-| **T76** | TASK 76 — the "picks for you" endpoint for shoppers. Runs in its own lane, in parallel with everything above. Ticks `PICKS_READY`. | Jules | M4, M5, M8 | U4 | `[ ]` |
+| **T69** | TASK 69 — the Google Trends reader, plus a fake one that replays saved files, plus the saved practice files themselves. | Jules | M1, M2, M5, M7, M8 | T72 | `[x] 2026-08-02` |
+| **T70** | TASK 70 — build the list of search terms to track, from our product categories plus a curated Madrid list. | Jules | M1, M2, M5, M7, M8 | — | `[x] 2026-08-02` |
+| **T71** | TASK 71 — save captured trend data to the database without ever creating duplicates. | Jules | M1, M2, M5, M7, M8 | T72 | `[x] 2026-08-02` |
+| **T76** | TASK 76 — the "picks for you" endpoint for shoppers. Runs in its own lane, in parallel with everything above. Ticks `PICKS_READY`. | Jules | M4, M5, M8 | U4 | `[x] 2026-08-02` |
 
 **Wave 1 — runner launch commands.** `docs/EXECUTION_PROMPTS.md` §3/§4 are
 stale (wrong parsed-task count, TASK 77 unreachable by either lane, and
