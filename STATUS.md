@@ -620,4 +620,6 @@ Supabase project and Gemini key before writing any code:
 - [x] PHASE 2 — POST /api/search (240 tests passed)
 - [x] PHASE 3 — POST /api/chat (completed)
 - [x] PHASE 4 — GET /api/products, /api/stores, /api/neighbourhoods, CORS
+- [x] PHASE D3 — GET /api/picks live (deterministic, category-diverse,
+      schema-validated against picks_response.schema.json; 273 tests passed).
 - [ ] PHASE 5 — quality loop + BACKEND_DONE.md

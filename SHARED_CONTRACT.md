@@ -55,5 +55,5 @@ Response: { "neighbourhoods": string[] }  # Madrid barrios
 # [x] PHASE_4_PRODUCTS_READY — /api/products + /api/stores live
 # [ ] DEMAND_INGEST_READY    — demand ingest chain green through compute_signals
 # [ ] DEMAND_API_READY       — demand API + analytics live
-# [ ] PICKS_READY            — /api/picks live
+# [x] PICKS_READY            — /api/picks live
 # Frontend agent checks these flags before building each feature
