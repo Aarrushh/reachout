@@ -21,14 +21,35 @@ create table if not exists demand.trend_snapshots (
     timeframe        text not null,
     provider         text not null,
     captured_at      timestamptz not null,
+    -- NOT a generated column on purpose: `GENERATED ALWAYS AS
+    -- (captured_at::date) STORED` is rejected by Postgres at CREATE TABLE
+    -- time ("generation expression is not immutable") because the
+    -- timestamptz -> date cast depends on the session TimeZone setting and
+    -- is declared STABLE, not IMMUTABLE -- true on every Postgres version,
+    -- including whatever Supabase is currently running (could not verify
+    -- the exact version without DB credentials, but this isn't
+    -- version-gated; it always fails). The usual workaround (a
+    -- hand-written SQL function force-marked IMMUTABLE against a fixed
+    -- 'UTC' zone) adds a schema object outside this file's three tables
+    -- for one column, so instead this is a plain application-set column:
+    -- TASK 71's writer derives it from captured_at (UTC date) and includes
+    -- it in every insert/upsert payload alongside captured_at. It is a
+    -- storage/dedupe-only column -- not part of trend_snapshot.schema.json
+    -- (additionalProperties:false), so it must never appear in a response
+    -- body; TASK 74 must select explicit columns rather than `*` when
+    -- returning trend_snapshots rows, or schema validation will fail.
+    captured_date    date not null,
     series           jsonb not null,
     region_breakdown jsonb
 );
 
--- Unique on (keyword, geo, timeframe, captured_at::date) -> idempotent
--- re-ingestion: re-running the same day's capture upserts, never duplicates.
+-- Unique on (keyword, geo, timeframe, captured_date) -> idempotent
+-- re-ingestion: re-running the same day's capture upserts, never
+-- duplicates. Bare-column unique index (not an expression index) so
+-- TASK 71's upsert can pass it straight to PostgREST as
+-- on_conflict=keyword,geo,timeframe,captured_date.
 create unique index if not exists trend_snapshots_dedupe_idx
-    on demand.trend_snapshots (keyword, geo, timeframe, (captured_at::date));
+    on demand.trend_snapshots (keyword, geo, timeframe, captured_date);
 
 create index if not exists trend_snapshots_keyword_idx on demand.trend_snapshots (keyword);
 create index if not exists trend_snapshots_captured_at_idx on demand.trend_snapshots (captured_at);
@@ -56,6 +77,13 @@ create table if not exists demand.demand_signals (
     computed_at   timestamptz not null
 );
 
+-- Unique on (keyword, geo, window_start, window_end) -> one signal per
+-- keyword per geo per window, matching TASK 72's "per keyword/window"
+-- derivation. Lets TASK 75's chained write upsert on-conflict instead of
+-- re-inserting when the same window is recomputed on a re-run.
+create unique index if not exists demand_signals_dedupe_idx
+    on demand.demand_signals (keyword, geo, window_start, window_end);
+
 create index if not exists demand_signals_keyword_idx on demand.demand_signals (keyword);
 create index if not exists demand_signals_window_idx  on demand.demand_signals (window_start, window_end);
 create index if not exists demand_signals_confidence_idx on demand.demand_signals (confidence);
@@ -78,6 +106,13 @@ create table if not exists demand.recommendations (
     caveat     text not null,
     created_at timestamptz not null default now()
 );
+
+-- Unique on (store_id, signal_id) -> at most one recommendation per
+-- store per signal: TASK 73's action rules are a deterministic function
+-- of (signal, store composition), so a re-run for the same signal/store
+-- pair must update the existing row, not add a second one.
+create unique index if not exists recommendations_dedupe_idx
+    on demand.recommendations (store_id, signal_id);
 
 create index if not exists recommendations_store_id_idx  on demand.recommendations (store_id);
 create index if not exists recommendations_signal_id_idx on demand.recommendations (signal_id);
