@@ -81,8 +81,8 @@ HARD RULES for every task in this series:
    of the trendspy package must be lazy (inside the provider class) so the
    test suite imports cleanly without it installed.
 2. Run the demand suite before finishing:
-   cd demand && python -m pytest tests/ -q — fully green.
-   TASK 76 only: also cd reachout && python -m pytest tests/ -q
+   cd demand && python3 -m pytest tests/ -q — fully green.
+   TASK 76 only: also cd reachout && python3 -m pytest tests/ -q
    (REACHOUT_OFFLINE=1) — fully green including all v1+v2 tests.
 3. Do not modify demand/shared/schemas/, demand/data/schema.sql,
    reachout/data/schema.sql, or anything in frontend/. Do not add
