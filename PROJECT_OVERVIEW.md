@@ -40,7 +40,8 @@ owns what; read it before either plan. The v1 `docs/IMPLEMENTATION_PLAN.md`
 and its run-book `docs/EXECUTION_PROMPTS.md` are **superseded for routing** —
 do not follow them as instructions — but v1's §3 remains the source text for
 the demand data contracts and its §3.4 the preserved authentication reversal
-path. Three tracks, run in parallel:
+path. The table below is v1's original track shape, historical — for the
+current M/T/U/V/H lanes in flight, see `docs/IMPLEMENTATION_PLAN_V2.md` §2:
 
 | Track | What | How |
 |---|---|---|
@@ -277,7 +278,7 @@ table; `demand/` follows the same rule with its own L0/L1.
 | Part | Choice | Notes |
 |---|---|---|
 | Language | Python 3.11+ | stdlib-first |
-| API | FastAPI + uvicorn | thin read-only wrapper; CORS `*` (GET only); mounts two independent search implementations — see §5 |
+| API | FastAPI + uvicorn | thin read-only wrapper; CORS restricted to `localhost:5173`/`127.0.0.1:5173` + a Netlify origin regex, `GET`+`POST` (`reachout/api/server.py` lines 77–83); mounts two independent search implementations — see §5 |
 | Store | SQLite, WAL mode | `data/reachout.db`; concurrent sim writes + search reads |
 | Validation | `jsonschema` (Draft-07, tolerant multipleOf) | `scripts/validate.py` |
 | HTTP client | `requests` | Overpass / Nominatim / ORS |
