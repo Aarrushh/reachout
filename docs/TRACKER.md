@@ -1,8 +1,8 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (M10 landed)
+**Last updated:** 2026-08-02 (M11 landed)
 **Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 7 of 32 tasks done.
+**Progress:** 8 of 32 tasks done.
 **Next action:** Create and push the two work branches, one per parallel lane (task **M5**, Claude).
 
 ---
@@ -39,7 +39,7 @@ human, live credentials, or a decision).
 | **M8** | Fix the runner so it tells each task to run *its own* test suite. Right now it tells every task to run the old backend's tests — which would pass without testing any of the new code. | Claude | nothing | M9, M10, T69–T71, T76 | `[x] 2026-08-02` |
 | **M9** | Stop two runner processes from fighting over the same files. The old run-book tells you to run two in parallel on one branch and one state file. | Claude | M8 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M10** | Stop the runner pushing straight to `main` after every task with no tests run and nobody looking. Run the tests first; make the push to `main` an explicit choice. | Claude | M8 | T69–T71, T76 | `[x] 2026-08-02` |
-| **M11** | Fix `reachout/CONTEXT.md`. It tells every arriving agent that two pipeline stages don't exist yet. They shipped. | Claude | nothing | M13 | `[ ]` |
+| **M11** | Fix `reachout/CONTEXT.md`. It tells every arriving agent that two pipeline stages don't exist yet. They shipped. | Claude | nothing | M13 | `[x] 2026-08-02` |
 | **M12** | Give the `frontend/` folder the two layer docs every other workspace has, before we split it into consumer and retail halves. | Claude | nothing | M13, U0 | `[ ]` |
 | **M13** | Bring `PROJECT_OVERVIEW.md` back in line with what is actually in the repo (missing files, wrong test count, two search backends, the new folders). | Claude | M11, M12 | — | `[ ]` |
 
@@ -147,7 +147,7 @@ In this order. Stop when you have what your task named.
 
 1. **`docs/TRACKER.md`** — this file. What is in flight, what is next, who owns what.
 2. **`reachout/CLAUDE.md`** — the workspace identity and the one rule: exactness is pure Python, AI touches only language.
-3. **`reachout/CONTEXT.md`** — the stage routing table. *(Stale until M11 lands — it claims stages 02 and 05 have no scripts. They shipped.)*
+3. **`reachout/CONTEXT.md`** — the stage routing table.
 4. **`docs/IMPLEMENTATION_PLAN_V2.md`** — decisions, task list, data contracts, risks, out-of-scope.
 5. **The one contract your task names** — a schema in `shared/schemas/`, or the task's own text in `docs/JULES_DEMAND.md`.
 

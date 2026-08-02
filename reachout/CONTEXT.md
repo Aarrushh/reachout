@@ -27,11 +27,29 @@ stock moving in the background, run `python demo.py`.
 
 ## Build status
 
-Stages 02 and 05 are fully specified (schemas in `shared/schemas/`,
-contracts in their `CONTEXT.md` + `prompt.md`) but their scripts land in
-the execution phase — until then the orchestrator walks 01 -> 03 -> 04 on
-the legacy seed data. The execution order and definition-of-done per step
-live in the approved project plan.
+All five stages are built: 01 `agent/query_parser.py`, 02
+`scripts/geo_resolve.py`, 03 `scripts/search_engine.py`, 04
+`agent/result_formatter.py`, 05 `scripts/map_render.py`. Each has its
+schema in `shared/schemas/`, its contract in its own `CONTEXT.md` +
+`prompt.md`, and a test in `tests/`. `run_pipeline.py` walks the full
+chain 01 -> 02 -> 03 -> 04 -> 05 in order — no stage is stubbed or
+skipped.
+
+## reachout/api/
+
+The Supabase v2 backend: `server.py` (FastAPI app + pipeline endpoints),
+`search.py` (`POST /api/search`, pgvector NLP search), `chat.py`
+(`POST /api/chat`, AI shopkeeper), `supa.py` (shared Supabase client),
+`gemini.py` (Gemini REST helper — embeddings + chat), `madrid.py`
+(canonical barrio list), `event_bus.py` (fans out simulator stock events
+to SSE subscribers). Reads/writes Supabase (products, stores) plus the
+live pipeline's SQLite `data/reachout.db` and `data/events.jsonl` for the
+non-v2 endpoints. `server.py` mounts BOTH search implementations on the
+same path, split by method: `GET /api/search` is this pipeline (stages
+01-05, schema-validated) and `POST /api/search` is the Supabase v2 path
+in `search.py`. Decision S6 keeps the consumer UI on the pipeline's
+`GET /api/search`; the Supabase path stays mounted but unused by the
+frontend. No L2 contract (`CONTEXT.md`) exists for `api/` yet.
 
 ## Stage kinds
 
