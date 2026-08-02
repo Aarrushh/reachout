@@ -77,8 +77,11 @@ pass its own --test-cmd explicitly; do not rely on step 2 for it.
 import argparse
 import atexit
 import json
+import http.client
 import os
 import re
+import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -145,8 +148,28 @@ def api(method, path, body=None):
         raise ApiError(e.code, e.read().decode(errors="replace")) from e
 
 
+# Transport-level failures (connection dropped, DNS blip, TLS reset, read
+# timeout) rather than HTTP-status failures. Note urllib.error.HTTPError is a
+# subclass of URLError, but api() already converts HTTPError into ApiError
+# before it can escape, so a bare URLError reaching here is always a real
+# transport failure, never a disguised HTTP status.
+TRANSPORT_ERRORS = (
+    socket.timeout,
+    urllib.error.URLError,
+    http.client.RemoteDisconnected,
+    ssl.SSLError,
+    ConnectionResetError,
+)
+TRANSPORT_MAX_RETRIES = 5
+TRANSPORT_BACKOFF = (5, 15, 30, 60, 120)  # seconds, escalating per attempt
+
+
 def api_retry(method, path, body=None):
-    """api() with backoff: quota errors wait QUOTA_WAIT, 5xx wait 60s."""
+    """api() with backoff: quota errors wait QUOTA_WAIT, 5xx wait 60s,
+    transport failures (timeouts, dropped connections, DNS/SSL blips) get
+    TRANSPORT_MAX_RETRIES attempts with escalating backoff before the last
+    exception is re-raised so a genuinely dead network still stops the run."""
+    transport_attempt = 0
     while True:
         try:
             return api(method, path, body)
@@ -159,6 +182,16 @@ def api_retry(method, path, body=None):
                 time.sleep(60)
             else:
                 raise
+        except TRANSPORT_ERRORS as e:
+            transport_attempt += 1
+            if transport_attempt > TRANSPORT_MAX_RETRIES:
+                log(f"transport error persisted after {TRANSPORT_MAX_RETRIES} "
+                    f"retries; giving up: {e!r}")
+                raise
+            wait = TRANSPORT_BACKOFF[min(transport_attempt, len(TRANSPORT_BACKOFF)) - 1]
+            log(f"transport error ({e!r}); retrying in {wait}s… "
+                f"(attempt {transport_attempt}/{TRANSPORT_MAX_RETRIES})")
+            time.sleep(wait)
 
 
 def git(*args, cwd=ROOT, check=True):
