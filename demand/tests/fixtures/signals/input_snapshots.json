@@ -1,0 +1,157 @@
+[
+  {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "keyword": "high_kw",
+    "geo": "ES-MD",
+    "timeframe": "today 3-m",
+    "provider": "trendspy",
+    "captured_at": "2023-11-20T10:00:00Z",
+    "series": [
+      {
+        "date": "2023-10-02",
+        "value": 20.0
+      },
+      {
+        "date": "2023-10-09",
+        "value": 21.0
+      },
+      {
+        "date": "2023-10-16",
+        "value": 22.0
+      },
+      {
+        "date": "2023-10-23",
+        "value": 23.0
+      },
+      {
+        "date": "2023-10-30",
+        "value": 24.0
+      },
+      {
+        "date": "2023-11-06",
+        "value": 28.799999999999997
+      },
+      {
+        "date": "2023-11-13",
+        "value": 34.559999999999995
+      },
+      {
+        "date": "2023-11-20",
+        "value": 41.471999999999994
+      }
+    ],
+    "region_breakdown": null
+  },
+  {
+    "id": "22222222-2222-2222-2222-222222222222",
+    "keyword": "medium_kw",
+    "geo": "ES-MD",
+    "timeframe": "today 3-m",
+    "provider": "trendspy",
+    "captured_at": "2023-11-20T10:00:00Z",
+    "series": [
+      {
+        "date": "2023-10-30",
+        "value": 15.0
+      },
+      {
+        "date": "2023-11-06",
+        "value": 15.0
+      },
+      {
+        "date": "2023-11-13",
+        "value": 15.0
+      },
+      {
+        "date": "2023-11-20",
+        "value": 15.0
+      }
+    ],
+    "region_breakdown": null
+  },
+  {
+    "id": "33333333-3333-3333-3333-333333333333",
+    "keyword": "short_kw",
+    "geo": "ES-MD",
+    "timeframe": "today 3-m",
+    "provider": "trendspy",
+    "captured_at": "2023-11-20T10:00:00Z",
+    "series": [
+      {
+        "date": "2023-11-06",
+        "value": 50.0
+      },
+      {
+        "date": "2023-11-13",
+        "value": 50.0
+      },
+      {
+        "date": "2023-11-20",
+        "value": 50.0
+      }
+    ],
+    "region_breakdown": null
+  },
+  {
+    "id": "44444444-4444-4444-4444-444444444444",
+    "keyword": "gap_kw",
+    "geo": "ES-MD",
+    "timeframe": "today 3-m",
+    "provider": "trendspy",
+    "captured_at": "2023-11-20T10:00:00Z",
+    "series": [
+      {
+        "date": "2023-10-02",
+        "value": 30.0
+      },
+      {
+        "date": "2023-10-09",
+        "value": 30.0
+      },
+      {
+        "date": "2023-10-16",
+        "value": 30.0
+      },
+      {
+        "date": "2023-10-23",
+        "value": 30.0
+      },
+      {
+        "date": "2023-11-06",
+        "value": 30.0
+      },
+      {
+        "date": "2023-11-13",
+        "value": 30.0
+      },
+      {
+        "date": "2023-11-20",
+        "value": 30.0
+      }
+    ],
+    "region_breakdown": null
+  },
+  {
+    "id": "55555555-5555-5555-5555-555555555555",
+    "keyword": "boundary_kw",
+    "geo": "ES-MD",
+    "timeframe": "today 3-m",
+    "provider": "trendspy",
+    "captured_at": "2023-11-20T10:00:00Z",
+    "series": [
+      {
+        "date": "2023-10-02",
+        "value": 80.0
+      },
+      {
+        "date": "2023-10-09",
+        "value": 92.0
+      },
+      {
+        "date": "2023-10-16",
+        "value": 78.2
+      }
+    ],
+    "region_breakdown": null
+  }
+]

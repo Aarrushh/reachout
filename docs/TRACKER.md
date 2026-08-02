@@ -106,7 +106,7 @@ python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **T72** | TASK 72 — turn raw trend data into rising/falling/flat signals with an honest confidence label, all in plain Python, no AI. Ticks `DEMAND_INGEST_READY`. | Jules | T69, T71, M4 | T73 | `[ ]` |
+| **T72** | TASK 72 — turn raw trend data into rising/falling/flat signals with an honest confidence label, all in plain Python, no AI. Ticks `DEMAND_INGEST_READY`. | Jules | T69, T71, M4 | T73 | `[x]` |
 
 ### Wave 3 — recommendations ‖ the app shell
 
@@ -252,7 +252,7 @@ existing pipeline endpoint, not the Supabase one.
 [x] PHASE_2_SEARCH_READY    /api/search endpoint live
 [x] PHASE_3_CHAT_READY      /api/chat endpoint live
 [x] PHASE_4_PRODUCTS_READY  /api/products + /api/stores live
-[ ] DEMAND_INGEST_READY     ← added by M4, ticked by T72
+[x] DEMAND_INGEST_READY     ← added by M4, ticked by T72
 [ ] DEMAND_API_READY        ← added by M4, ticked by T75
 [ ] PICKS_READY             ← added by M4, ticked by T76
 ```
