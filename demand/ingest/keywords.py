@@ -29,17 +29,24 @@ def normalize_keyword(keyword: Any) -> str:
 
 def build_universe(supa_client: Any) -> list[str]:
     """
-    Builds the keyword universe from seed keywords and distinct non-empty 
+    Builds the keyword universe from seed keywords and distinct non-empty
     products.category values from the database.
+
+    `products` is read through `.schema("public")` EXPLICITLY. The client
+    this runs on is built with `ClientOptions(schema="demand")`
+    (`demand/api/app.py`), so a bare `.table("products")` resolves to
+    `demand.products`, which does not exist -- `demand/data/schema.sql`
+    creates exactly three tables and `products` is not one of them. Every
+    cross-schema read in this service names its schema.
     """
     if not os.path.exists(CONFIG_PATH):
         raise FileNotFoundError(f"Seed file not found at {CONFIG_PATH}")
-        
+
     with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
         seed_keywords = json.load(f)
-        
-    # Get products from DB
-    result = supa_client.table('products').select('category').execute()
+
+    # Get products from DB (public schema -- see the docstring)
+    result = supa_client.schema('public').table('products').select('category').execute()
     db_categories = []
     if hasattr(result, 'data') and result.data:
         db_categories = [

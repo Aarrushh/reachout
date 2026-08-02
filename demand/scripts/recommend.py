@@ -11,6 +11,12 @@ from demand.shared.validation import validate_with_formats
 #: and that would be dragged over the wire once per signal in the batch.
 PRODUCT_COLUMNS = "store_id,stock_qty"
 
+#: `products` lives in `public`, not `demand`. The client is built with
+#: `ClientOptions(schema="demand")`, so an unqualified `.table("products")`
+#: asks for `demand.products` -- a table `demand/data/schema.sql` never
+#: creates. Name the schema at every cross-schema read.
+PRODUCTS_SCHEMA = "public"
+
 
 def load_schema(schema_name: str) -> dict:
     schema_path = os.path.join(os.path.dirname(__file__), "..", "shared", "schemas", schema_name)
@@ -49,8 +55,15 @@ def build_recommendations(signals: list[dict], supa_client) -> list[dict]:
         if not category:
             continue
 
-        # Fetch products for this category
-        products_res = supa_client.table("products").select(PRODUCT_COLUMNS).eq("category", category).execute()
+        # Fetch products for this category (public schema -- see PRODUCTS_SCHEMA)
+        products_res = (
+            supa_client
+            .schema(PRODUCTS_SCHEMA)
+            .table("products")
+            .select(PRODUCT_COLUMNS)
+            .eq("category", category)
+            .execute()
+        )
         products = products_res.data
 
         # Group by store and count in-stock products

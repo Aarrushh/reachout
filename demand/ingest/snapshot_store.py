@@ -1,7 +1,10 @@
 import json
 import os
 from datetime import datetime
+
 import jsonschema
+
+from demand.shared.validation import validate_with_formats
 
 SCHEMA_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -15,17 +18,31 @@ with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
 
 def store_snapshots(rows, supa_client):
     """
-    Validates rows against trend_snapshot.schema.json, adds captured_date, 
+    Validates rows against trend_snapshot.schema.json, adds captured_date,
     and upserts into demand.trend_snapshots.
+
+    ORDER IS LOAD-BEARING (the HARD RULE, docs/JULES_DEMAND.md): validation
+    happens on the row as handed in, BEFORE `captured_date` is attached.
+    `captured_date` is a DB-only storage/dedupe column deliberately absent
+    from `trend_snapshot.schema.json`, which is
+    `additionalProperties: false`, so validating the row that is actually
+    written would fail every time. For the same reason nothing may ever
+    `SELECT *` off `demand.trend_snapshots` and feed the result back
+    through here.
+
+    Validation goes through `validate_with_formats`, so `format` asserts
+    instead of merely annotating: `id` must be a real uuid and every
+    `series[].date` a real date. Bare `jsonschema.validate` accepted
+    `id="not-a-uuid"` on draft-07 without a murmur.
     """
     if not rows:
         return
 
     validated_rows = []
-    
+
     for row in rows:
         try:
-            jsonschema.validate(instance=row, schema=SNAPSHOT_SCHEMA)
+            validate_with_formats(instance=row, schema=SNAPSHOT_SCHEMA)
         except jsonschema.exceptions.ValidationError as e:
             keyword = row.get("keyword", "Unknown")
             # Create a descriptive error message indicating the keyword and the validation error pointer/path

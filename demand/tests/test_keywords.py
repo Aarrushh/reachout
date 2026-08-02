@@ -4,15 +4,54 @@ import json
 from demand.ingest.keywords import build_universe
 from demand.tests.fake_supa import FakeSupabase
 
+
+def make_client(products):
+    """A fake shaped like production, not like the code's assumptions.
+
+    `build_universe` runs on the client from `demand.api.app.get_client()`,
+    which is built with `ClientOptions(schema="demand")`. `products` is a
+    `public` table (`reachout/data/schema.sql`) and `demand` has no
+    `products` at all, so declaring it in the default schema here would let
+    an unqualified `.table("products")` pass in tests and fail against real
+    Supabase -- which is exactly what shipped.
+    """
+    return FakeSupabase(
+        default_schema="demand",
+        tables={},
+        schemas={"public": {"products": products}},
+    )
+
 def test_missing_seed_file_raises_error(monkeypatch):
     """Test that missing seed file raises a clear error."""
     # Monkeypatch the config path in keywords.py
     monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', '/non/existent/path.json')
     
-    fake_client = FakeSupabase()
-    
+    fake_client = make_client([])
+
     with pytest.raises(FileNotFoundError, match="Seed file not found"):
         build_universe(fake_client)
+
+
+def test_products_are_read_from_the_public_schema(monkeypatch, tmp_path):
+    """`products` lives in `public`; the client is bound to `demand`. A
+    bare `.table("products")` resolves to `demand.products` against real
+    Supabase, and that table does not exist."""
+    seed_file = tmp_path / "seed_keywords.json"
+    seed_file.write_text(json.dumps([]))
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+
+    fake_client = make_client([{'category': 'Zapatillas'}])
+    asked = []
+    original_schema = fake_client.schema
+
+    def recording_schema(name):
+        asked.append(name)
+        return original_schema(name)
+
+    monkeypatch.setattr(fake_client, "schema", recording_schema)
+
+    assert build_universe(fake_client) == ["Zapatillas"]
+    assert asked == ["public"]
 
 def test_deduplication_and_seed_winning(monkeypatch, tmp_path):
     """Test deduplication across sources with seed winning ties."""
@@ -22,15 +61,13 @@ def test_deduplication_and_seed_winning(monkeypatch, tmp_path):
     monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
     
     # DB has same items but different casing, plus some new ones
-    fake_client = FakeSupabase(tables={
-        'products': [
+    fake_client = make_client([
             {'category': 'apple'}, # Should be ignored, seed "Apple" wins
             {'category': 'bAnAnA'}, # Should be ignored, seed "Banana" wins
             {'category': 'cherry'}, # Should be ignored, seed "CHERRY" wins
             {'category': 'Date'}, # New item
             {'category': 'date'}, # Duplicate from DB, should be ignored
-        ]
-    })
+        ])
     
     universe = build_universe(fake_client)
     
@@ -49,14 +86,12 @@ def test_skipping_empty_categories(monkeypatch, tmp_path):
     seed_file.write_text(json.dumps(["Apple"]))
     monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
     
-    fake_client = FakeSupabase(tables={
-        'products': [
+    fake_client = make_client([
             {'category': None},
             {'category': ''},
             {'category': '   '},
             {'category': 'Valid'},
-        ]
-    })
+        ])
     
     universe = build_universe(fake_client)
     assert len(universe) == 2
@@ -72,12 +107,10 @@ def test_deterministic_sorting(monkeypatch, tmp_path):
     seed_file.write_text(json.dumps(["Zebra", "Apple"]))
     monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
     
-    fake_client = FakeSupabase(tables={
-        'products': [
+    fake_client = make_client([
             {'category': 'mango'},
             {'category': 'Banana'},
-        ]
-    })
+        ])
     
     universe = build_universe(fake_client)
     
@@ -94,9 +127,7 @@ def test_cap_100(monkeypatch, tmp_path):
     
     # Create 60 DB categories (different from seeds)
     db_categories = [{'category': f"DB_{i}"} for i in range(60)]
-    fake_client = FakeSupabase(tables={
-        'products': db_categories
-    })
+    fake_client = make_client(db_categories)
     
     universe = build_universe(fake_client)
     

@@ -65,9 +65,33 @@ def make_signal(direction, confidence, category="clothing", keyword="test_kw"):
         "computed_at": "2023-01-09T00:00:00Z"
     }
 
+def make_client(products=None, stores=None):
+    """A fake shaped like production, not like the code's assumptions.
+
+    The client `run_chain` hands to `build_recommendations` comes from
+    `demand.api.app.get_client()`, which is built with
+    `ClientOptions(schema="demand")`. `products` and `stores` are
+    `public` tables (`reachout/data/schema.sql`); `demand/data/schema.sql`
+    creates only trend_snapshots / demand_signals / recommendations. So the
+    default schema here is `demand` and `products` is declared under
+    `public` -- which means an unqualified `.table("products")` raises
+    instead of quietly finding the fixture in the wrong schema.
+    """
+    return FakeSupabase(
+        default_schema="demand",
+        tables={"demand_signals": [], "recommendations": []},
+        schemas={
+            "public": {
+                "stores": F_STORES if stores is None else stores,
+                "products": F_PRODUCTS if products is None else products,
+            }
+        },
+    )
+
+
 @pytest.fixture
 def supa_client():
-    return FakeSupabase(tables={"stores": F_STORES, "products": F_PRODUCTS})
+    return make_client()
 
 @pytest.mark.parametrize("direction, confidence, store_id, expected_action", [
     # Store A has 3 products -> feature_in_window if rising
@@ -113,7 +137,7 @@ def test_null_stock_qty_is_treated_as_zero():
     products = F_PRODUCTS + [
         {"id": _pid(7), "store_id": STORE_NULLSTOCK, "category": "clothing", "stock_qty": None},
     ]
-    client = FakeSupabase(tables={"stores": F_STORES, "products": products})
+    client = make_client(products=products)
 
     results = build_recommendations([make_signal("rising", "high")], client)
 
@@ -121,32 +145,58 @@ def test_null_stock_qty_is_treated_as_zero():
     assert STORE_A in [r["store_id"] for r in results]
 
 
-def test_products_read_is_narrowed_to_the_columns_used(monkeypatch):
-    """`select("*")` drags the 768-dim embedding column over the wire once
-    per signal. The fake records what the code actually asked for."""
-    client = FakeSupabase(tables={"stores": F_STORES, "products": F_PRODUCTS})
+def _record_reads(client, monkeypatch):
+    """Record every (schema, table, columns) the code asks the client for."""
     asked = []
+    original_schema = client.schema
 
-    original_table = client.table
+    def recording_schema(schema_name):
+        view = original_schema(schema_name)
+        original_table = view.table
 
-    def recording_table(name):
-        builder = original_table(name)
-        original_select = builder.select
+        def recording_table(table_name):
+            builder = original_table(table_name)
+            original_select = builder.select
 
-        def recording_select(cols="*", count=None):
-            if name == "products":
-                asked.append(cols)
-            return original_select(cols, count)
+            def recording_select(cols="*", count=None):
+                asked.append((schema_name, table_name, cols))
+                return original_select(cols, count)
 
-        builder.select = recording_select
-        return builder
+            builder.select = recording_select
+            return builder
 
-    monkeypatch.setattr(client, "table", recording_table)
+        view.table = recording_table
+        return view
+
+    monkeypatch.setattr(client, "schema", recording_schema)
+    return asked
+
+
+def test_products_are_read_from_the_public_schema(monkeypatch):
+    """`products` is a `public` table and the client is bound to `demand`.
+    Against real Supabase an unqualified read resolves to
+    `demand.products`, which does not exist."""
+    client = make_client()
+    asked = _record_reads(client, monkeypatch)
 
     build_recommendations([make_signal("rising", "high")], client)
 
-    assert asked, "recommend.py must read products"
-    for cols in asked:
+    product_reads = [r for r in asked if r[1] == "products"]
+    assert product_reads, "recommend.py must read products"
+    assert all(schema == "public" for schema, _, _ in product_reads)
+
+
+def test_products_read_is_narrowed_to_the_columns_used(monkeypatch):
+    """`select("*")` drags the 768-dim embedding column over the wire once
+    per signal. The fake records what the code actually asked for."""
+    client = make_client()
+    asked = _record_reads(client, monkeypatch)
+
+    build_recommendations([make_signal("rising", "high")], client)
+
+    product_reads = [r for r in asked if r[1] == "products"]
+    assert product_reads, "recommend.py must read products"
+    for _, _, cols in product_reads:
         assert cols not in ("*", "", None)
         assert set(c.strip() for c in cols.split(",")) == {"store_id", "stock_qty"}
 
@@ -198,10 +248,9 @@ def test_schema_validation_and_caveat(supa_client):
 def test_non_uuid_store_id_fails_validation(supa_client):
     """`format: uuid` is enforced now: the pre-W1-FIX-D fixtures used
     "store_a" and validated only because format was being ignored."""
-    client = FakeSupabase(tables={
-        "stores": F_STORES,
-        "products": [{"id": _pid(8), "store_id": "store_a", "category": "clothing", "stock_qty": 3}],
-    })
+    client = make_client(
+        products=[{"id": _pid(8), "store_id": "store_a", "category": "clothing", "stock_qty": 3}]
+    )
 
     with pytest.raises(ValidationError):
         build_recommendations([make_signal("rising", "high")], client)

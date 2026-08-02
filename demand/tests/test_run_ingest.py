@@ -11,8 +11,31 @@ os.environ["DEMAND_TRENDS_PROVIDER"] = "fixture"
 
 from demand.tests.fake_supa import FakeSupabase
 from demand.api import app
-from demand.scripts.run_ingest import INGEST_TIMEFRAME, run_chain
+from demand.scripts.run_ingest import INGEST_TIMEFRAME, run_chain, snapshot_id
 import demand.scripts.run_ingest
+
+
+def make_client(products):
+    """A fake shaped like production: the client is bound to `demand`.
+
+    `get_client()` builds the real client with
+    `ClientOptions(schema="demand")`, so only the three tables in
+    `demand/data/schema.sql` are reachable unqualified. `products` is a
+    `public` table and must be asked for by name -- declaring it here in
+    the default schema is exactly the fixture-shaped blindness that let
+    three `client.table("products")` calls ship: against real Supabase they
+    resolve to `demand.products`, which does not exist.
+    """
+    return FakeSupabase(
+        default_schema="demand",
+        tables={
+            'trend_snapshots': [],
+            'demand_signals': [],
+            'recommendations': [],
+        },
+        schemas={"public": {"products": products}},
+    )
+
 
 @pytest.fixture
 def fake_client(tmp_path):
@@ -27,13 +50,7 @@ def fake_client(tmp_path):
     seed_file = tmp_path / "seed_keywords.json"
     seed_file.write_text(json.dumps(["sneakers", "coffee"]))
 
-    client = FakeSupabase(tables={
-        'products': products_data,
-        'trend_snapshots': [],
-        'demand_signals': [],
-        'recommendations': []
-    })
-    return client, seed_file
+    return make_client(products_data), seed_file
 
 
 class EchoProvider:
@@ -152,13 +169,8 @@ def test_category_resolves_through_the_real_universe_to_map_to_lookup_path(tmp_p
     `category: None` -- which is what production was doing.
     """
     store_id = "aaaaaaaa-0000-4000-8000-000000000001"
-    client = FakeSupabase(tables={
-        # Capital Z: the category as the retailer typed it.
-        'products': [{"category": "Zapatillas", "store_id": store_id, "stock_qty": 5}],
-        'trend_snapshots': [],
-        'demand_signals': [],
-        'recommendations': [],
-    })
+    # Capital Z: the category as the retailer typed it.
+    client = make_client([{"category": "Zapatillas", "store_id": store_id, "stock_qty": 5}])
 
     # No seed keywords, so the universe is exactly the DB category and keeps
     # its original casing on the way to the provider.
@@ -190,12 +202,9 @@ def test_ingest_window_makes_high_confidence_reachable(tmp_path, monkeypatch):
     """Finding 3: the threshold (>= 8 weekly windows) is the spec, so the
     ingest window is the side that had to move. `today 1-m` is ~4 windows
     and no production signal could ever be labelled `high`."""
-    client = FakeSupabase(tables={
-        'products': [{"category": "zapatillas", "store_id": "aaaaaaaa-0000-4000-8000-000000000001", "stock_qty": 5}],
-        'trend_snapshots': [],
-        'demand_signals': [],
-        'recommendations': [],
-    })
+    client = make_client(
+        [{"category": "zapatillas", "store_id": "aaaaaaaa-0000-4000-8000-000000000001", "stock_qty": 5}]
+    )
     seed_file = tmp_path / "seed_keywords.json"
     seed_file.write_text(json.dumps([]))
     monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
@@ -218,6 +227,101 @@ def test_ingest_window_makes_high_confidence_reachable(tmp_path, monkeypatch):
     assert any(s["confidence"] == "high" for s in signals), (
         "the configured ingest window must be able to cover HIGH_MIN_WINDOWS"
     )
+
+
+def test_every_table_is_read_from_the_right_schema(fake_client, monkeypatch):
+    """The whole chain, one client: `products` from `public`, the three
+    demand tables from `demand`. The client `run_chain` gets is built with
+    `ClientOptions(schema="demand")`, so an unqualified `products` read
+    resolves to `demand.products` -- a table `demand/data/schema.sql` never
+    creates. Three call sites shipped with exactly that bug."""
+    client, seed_file = fake_client
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+
+    accesses = []
+    original_schema = client.schema
+
+    def recording_schema(schema_name):
+        view = original_schema(schema_name)
+        original_table = view.table
+
+        def recording_table(table_name):
+            accesses.append((schema_name, table_name))
+            return original_table(table_name)
+
+        view.table = recording_table
+        return view
+
+    monkeypatch.setattr(client, "schema", recording_schema)
+
+    run_chain(provider_name="fixture", dry_run=False)
+
+    product_reads = [a for a in accesses if a[1] == "products"]
+    # keywords.build_universe, run_chain's category map, recommend's join.
+    assert len(product_reads) >= 3
+    assert all(schema == "public" for schema, _ in product_reads)
+
+    for schema, table in accesses:
+        if table in ("trend_snapshots", "demand_signals", "recommendations"):
+            assert schema == "demand"
+
+
+def test_snapshot_ids_are_uuid5_of_the_natural_key(fake_client, monkeypatch):
+    """The last uuid4 in the chain. The id is now a function of the same
+    (keyword, geo, timeframe, captured_date) tuple
+    `trend_snapshots_dedupe_idx` uses, so nothing has to read the table
+    back to keep ids stable -- and the `snapshot_ids` provenance column of
+    every derived signal stops churning with it."""
+    client, seed_file = fake_client
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+
+    run_chain(provider_name="fixture", dry_run=False)
+
+    snapshots = client.table('trend_snapshots')._data
+    assert snapshots
+    for snap in snapshots:
+        expected = str(uuid.uuid5(
+            uuid.uuid5(uuid.NAMESPACE_DNS, "demand.reachout"),
+            "|".join(["trend_snapshot", snap["keyword"], snap["geo"],
+                      snap["timeframe"], snap["captured_date"]]),
+        ))
+        assert snap["id"] == expected
+        assert snap["id"] == snapshot_id(
+            snap["keyword"], snap["geo"], snap["timeframe"], snap["captured_date"]
+        )
+        assert uuid.UUID(snap["id"]).version == 5
+
+    # Provenance in the derived signals points at those same stable ids.
+    known = {s["id"] for s in snapshots}
+    signals = client.table('demand_signals')._data
+    assert signals
+    for sig in signals:
+        assert sig["snapshot_ids"]
+        assert set(sig["snapshot_ids"]) <= known
+
+
+def test_snapshot_ids_survive_an_empty_table_with_no_round_trip(fake_client, monkeypatch):
+    """Two runs against a client whose trend_snapshots reads always come
+    back empty still produce the same ids: nothing is being copied forward
+    from the previous run."""
+    client, seed_file = fake_client
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+
+    run_chain(provider_name="fixture", dry_run=False)
+    first = sorted(r["id"] for r in client.table('trend_snapshots')._data)
+
+    # Wipe the table between runs: with the old uuid4 + read-back-and-copy
+    # scheme the second run would mint brand new ids here.
+    client.schemas["demand"]["trend_snapshots"].clear()
+    run_chain(provider_name="fixture", dry_run=False)
+
+    assert sorted(r["id"] for r in client.table('trend_snapshots')._data) == first
 
 
 class RecordingScheduler:

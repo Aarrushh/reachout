@@ -11,8 +11,12 @@ from demand.api.app import get_client
 from demand.ingest.keywords import build_universe, normalize_keyword
 from demand.ingest.trends_client import get_provider
 from demand.ingest.snapshot_store import store_snapshots
-from demand.scripts.compute_signals import compute_signals
-from demand.scripts.recommend import build_recommendations
+from demand.scripts.compute_signals import (
+    DEMAND_ID_NAMESPACE,
+    NATURAL_KEY_SEP,
+    compute_signals,
+)
+from demand.scripts.recommend import PRODUCTS_SCHEMA, build_recommendations
 
 #: The provider window every capture is taken over. `today 3-m` is ~13
 #: weekly windows, so a single capture's series can clear
@@ -24,6 +28,31 @@ from demand.scripts.recommend import build_recommendations
 INGEST_TIMEFRAME = "today 3-m"
 
 INGEST_GEO = "ES-MD"
+
+
+def snapshot_id(keyword: str, geo: str, timeframe: str, captured_date: str) -> str:
+    """The id of the trend_snapshots row for this natural key.
+
+    Natural key, verbatim:
+        "trend_snapshot|<keyword>|<geo>|<timeframe>|<captured_date>"
+    hashed with `uuid5` under `DEMAND_ID_NAMESPACE` (see
+    `compute_signals.py`). That is exactly the tuple
+    `trend_snapshots_dedupe_idx` in `demand/data/schema.sql` dedupes on, and
+    exactly the tuple the upsert below passes to PostgREST as
+    `on_conflict`.
+
+    This closes the last non-determinism in the chain. A `uuid4()` here
+    forced a compensating read of the whole table on every run just to copy
+    the previous run's ids back over the new ones, and any row that read
+    missed came back with a fresh id -- which then leaked into the
+    `snapshot_ids` provenance column of every signal derived from it. The
+    id is now a function of the data, so re-running a day's capture
+    recomputes the id it already wrote and nothing has to be looked up.
+    """
+    natural_key = NATURAL_KEY_SEP.join(
+        ["trend_snapshot", keyword, geo, timeframe, captured_date]
+    )
+    return str(uuid.uuid5(DEMAND_ID_NAMESPACE, natural_key))
 
 
 def run_chain(provider_name: str, dry_run: bool = False):
@@ -43,25 +72,17 @@ def run_chain(provider_name: str, dry_run: bool = False):
     print(f"[Ingest] Fetching interest_over_time ({INGEST_TIMEFRAME})...")
     time_series = provider.interest_over_time(universe, geo=INGEST_GEO, timeframe=INGEST_TIMEFRAME)
 
-    # Pre-fetch existing snapshots for this date to preserve IDs
-    existing_snap_res = client.table("trend_snapshots").select("id,keyword,geo,timeframe,captured_date").execute()
-    existing_snap_map = {}
-    if hasattr(existing_snap_res, "data") and existing_snap_res.data:
-        existing_snap_map = {
-            (r["keyword"], r["geo"], r["timeframe"], r["captured_date"]): r["id"]
-            for r in existing_snap_res.data
-        }
-        
+    # No id-preserving round-trip: snapshot ids are uuid5 over the same
+    # (keyword, geo, timeframe, captured_date) tuple the dedupe index uses,
+    # so re-running the same day recomputes the ids already in the table.
     for kw in universe:
         series = time_series.get(kw, [])
         region_breakdown = provider.interest_by_region(kw, geo=INGEST_GEO)
 
         captured_date = now_utc[:10]
-        key = (kw, INGEST_GEO, INGEST_TIMEFRAME, captured_date)
-        snap_id = existing_snap_map.get(key, str(uuid.uuid4()))
 
         snapshot = {
-            "id": snap_id,
+            "id": snapshot_id(kw, INGEST_GEO, INGEST_TIMEFRAME, captured_date),
             "keyword": kw,
             "geo": INGEST_GEO,
             "timeframe": INGEST_TIMEFRAME,
@@ -80,7 +101,9 @@ def run_chain(provider_name: str, dry_run: bool = False):
         print("[Ingest] Stored snapshots in DB")
     
     # 3. Compute Signals
-    result = client.table('products').select('category').execute()
+    # public schema: the client is bound to `demand`, and `products` is not
+    # in it (see PRODUCTS_SCHEMA in recommend.py).
+    result = client.schema(PRODUCTS_SCHEMA).table('products').select('category').execute()
     db_categories = []
     if hasattr(result, 'data') and result.data:
         db_categories = [str(r.get('category')) for r in result.data if r.get('category')]
