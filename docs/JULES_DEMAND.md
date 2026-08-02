@@ -96,6 +96,11 @@ HARD RULES for every task in this series:
    flips its flag, only after its whole phase is green.
 6. Work ONLY the single task you were given. Small diff, one concern.
    Follow demand/CONTEXT.md stage routing; load only what contracts name.
+7. demand.trend_snapshots.captured_date is a DB-only column, not in
+   trend_snapshot.schema.json (additionalProperties:false): validate the
+   row against the schema BEFORE adding captured_date to the write
+   payload, and SELECT explicit columns (never `*`) when reading
+   trend_snapshots back, or the extra column fails schema validation.
 ```
 
 ## 2. PHASE D1 — ingest + signals (TASKs 69–72)
