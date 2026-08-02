@@ -1,23 +1,30 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (wave 1 running; T69, T70, T71, T76 landed)
-**Wave in flight:** Wave 1. Lane P is **finished**; lane D is mid-run on T72.
-**Progress:** 16 of 32 tasks done.
-**Next action:** Nothing to dispatch — the lane D runner is live in the
-background and walks T72 → T75 on its own. Two things need a human:
+**Last updated:** 2026-08-02 (all Jules backend tasks landed except T77, in flight)
+**Wave in flight:** Wave 1 is done. Lane P **finished**; lane D **finished**
+T69–T75 unattended and is now running T77 alone.
+**Progress:** 20 of 32 tasks done.
+**Next action:** Nothing to dispatch — T77 is live in the background and is
+the last Jules task in the series. One thing needs a human:
 
 - **M3** (apply `demand/data/schema.sql` to Supabase) still waits on the
-  founder. Nothing in wave 1 needs it; **V1** (live verify) does. The file
+  founder. Nothing built so far needs it; **V1** (live verify) does. The file
   changed on 2026-08-02 (natural keys + `captured_date`) — paste the current
   version, not an earlier copy.
-- **T74 will trip the lane D test gate.** That runner resolved its test
-  command before **W1-FIX-A** landed, so it still gates on the machine's
-  Python 3.9, which cannot import FastAPI-annotated modules. When it stops,
-  the task is left pending and nothing is pushed — just re-run the lane D
-  command below and it picks up the 3.12 interpreter.
+
+**Correction to the previous entry:** it warned that T74 would trip the lane D
+test gate on Python 3.9. It did not. Lane D's gate runs only `demand/`'s
+tests, and nothing under `demand/` uses the `X | None` annotations that 3.9
+cannot import — only `reachout/api/` does. Verified 34 passing under both
+interpreters. The **W1-FIX-A** interpreter fix was still necessary; it was
+lane P, not lane D, that needed it.
 
 Landed on `jules-demand-integration`: T69 `76e751e`, T70 `10ffc7d`, T71
-`bef4254`. Landed on `jules-picks-integration`: T76 `c50e966` + controller
+`bef4254`, T72 `35fa1d4`, T73 `21df7e2`, T74 `a028047`, T75 `b69ea1a`.
+`DEMAND_INGEST_READY` and `DEMAND_API_READY` are both ticked — but note T75
+ticked `DEMAND_API_READY — demand API + analytics live` before analytics
+(T77) existed. True for the API half, premature for the analytics half until
+T77 lands. Landed on `jules-picks-integration`: T76 `c50e966` + controller
 fix `54284c6` (that fix was not optional — `select("*")` against an
 `additionalProperties:false` schema made every real `/api/picks` request a
 500, invisible to the tests because the fixtures were trimmed to exactly the
@@ -126,13 +133,13 @@ python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **T72** | TASK 72 — turn raw trend data into rising/falling/flat signals with an honest confidence label, all in plain Python, no AI. Ticks `DEMAND_INGEST_READY`. | Jules | T69, T71, M4 | T73 | `[ ]` |
+| **T72** | TASK 72 — turn raw trend data into rising/falling/flat signals with an honest confidence label, all in plain Python, no AI. Ticks `DEMAND_INGEST_READY`. | Jules | T69, T71, M4 | T73 | `[x] 2026-08-02` |
 
 ### Wave 3 — recommendations ‖ the app shell
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **T73** | TASK 73 — turn signals into per-shop recommendations, worded from fixed Spanish templates, each carrying its confidence and its caveat. | Jules | T72 | T74, T75, T77 | `[ ]` |
+| **T73** | TASK 73 — turn signals into per-shop recommendations, worded from fixed Spanish templates, each carrying its confidence and its caveat. | Jules | T72 | T74, T75, T77 | `[x] 2026-08-02` |
 | **U0** | One app shell with a top-right consumer/retail toggle driven by `?mode=retail` in the address bar. Declare the two component folders. | Claude | M12 | U1, U2, U3, U5, U6 | `[ ]` |
 | **U1** | Move the existing search-and-map screens into the consumer half of the shell. No behaviour change. | Claude | U0 | U4, U5 | `[ ]` |
 | **U2** | Retail mode's chat pane, reusing the chat panel and its client-side mock that already exist. No backend needed at all. | Claude | U0 | — | `[ ]` |
@@ -142,7 +149,7 @@ python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **T74** | TASK 74 (rewritten, no login) — the demand service's own API. All endpoints public for the POC. | Jules | T73, M7 | T75 | `[ ]` |
+| **T74** | TASK 74 (rewritten, no login) — the demand service's own API. All endpoints public for the POC. | Jules | T73, M7 | T75 | `[x] 2026-08-02` |
 | **T77** | TASK 77 (new) — the analytics endpoint feeding the dashboard: real shape, practice content, three metrics, no footfall. | Jules | T73, M2, M7 | T75, U3 | `[ ]` |
 | **U3** | The three dashboard charts (top movers, category mix, stock-out risk) using ECharts. The screen only draws; every number is computed on the server. Confidence chip and caveat caption always visible. | Claude | U0, M2, T77 | U7 | `[ ]` |
 
@@ -150,7 +157,7 @@ python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **T75** | TASK 75 — the one command that runs the whole chain end to end, safe to run twice. Ticks `DEMAND_API_READY`. | Jules | T73, T74, T77, M4 | V1 | `[ ]` |
+| **T75** | TASK 75 — the one command that runs the whole chain end to end, safe to run twice. Ticks `DEMAND_API_READY`. | Jules | T73, T74, T77, M4 | V1 | `[x] 2026-08-02` |
 | **U4** | The "picks for you" rail in consumer mode. | Claude | T76, U1 | U7 | `[ ]` |
 | **U5** | Make the app installable and work offline — **consumer screens only.** The offline cache must never hold the retail dashboard. | Claude | U0, U1 | U7 | `[ ]` |
 | **U7** | Drive the whole thing in a real browser: consumer flow on a phone-sized screen, retail flow via `?mode=retail`, and check every caveat caption is visible without hovering. | Claude | U3, U4, U5 | V1, H1 | `[ ]` |
