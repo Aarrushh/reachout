@@ -1,0 +1,51 @@
+# demand/ — the demand-dashboard service's own dependencies.
+#
+# This service is a separate workspace from reachout/ (decision D2: its own
+# FastAPI app, its own uvicorn process, its own Postgres schema), so it
+# declares its own dependencies rather than borrowing reachout/requirements.txt.
+# Everything here is already required by reachout/ too, with one exception,
+# noted below.
+#
+# Python 3.10+ is required to run the full repo test suite from the root:
+# reachout/api/ uses `X | None` annotations at module scope, which 3.9 cannot
+# import. demand/ itself is 3.9-clean, but do not rely on that.
+
+# Schema validation — the contract gate. Every response and every persisted
+# row is validated against demand/shared/schemas/ before it crosses a
+# boundary. These schemas are additionalProperties:false and DO NOT MODIFY.
+jsonschema>=4.0
+
+# NOT optional, despite looking like it. jsonschema's FormatChecker only
+# enforces `format: date-time` when this package is importable — without it,
+# "NOPE" passes as a timestamp silently. demand/shared/validation.py computes
+# UNENFORCED_FORMATS at import time and it must come out EMPTY; if this dep
+# goes missing, every date-time in every schema stops being checked and
+# nothing fails loudly to tell you. `format: uuid` and `format: date` are
+# enforced by jsonschema itself and do not need this.
+rfc3339-validator>=0.1.4
+
+# The demand API app (demand/api/app.py) and its test client.
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27
+
+# PostgREST client. Data ops only — DDL is applied by hand from
+# demand/data/schema.sql via the Supabase SQL editor (the anon key cannot
+# issue DDL). Note the client is bound to schema "demand"; the shared
+# `products` and `stores` tables live in "public" and must be read with an
+# explicit .schema("public").
+supabase>=2.15
+
+# Loads the repo-root .env. Jules VMs hold no keys, so every test must pass
+# with fakes and fixtures and never touch this.
+python-dotenv>=1.0
+
+# Optional: only imported when DEMAND_INGEST_CRON=1 turns on the in-process
+# ingest schedule in demand/scripts/run_ingest.py. Same in-process, no-broker
+# pattern as the v1 pipeline's simulator.
+apscheduler>=3.10
+
+# Dev/test only. Run from the REPO ROOT, never from inside a tests/ directory:
+# the suites import demand.* / reachout.*, which resolve only with the repo
+# root on sys.path.
+pytest>=8.0
