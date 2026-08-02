@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-02 (M13 landed)
 **Wave in flight:** Wave 0 — unblock and repair. Nothing past wave 0 may start.
-**Progress:** 10 of 32 tasks done.
+**Progress:** 11 of 32 tasks done.
 **Next action:** Two wave-0 tasks remain before wave 1 can start: create and
 push the two work branches (**M5**, Claude) and amend `docs/JULES_DEMAND.md`
 with the no-login TASK 74 + new TASK 77 (**M7**, Claude — waits on M1, M2,
@@ -37,7 +37,7 @@ human, live credentials, or a decision).
 | **M2** | Write the five data contracts (JSON Schemas) and the database table definitions for the demand service, plus the spec for what the practice data must look like. | Claude | M1 | M3, M7, M13, T69–T71, T77, U3 | `[x] 2026-08-02` |
 | **M3** | **Apply the database table definitions to Supabase.** The key we have cannot do this — it has to be pasted into the Supabase SQL editor, same as last time. | **You (founder)** | M2 | V1 | `[ ]` |
 | **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[x] 2026-08-02` |
-| **M5** | Create and push the two work branches, one per parallel lane. | Claude | M4 | T69–T71, T76 | `[ ]` |
+| **M5** | Create and push the two work branches, one per parallel lane. | Claude | M4 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[x] 2026-08-02` |
 | **M7** | Update the Jules task file: replace task 74 with the no-login version, add the new task 77, and stop the shared preamble from claiming the `demand/` folder already exists. | Claude | M1, M2 | T69–T71, T74, T77 | `[ ]` |
 | **M8** | Fix the runner so it tells each task to run *its own* test suite. Right now it tells every task to run the old backend's tests — which would pass without testing any of the new code. | Claude | nothing | M9, M10, T69–T71, T76 | `[x] 2026-08-02` |
