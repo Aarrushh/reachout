@@ -58,6 +58,10 @@ it fully green") is resolved per run, precedence CLI > tasks-file > default:
   2. Else a `<!-- TEST_CMD: <command> -->` line anywhere in the tasks file
      (e.g. `<!-- TEST_CMD: cd demand && python -m pytest -->`), if present.
   3. Else the v1 default: `cd reachout/tests && python -m pytest`.
+The resolved command is also the in-worktree test gate's command: it runs
+with cwd = the worktree root, so any `cd` inside it must resolve to a path
+under the worktree — an absolute target or a `../`-escape is rejected at
+startup (before any task runs), not discovered mid-run.
 """
 
 import argparse
@@ -182,6 +186,34 @@ def resolve_test_cmd(cli_value):
         if m:
             return m.group(1).strip()
     return TEST_CMD
+
+
+TEST_CMD_CD_RE = re.compile(r"\bcd\s+(\S+)")
+
+
+def validate_test_cmd(cmd, worktree):
+    """Worktree-escape guard (M10): run_test_suite() runs TEST_CMD with
+    cwd=worktree, so an embedded `cd` that is absolute or escapes via `../`
+    would run the gate's suite against the wrong checkout and silently
+    defeat the gate. Checks only the first `cd <path>` token in the command
+    — compound/exotic commands (conditional cds, cds inside subshells or
+    quotes) beyond that are the operator's responsibility. Exits (SystemExit,
+    clear message) before any task runs; does nothing if the command has no
+    `cd`."""
+    m = TEST_CMD_CD_RE.search(cmd)
+    if not m:
+        return
+    target = m.group(1).strip("'\"")
+    if os.path.isabs(target):
+        raise SystemExit(
+            f"TEST_CMD's cd target is absolute ({target!r}) — it must stay "
+            f"inside the worktree ({worktree}): {cmd!r}")
+    root = os.path.realpath(worktree)
+    resolved = os.path.realpath(os.path.join(worktree, target))
+    if resolved != root and not resolved.startswith(root + os.sep):
+        raise SystemExit(
+            f"TEST_CMD's cd target ({target!r}) escapes the worktree "
+            f"({worktree}, resolves to {resolved}): {cmd!r}")
 
 
 def build_prompt(master, task):
@@ -543,6 +575,7 @@ def main():
         BRANCH = args.branch
         WORKTREE = os.path.join(ROOT, "tools", f".jules-wt-{BRANCH}")
     TEST_CMD = resolve_test_cmd(args.test_cmd)
+    validate_test_cmd(TEST_CMD, WORKTREE)
 
     acquire_lock(STATE_FILE + ".lock")
 
