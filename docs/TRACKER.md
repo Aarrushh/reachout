@@ -79,13 +79,23 @@ python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_
 
 Lane P (`jules-picks-integration`, TASK 76 only — its own `--test-cmd` is
 required, not optional: the shared tasks-file `TEST_CMD` header resolves to
-`cd demand && python3 -m pytest`, which tests none of TASK 76's code in
+`python3 -m pytest demand/tests -q`, which tests none of TASK 76's code in
 `reachout/`; see I1 in the wave-0 review and the MULTI-LANE WARNING in
 `tools/jules_runner.py`'s module docstring):
 
 ```
-python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_picks.json --branch jules-picks-integration --only 76 --test-cmd "cd reachout/tests && REACHOUT_OFFLINE=1 python3 -m pytest -q"
+python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_picks.json --branch jules-picks-integration --only 76 --test-cmd "REACHOUT_OFFLINE=1 python3 -m pytest reachout/tests -q"
 ```
+
+Both test commands run from the **repo root** (the runner sets cwd to the
+worktree root), never from inside a `tests/` directory — those suites
+import `reachout.*` / `demand.*`, which resolve only with the repo root on
+`sys.path`. The local gate needs **Python 3.10+**: macOS system `python3`
+is 3.9 and cannot import `reachout/api/` at all (`X | None` at module
+scope), which is why the runner substitutes the repo-root `.venv`
+interpreter for `python3` when running the gate — see `resolve_pybin()`.
+Create it once with `uv venv --python 3.12 .venv && uv pip install --python
+.venv/bin/python -r reachout/requirements.txt`.
 
 Both default to **not** touching `main` — work lands on the integration
 branch only. Append `--promote-main` to either command to opt into also

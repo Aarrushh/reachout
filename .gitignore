@@ -22,3 +22,6 @@ tools/.jules_runner_state*.json.lock.*.tmp
 
 # macOS
 .DS_Store
+
+# Local Python 3.12 test-gate interpreter (tools/jules_runner.py resolve_pybin)
+.venv/

@@ -2,7 +2,7 @@
 
 # JULES_DEMAND.md — Demand dashboard + picks series (TASKs 69–77)
 
-<!-- TEST_CMD: cd demand && python3 -m pytest -->
+<!-- TEST_CMD: python3 -m pytest demand/tests -q -->
 
 *Task series for Jules covering Track A (demand service, TASKs 69–75, 77) and
 Track B's one backend task (picks endpoint, TASK 76) from
@@ -80,10 +80,14 @@ HARD RULES for every task in this series:
    demand/tests/fixtures/. Never make a network call in tests. Any import
    of the trendspy package must be lazy (inside the provider class) so the
    test suite imports cleanly without it installed.
-2. Run the demand suite before finishing:
-   cd demand && python3 -m pytest tests/ -q — fully green.
-   TASK 76 only: also cd reachout && python3 -m pytest tests/ -q
-   (REACHOUT_OFFLINE=1) — fully green including all v1+v2 tests.
+2. Run the demand suite before finishing, from the REPO ROOT:
+   python3 -m pytest demand/tests -q — fully green.
+   TASK 76 only: also REACHOUT_OFFLINE=1 python3 -m pytest reachout/tests -q
+   — fully green including all v1+v2 tests.
+   Run both from the repo root, never from inside a tests/ directory: the
+   suites import `reachout.*` / `demand.*`, which resolve only with the repo
+   root on sys.path. Python 3.10+ is required (reachout/api/ uses `X | None`
+   annotations at module scope).
 3. Do not modify demand/shared/schemas/, demand/data/schema.sql,
    reachout/data/schema.sql, or anything in frontend/. Do not add
    dependencies beyond trendspy (runtime-only, lazy import). Endpoints are

@@ -57,11 +57,17 @@ it fully green") is resolved per run, precedence CLI > tasks-file > default:
   1. --test-cmd, if given.
   2. Else a `<!-- TEST_CMD: <command> -->` line anywhere in the tasks file
      (e.g. `<!-- TEST_CMD: cd demand && python3 -m pytest -->`), if present.
-  3. Else the v1 default: `cd reachout/tests && python3 -m pytest`.
+  3. Else the v1 default: `python3 -m pytest reachout/tests -q`.
 The resolved command is also the in-worktree test gate's command: it runs
 with cwd = the worktree root, so any `cd` inside it must resolve to a path
 under the worktree — an absolute target or a `../`-escape is rejected at
 startup (before any task runs), not discovered mid-run.
+
+Run the reachout suite from the worktree ROOT, not from inside
+reachout/tests: those tests `import reachout.*`, which only resolves with
+the repo root on sys.path (`python -m pytest` puts cwd there). `cd
+reachout/tests && python3 -m pytest` collects 6 ImportErrors instead.
+For the interpreter the local gate uses, see resolve_pybin().
 
 MULTI-LANE WARNING: --tasks is a shared tasks file, not a per-lane one — two
 lanes both fed docs/JULES_DEMAND.md resolve step 2 to the SAME `<!--
@@ -89,6 +95,25 @@ import urllib.error
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def resolve_pybin():
+    """Interpreter the LOCAL test gate runs under.
+
+    reachout/api/ uses PEP 604 (`str | None`) at module scope, so the backend
+    needs Python 3.10+. macOS ships /usr/bin/python3 == 3.9, which cannot even
+    import those modules: a `python3` gate reports 20 collection errors and
+    calls every task red forever. Prefer the repo-root .venv (created with a
+    3.12 interpreter) and fall back to `python3` on machines where python3 is
+    already new enough. TEST_CMD itself stays generic — it is also pasted into
+    the Jules prompt, and a Jules VM has no .venv — so run_test_suite()
+    substitutes this path in only for the local run.
+    """
+    venv = os.path.join(ROOT, ".venv", "bin", "python")
+    return venv if os.path.exists(venv) else "python3"
+
+
+PYBIN = resolve_pybin()
 BASE = "https://jules.googleapis.com/v1alpha"
 SOURCE = "sources/github/Aarrushh/reachout"
 REPO = "Aarrushh/reachout"
@@ -100,7 +125,7 @@ STATE_FILE = os.path.join(ROOT, "tools", ".jules_runner_state.json")
 WORKTREE = os.path.join(ROOT, "tools", ".jules-wt")
 # Overridable via --test-cmd or a tasks-file `<!-- TEST_CMD: ... -->` header
 # (see resolve_test_cmd()); this default preserves the v1 prompt verbatim.
-TEST_CMD = "cd reachout/tests && python3 -m pytest"
+TEST_CMD = "python3 -m pytest reachout/tests -q"
 TEST_CMD_RE = re.compile(r"<!--\s*TEST_CMD:\s*(.*?)\s*-->")
 
 POLL_INTERVAL = 30          # seconds between session polls
@@ -499,8 +524,9 @@ def run_test_suite(nn):
     — before anything is pushed. Returns True iff the suite exits zero; on
     failure logs the command's tail output and returns False so the caller
     can leave the task pending and stop the run."""
-    log(f"TASK {nn}: running test suite in worktree — {TEST_CMD}")
-    p = subprocess.run(TEST_CMD, shell=True, cwd=WORKTREE,
+    cmd = TEST_CMD.replace("python3", PYBIN)
+    log(f"TASK {nn}: running test suite in worktree — {cmd}")
+    p = subprocess.run(cmd, shell=True, cwd=WORKTREE,
                         capture_output=True, text=True)
     if p.returncode != 0:
         tail = (p.stdout + p.stderr)[-TEST_TAIL_CHARS:]
