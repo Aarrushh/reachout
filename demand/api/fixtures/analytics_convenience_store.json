@@ -1,39 +1,111 @@
 {
   "inventory_type": "convenience_store",
   "generated_from": "fixture",
-  "generated_at": "2026-08-02T17:56:05.535386+00:00",
-  "caveat": "Basado en inter\u00e9s de b\u00fasqueda en Madrid, no en compras reales.",
+  "generated_at": "2026-08-03T00:00:00+00:00",
+  "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
   "segments": {
     "top_movers": {
-      "confidence": "high",
+      "confidence": "medium",
       "points": [
         {
-          "keyword": "cerveza",
-          "category": "Alcohol",
-          "interest_avg": 85.5,
-          "delta_pct": 15.2,
+          "keyword": "protector solar",
+          "category": null,
+          "interest_avg": 78.4,
+          "delta_pct": 42.6,
           "direction": "rising"
+        },
+        {
+          "keyword": "ventilador",
+          "category": null,
+          "interest_avg": 64.1,
+          "delta_pct": 28.3,
+          "direction": "rising"
+        },
+        {
+          "keyword": "grocery",
+          "category": "grocery",
+          "interest_avg": 51.0,
+          "delta_pct": 3.2,
+          "direction": "flat"
+        },
+        {
+          "keyword": "pharmacy",
+          "category": "pharmacy",
+          "interest_avg": 33.7,
+          "delta_pct": -11.5,
+          "direction": "falling"
+        },
+        {
+          "keyword": "bombillas",
+          "category": null,
+          "interest_avg": 21.9,
+          "delta_pct": -4.8,
+          "direction": "falling"
         }
       ]
     },
     "category_mix": {
-      "confidence": "medium",
+      "confidence": "high",
       "points": [
         {
-          "category": "Alcohol",
-          "share_pct": 25.0,
-          "product_count": 10
+          "category": "electronics",
+          "share_pct": 18.0,
+          "product_count": 18
+        },
+        {
+          "category": "grocery",
+          "share_pct": 34.0,
+          "product_count": 34
+        },
+        {
+          "category": "hardware",
+          "share_pct": 15.0,
+          "product_count": 15
+        },
+        {
+          "category": "pharmacy",
+          "share_pct": 22.0,
+          "product_count": 22
+        },
+        {
+          "category": "stationery",
+          "share_pct": 11.0,
+          "product_count": 11
         }
       ]
     },
     "stock_out_risk": {
-      "confidence": "low",
+      "confidence": "high",
       "points": [
         {
-          "category": "Alcohol",
+          "category": "electronics",
+          "at_risk_count": 5,
+          "total_count": 18,
+          "risk_pct": 27.78
+        },
+        {
+          "category": "grocery",
+          "at_risk_count": 7,
+          "total_count": 34,
+          "risk_pct": 20.59
+        },
+        {
+          "category": "hardware",
           "at_risk_count": 2,
-          "total_count": 10,
-          "risk_pct": 20.0
+          "total_count": 15,
+          "risk_pct": 13.33
+        },
+        {
+          "category": "pharmacy",
+          "at_risk_count": 3,
+          "total_count": 22,
+          "risk_pct": 13.64
+        },
+        {
+          "category": "stationery",
+          "at_risk_count": 1,
+          "total_count": 11,
+          "risk_pct": 9.09
         }
       ]
     }
