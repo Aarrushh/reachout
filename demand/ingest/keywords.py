@@ -6,6 +6,27 @@ from typing import Any
 # since this is in demand/ingest/ and we want demand/_config/seed_keywords.json
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_config', 'seed_keywords.json')
 
+
+def normalize_keyword(keyword: Any) -> str:
+    """THE canonical casing rule for the whole demand chain: strip, lower.
+
+    One rule, three stages, no exceptions:
+
+    - `build_universe()` dedupes on it (the universe still carries each
+      keyword's ORIGINAL casing -- that is what gets sent to the trends
+      provider, and Trends is case-sensitive about what it echoes back).
+    - `run_ingest.run_chain()` keys the category map with it.
+    - `compute_signals()` looks the category up through it.
+
+    Before this existed the map was keyed lower-case and the lookup was an
+    exact match against the original casing, so in production the lookup
+    missed on every keyword whose category was not already lower-case and
+    every signal row was written with `category: None`. Anything that
+    joins a keyword to a category must go through this function.
+    """
+    return str(keyword).strip().lower()
+
+
 def build_universe(supa_client: Any) -> list[str]:
     """
     Builds the keyword universe from seed keywords and distinct non-empty 
@@ -33,17 +54,17 @@ def build_universe(supa_client: Any) -> list[str]:
     unique_keywords = {}
     
     for kw in seed_keywords:
-        lower_kw = kw.lower().strip()
+        lower_kw = normalize_keyword(kw)
         if lower_kw and lower_kw not in unique_keywords:
             unique_keywords[lower_kw] = kw
-            
+
     for cat in db_categories:
-        lower_cat = str(cat).lower().strip()
+        lower_cat = normalize_keyword(cat)
         if lower_cat and lower_cat not in unique_keywords:
             unique_keywords[lower_cat] = cat
-            
+
     # Deterministically sort alphabetically
-    sorted_keywords = sorted(unique_keywords.values(), key=lambda x: x.lower())
+    sorted_keywords = sorted(unique_keywords.values(), key=normalize_keyword)
     
     # Cap at 100 elements
     return sorted_keywords[:100]
