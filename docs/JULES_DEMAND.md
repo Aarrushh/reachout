@@ -35,8 +35,14 @@ Tracker (runner ticks nothing here — check
 ```
 Repo: Aarrushh/reachout. Two backend roots: reachout/ (existing v1+v2, do
 NOT break) and demand/ (NEW demand-dashboard service — your workspace for
-TASKs 69-75 and 77). Full plan: docs/IMPLEMENTATION_PLAN.md (read §2 task
-table and §3 data contracts before coding).
+TASKs 69-75 and 77). Full plan: docs/IMPLEMENTATION_PLAN_V2.md (read §2
+M/T/U/V/H task list and §5 data contracts before coding). Data contracts
+themselves are the five committed schemas in demand/shared/schemas/ —
+DO-NOT-MODIFY, treat them as source of truth over any prose description.
+docs/IMPLEMENTATION_PLAN.md is the v1 plan, superseded for routing — its
+auth design (magic-link + JWT, a `Depends` verifier, `demand.retailers`,
+RLS) does NOT apply; see Decision D2 (no auth) in
+docs/IMPLEMENTATION_PLAN_V2.md.
 
 demand/ — M1 and M2 already built this directly on main, before this series
 starts (do NOT rewrite it): the workspace layout below, all five JSON
@@ -236,9 +242,11 @@ D3 in STATUS.md with a one-line note.
 ## 5. PHASE D4 — analytics (TASK 77)
 
 **TASK 77 — GET /demand/api/analytics (fixture-first, inventory-type keyed).**
-First add `demand/shared/schemas/analytics_response.schema.json`,
-additionalProperties:false at every level, shaping the retail dashboard's
-payload: `{inventory_type: const "convenience_store", generated_from: enum
+Use `demand/shared/schemas/analytics_response.schema.json` as-is — it is
+already committed (by M2) and is DO NOT MODIFY, same as the other four
+schemas in `shared/schemas/`. Do not create it and do not re-author it.
+It already has additionalProperties:false at every level, shaping the
+retail dashboard's payload: `{inventory_type: const "convenience_store", generated_from: enum
 ["fixture","live"], generated_at: date-time, caveat: non-empty string,
 segments: {top_movers: {...}, category_mix: {...}, stock_out_risk: {...}}}`.
 Each of the three segments is an object `{confidence: enum low|medium|high,
@@ -269,8 +277,3 @@ validates (assert explicitly); live mode over the fake produces the identical
 shape; unknown inventory_type -> 422; missing caveat fails validation
 (construct the payload and assert the validator rejects it); fake raising ->
 502. No network.
-
-### Editorial note (M7b)
-
-[Note: analytics_response.schema.json was committed by M2 — TASK 77 must use
-it as-is (DO NOT MODIFY), not re-create it.]

@@ -199,7 +199,7 @@ reachout/  (repo root)
 │   ├── IMPLEMENTATION_PLAN.md   v1 plan — superseded for routing, §3/§3.4 still
 │   │                             source text (see §2 above)
 │   ├── EXECUTION_PROMPTS.md     v1 run-book — superseded (see docs/TRACKER.md)
-│   ├── JULES_DEMAND.md          Jules TASK 69–76 specs
+│   ├── JULES_DEMAND.md          Jules TASK 69–77 specs
 │   ├── STITCH_DASHBOARD.md      dashboard prompt series D1–D5
 │   ├── STITCH_CONSUMER.md       consumer prompt series C1–C8
 │   ├── STITCH_FRONTEND.md       v1 UI redesign prompt series, executed + merged

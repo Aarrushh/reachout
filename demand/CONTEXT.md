@@ -1,12 +1,18 @@
 # CONTEXT.md  (Layer 1: Where do I go?)
 
 This routes the demand chain: ingest -> signals -> recommend -> api. The
-chain order below is the read/write order. Every file this table names is
-**PLANNED** — M1 (this scaffold) creates only the folders, the layer docs,
-the seed keyword list, and the test helpers. It creates zero `.py` chain
-files. If a Jules master-context block or any other doc claims one of
-these files already exists, trust this table, not that doc — this file is
-kept honest on purpose (see "Build status" below).
+chain order below is the read/write order. Every file in the "File" column
+of the chain table below is **PLANNED** — zero `.py` chain files exist yet;
+that has not changed since M1. What M2 added is the scaffolding the chain
+will read and write against: the five JSON Schemas in `shared/schemas/`,
+the `demand` Postgres DDL (`data/schema.sql`), the seed keyword list, and
+the test helpers — those are DONE, committed, and DO-NOT-MODIFY (see
+"Build status" below). If a Jules master-context block or any other doc
+disagrees with this file about whether a *chain* file (`ingest/`,
+`scripts/`, `api/`) exists, trust this table — this file is kept honest on
+purpose. That does not extend to the schemas or the DDL: they are real and
+committed, and no doc — including this one — licenses treating a
+DO-NOT-MODIFY instruction on them as disbelievable.
 
 ## Chain (Madrid demand service)
 
@@ -36,31 +42,33 @@ test helpers.
 
 ## Build status
 
-**What exists today (M1):**
+**What exists today (M1 + M2):**
 
 - `CLAUDE.md`, `CONTEXT.md` — this pair, Layer 0/1.
 - `_config/seed_keywords.json` — 30-50 curated Madrid retail search terms
   (Spanish), the static half of TASK 70's keyword union.
 - `ingest/`, `scripts/`, `api/` — empty Python packages (`__init__.py`
   only; no chain files yet).
-- `shared/schemas/` — empty directory (`.gitkeep`); the five schemas named
-  in the chain table above (`trend_snapshot`, `demand_signal`,
-  `recommendation`, `recommendations_response`, `analytics_response` —
-  the last one backs TASK 77's `/analytics` endpoint, IMPLEMENTATION_PLAN_V2.md
-  §4 and §5.5) do not exist yet — M2 writes them, and once written they
-  are DO-NOT-MODIFY for every later task.
-- `data/` — empty directory (`.gitkeep`); `data/schema.sql` (the Postgres
-  `demand` schema DDL) does not exist yet — M2 writes it.
+- `shared/schemas/` — the five schemas named in the chain table above
+  (`trend_snapshot`, `demand_signal`, `recommendation`,
+  `recommendations_response`, `analytics_response` — the last one backs
+  TASK 77's `/analytics` endpoint, IMPLEMENTATION_PLAN_V2.md §4 and §5.5)
+  EXIST — committed by M2 — and are DO-NOT-MODIFY for every later task.
+- `data/schema.sql` (the Postgres `demand` schema DDL) EXISTS — committed
+  by M2 — and is DO-NOT-MODIFY.
 - `tests/conftest.py` — sys.path setup so `demand/` modules import cleanly
   under pytest, plus a `fake_supa` fixture.
 - `tests/fake_supa.py` — chainable fake Supabase client, modelled on
   `reachout/tests/fake_supa.py`.
-- `tests/fixtures/` — empty directory (`.gitkeep`); TASK 69 commits the
-  first canned trends payloads under `tests/fixtures/trends/`.
+- `tests/fixtures/` — only a README today; TASK 69 commits the first
+  canned trends payloads under `tests/fixtures/trends/`.
 
 **What is PLANNED (not yet created, do not assume it exists):** every file
-in the "File" column of the chain table above, plus the five JSON Schemas
-and `data/schema.sql` (both M2).
+in the "File" column of the chain table above — `ingest/trends_client.py`,
+`ingest/keywords.py`, `ingest/snapshot_store.py`, `scripts/compute_signals.py`,
+`scripts/recommend.py`, `scripts/run_ingest.py`, `api/app.py`. The five JSON
+Schemas and `data/schema.sql` are NOT planned — they already exist (above)
+and are DO-NOT-MODIFY.
 
 ## Module kinds
 

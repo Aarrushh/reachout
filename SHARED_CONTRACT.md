@@ -1,14 +1,17 @@
 # SHARED_CONTRACT.md — Backend ↔ Frontend API Contract
 
-> **Reality check (2026-07-16, frontend agent):** the shipped backend
+> **Reality check (2026-08-02, frontend agent):** the shipped backend
 > (`reachout/api/server.py`) does NOT implement the endpoints below. It exposes
 > `GET /api/search?q&near|lat,lng&radius`, `GET /api/search.geojson`,
 > `GET /api/shops.geojson`, `GET /api/inventory`, `GET /api/regions`,
 > `GET /api/inventory/stream`, `GET /api/health` — schema-first, see
 > `reachout/shared/schemas/` and `frontend/README.md`. The frontend consumes
-> those real endpoints. `POST /api/chat` is now live: the chat UI originally
-> shipped with a client-side mock (`frontend/src/chat/shopkeeper.ts`) and
-> consumes the real backend endpoint (`reachout/api/chat.py`).
+> those real endpoints. `reachout/api/chat.py` exists and implements
+> `POST /api/chat`, but the frontend does NOT call it: the chat UI still
+> ships with a client-side mock (`frontend/src/chat/shopkeeper.ts`, imported
+> by `frontend/src/components/ChatPanel.tsx`) that answers only from
+> real search-result data passed into it, never from the backend. See
+> `frontend/CONTEXT.md` for the current status.
 
 ## Base URL
 Backend runs on: http://localhost:8000
