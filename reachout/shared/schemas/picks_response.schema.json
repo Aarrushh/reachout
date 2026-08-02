@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Picks Response",
+  "description": "Producer: GET /api/picks. Consumer: Frontend picks UI. additionalProperties:false is the hallucination gate.",
+  "type": "object",
+  "properties": {
+    "picks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "category": { "type": "string" },
+          "price": { "type": "number" },
+          "stock_qty": { "type": "integer" },
+          "store_id": { "type": "string" },
+          "neighbourhood": { "type": "string" },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "image_url": { "type": ["string", "null"] }
+        },
+        "required": ["id", "name", "description", "category", "price", "stock_qty", "store_id", "neighbourhood", "tags"],
+        "additionalProperties": false
+      }
+    },
+    "generated_by": {
+      "const": "deterministic"
+    }
+  },
+  "required": ["picks", "generated_by"],
+  "additionalProperties": false
+}
