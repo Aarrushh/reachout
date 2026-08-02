@@ -8,6 +8,20 @@ from scripts import validate
 
 router = APIRouter()
 
+# Mirrors api.server._V2_PRODUCT_FIELDS (server.py:98) — exactly the columns
+# picks_response.schema.json allows (additionalProperties: false). The real
+# `products` table has more columns (an `embedding` vector, timestamps); an
+# unqualified select("*") pulls those over the wire and, once echoed into the
+# response body, fails schema validation on every request.
+#
+# Duplicated here rather than imported: server.py imports this module's
+# `router` (line 93) before it defines _V2_PRODUCT_FIELDS (line 98), so
+# `from api.server import _V2_PRODUCT_FIELDS` would try to read an attribute
+# off a partially-initialized module and raise ImportError (circular import).
+_PICKS_PRODUCT_FIELDS = ("id,name,description,category,price,stock_qty,store_id,"
+                         "neighbourhood,tags,image_url")
+_PICKS_PRODUCT_FIELD_SET = set(_PICKS_PRODUCT_FIELDS.split(","))
+
 @router.get("/api/picks")
 async def picks(
     neighbourhood: Optional[str] = Query(None),
@@ -20,15 +34,17 @@ async def picks(
         canonical_neighbourhood = match_barrio(neighbourhood)
 
     def _q():
-        # Fetch all stores
-        stores_res = _supa_client().table("stores").select("*").execute()
+        # Fetch all stores — only rating is ever read below, id is the join
+        # key; no need to pull the rest of the row (or a vector column) over
+        # the wire.
+        stores_res = _supa_client().table("stores").select("id,rating").execute()
         stores_dict = {s["id"]: s for s in stores_res.data}
 
-        # Fetch products
-        products_query = _supa_client().table("products").select("*")
+        # Fetch products — explicit column list, see _PICKS_PRODUCT_FIELDS.
+        products_query = _supa_client().table("products").select(_PICKS_PRODUCT_FIELDS)
         if canonical_neighbourhood:
             products_query = products_query.eq("neighbourhood", canonical_neighbourhood)
-            
+
         products_res = products_query.execute()
         return stores_dict, products_res.data
 
@@ -37,14 +53,25 @@ async def picks(
     except Exception:
         raise HTTPException(status_code=502, detail="Supabase error")
 
+    # Defensive projection: the select() above already narrows columns on a
+    # real Supabase client, but nothing in-process enforces that (e.g. the
+    # test fake echoes back whatever the fixture put in, ignoring the column
+    # list). Drop anything outside the schema's allowed keys here too, so a
+    # stray column can never reach the additionalProperties:false validation
+    # below regardless of what the client returned.
+    all_products = [
+        {k: v for k, v in p.items() if k in _PICKS_PRODUCT_FIELD_SET}
+        for p in all_products
+    ]
+
     # Filter out out-of-stock products and calculate score
     scored_products = []
     for p in all_products:
         if p.get("stock_qty", 0) <= 0:
             continue
-            
+
         store = stores_dict.get(p.get("store_id"), {})
-        score = store.get("rating", 0.0)
+        score = store.get("rating") or 0.0
         
         scored_products.append({
             "product": p,
@@ -80,7 +107,7 @@ async def picks(
         for cat in candidate_categories:
             item = category_buckets[cat][0]
             store = stores_dict.get(item.get("store_id"), {})
-            score = store.get("rating", 0.0)
+            score = store.get("rating") or 0.0
             score_tuple = (-score, item.get("id", ""))
             
             if best_score_tuple is None or score_tuple < best_score_tuple:
