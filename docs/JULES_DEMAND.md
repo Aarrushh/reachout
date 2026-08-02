@@ -1,4 +1,4 @@
-> **Still current (2026-08-01)** — except TASK 74's auth section, which is superseded by the no-auth POC decision; the v2 plan must amend TASK 74 before it is submitted to the runner. See docs/PLAN_V2_PROMPT.md §B.
+> **Current (2026-08-02)** — TASK 74's auth section has been amended (no-auth POC decision) and TASK 77 added, both by M7; this file is current fuel for the runner. See docs/PLAN_V2_PROMPT.md §B.
 
 # JULES_DEMAND.md — Demand dashboard + picks series (TASKs 69–77)
 
@@ -269,6 +269,8 @@ validates (assert explicitly); live mode over the fake produces the identical
 shape; unknown inventory_type -> 422; missing caveat fails validation
 (construct the payload and assert the validator rejects it); fake raising ->
 502. No network.
+
+### Editorial note (M7b)
 
 [Note: analytics_response.schema.json was committed by M2 — TASK 77 must use
 it as-is (DO NOT MODIFY), not re-create it.]
