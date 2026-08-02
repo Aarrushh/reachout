@@ -11,6 +11,10 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import jsonschema
 from supabase import Client, create_client
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+import threading
+
 
 SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "shared" / "schemas"
 
@@ -32,7 +36,37 @@ def get_client() -> Client:
     from supabase.client import ClientOptions
     return create_client(url, key, options=ClientOptions(schema="demand"))
 
-app = FastAPI(title="Demand API")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler = None
+    if os.environ.get("DEMAND_INGEST_CRON") == "1":
+        from demand.scripts.run_ingest import run_chain
+        scheduler = AsyncIOScheduler()
+        # Run daily
+        
+        async def run_chain_async():
+            import asyncio
+            await asyncio.to_thread(run_chain, provider_name="trendspy", dry_run=False)
+
+        scheduler.add_job(
+            run_chain_async,
+
+            'cron', hour=0, minute=0
+        )
+        scheduler.start()
+        print("Started DEMAND_INGEST_CRON daily job")
+        
+    yield
+    
+    if scheduler:
+        scheduler.shutdown()
+        print("Stopped DEMAND_INGEST_CRON daily job")
+
+app = FastAPI(title="Demand API", lifespan=lifespan)
+
+
 
 app.add_middleware(
     CORSMiddleware,
