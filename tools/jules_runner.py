@@ -2,10 +2,19 @@
 
 Each task becomes one Jules session. Sessions start from the integration
 branch (jules-integration); when a session completes, its output branch is
-merged into that branch via a dedicated git worktree (no gh CLI needed) and
-pushed, so the next task builds on the previous one. After each task lands on
-jules-integration, that branch is also merged into main and pushed, so main
-always carries every completed task.
+merged into that branch via a dedicated git worktree (no gh CLI needed). The
+merge is a gate, not a push: before anything reaches origin, the resolved
+per-series test command (see TEST_CMD below) runs in-worktree via
+subprocess. A non-zero exit leaves the task "pending" in state (never
+"done"), logs the command's tail output, and stops the run outright — no
+further tasks are attempted, and nothing is pushed. Only a green suite gets
+pushed to jules-integration, so the next task always builds on tested work.
+
+Landing jules-integration onto main is a separate, explicit choice: pass
+--promote-main to merge/push the integration branch into main after each
+green task. Default is off — work stays on jules-integration only. v1's
+behaviour (every completed task auto-promoted to main) is reproduced by
+always passing --promote-main; this preserves D5's reversal path.
 
 In-flight sessions are persisted in the state file ("pending"); if the runner
 dies or times out, rerunning it reattaches to the existing session instead of
@@ -21,6 +30,11 @@ Usage:
   python tools/jules_runner.py --test-cmd 'cd demand && python -m pytest'
                                               # override the suite command
                                               # appended to every prompt
+  python tools/jules_runner.py --promote-main
+                                              # also merge/push jules-integration
+                                              # into main after each green task
+                                              # (default: stay on the integration
+                                              # branch only)
 
 Reads JULES_API_KEY from the environment or the repo-root .env file.
 State (completed tasks, session ids) persists in tools/.jules_runner_state.json.
@@ -358,8 +372,8 @@ def apply_changeset(session, nn, title):
     git("commit", "-m",
         f"TASK {nn}: {msg}\n\n(applied from Jules {session['name']})",
         cwd=WORKTREE)
-    git("push", "origin", BRANCH, cwd=WORKTREE)
-    log(f"TASK {nn}: patch applied and pushed to {BRANCH}")
+    log(f"TASK {nn}: patch applied in worktree (not yet pushed — "
+        "pending test gate)")
     return True
 
 
@@ -374,8 +388,30 @@ def merge_into_integration(branch, nn, title):
     if p.returncode != 0:
         git("merge", "--abort", cwd=WORKTREE, check=False)
         raise RuntimeError(f"merge conflict on {branch}:\n{p.stdout}\n{p.stderr}")
-    git("push", "origin", BRANCH, cwd=WORKTREE)
-    log(f"merged {branch} -> {BRANCH} and pushed")
+    log(f"merged {branch} -> {BRANCH} in worktree (not yet pushed — "
+        "pending test gate)")
+
+
+TEST_TAIL_CHARS = 4000  # keep failure logs readable, not a full pytest dump
+
+
+def run_test_suite(nn):
+    """In-worktree test gate (M10): run the resolved per-series test command
+    (TEST_CMD, an M8-resolved shell string containing its own `cd`/`&&`) with
+    cwd=WORKTREE, so it exercises exactly what was just applied/merged there
+    — before anything is pushed. Returns True iff the suite exits zero; on
+    failure logs the command's tail output and returns False so the caller
+    can leave the task pending and stop the run."""
+    log(f"TASK {nn}: running test suite in worktree — {TEST_CMD}")
+    p = subprocess.run(TEST_CMD, shell=True, cwd=WORKTREE,
+                        capture_output=True, text=True)
+    if p.returncode != 0:
+        tail = (p.stdout + p.stderr)[-TEST_TAIL_CHARS:]
+        log(f"TASK {nn}: test suite FAILED (exit {p.returncode}); "
+            f"tail:\n{tail}")
+        return False
+    log(f"TASK {nn}: test suite green")
+    return True
 
 
 def merge_integration_into_main(nn, title):
@@ -431,17 +467,22 @@ def poll_session(name, nn, title, before):
                 # outputs can lag the state change by a little
                 time.sleep(30)
                 session = api_retry("GET", "/" + name)
-            if apply_changeset(session, nn, title):
-                return name
-            branch = find_output_branch(session, before)
-            if branch is None:
-                # Jules may not have pushed yet; give it a moment and retry once.
-                time.sleep(30)
+            if not apply_changeset(session, nn, title):
                 branch = find_output_branch(session, before)
-            if branch is None:
+                if branch is None:
+                    # Jules may not have pushed yet; give it a moment and retry once.
+                    time.sleep(30)
+                    branch = find_output_branch(session, before)
+                if branch is None:
+                    raise RuntimeError(
+                        f"TASK {nn}: no output branch found — review {name} manually")
+                merge_into_integration(branch, nn, title)
+            if not run_test_suite(nn):
                 raise RuntimeError(
-                    f"TASK {nn}: no output branch found — review {name} manually")
-            merge_into_integration(branch, nn, title)
+                    f"TASK {nn}: test suite failed in worktree — task left "
+                    "pending, nothing pushed, run stopped")
+            git("push", "origin", BRANCH, cwd=WORKTREE)
+            log(f"TASK {nn}: suite green — pushed to {BRANCH}")
             return name
         if state == "FAILED":
             raise RuntimeError(f"TASK {nn} FAILED — inspect {name} activities")
@@ -486,6 +527,11 @@ def main():
                      help="command appended to every prompt in place of the "
                           "v1 default (default: tasks-file TEST_CMD header, "
                           "else v1 default)")
+    ap.add_argument("--promote-main", dest="promote_main", action="store_true",
+                     help="also merge/push the integration branch into main "
+                          "after each green task (default: off — work stays "
+                          "on the integration branch; v1's implicit "
+                          "always-promote behaviour = pass this flag)")
     args = ap.parse_args()
 
     global TASKS_FILE, STATE_FILE, BRANCH, WORKTREE, TEST_CMD
@@ -546,7 +592,10 @@ def main():
             state["pending"][nn] = session_name
             save_state(state)
         poll_session(session_name, nn, title, before)
-        merge_integration_into_main(nn, title)
+        if args.promote_main:
+            merge_integration_into_main(nn, title)
+        else:
+            log(f"TASK {nn}: not promoting to main (--promote-main not set)")
         state["done"].append(nn)
         state["sessions"][nn] = session_name
         state["pending"].pop(nn, None)
