@@ -75,9 +75,23 @@ def run_chain(provider_name: str, dry_run: bool = False):
     # No id-preserving round-trip: snapshot ids are uuid5 over the same
     # (keyword, geo, timeframe, captured_date) tuple the dedupe index uses,
     # so re-running the same day recomputes the ids already in the table.
+    region_failures = []
     for kw in universe:
         series = time_series.get(kw, [])
-        region_breakdown = provider.interest_by_region(kw, geo=INGEST_GEO)
+        # Best-effort, and deliberately so. `region_breakdown` is optional in
+        # trend_snapshot.schema.json ("if available", and the type is
+        # ["array", "null"]) — it is a nice-to-have breakdown, not the
+        # signal. Google's comparedgeo endpoint returns 400 for a low-volume
+        # term inside ES-MD (verified live 2026-08-03 on "abanico"), and an
+        # unguarded call there killed a whole 49-keyword run AFTER every
+        # series had already been fetched. The series is what the pipeline
+        # computes on; losing a regional breakdown for one keyword is not a
+        # reason to throw away 12 requests' worth of real data.
+        try:
+            region_breakdown = provider.interest_by_region(kw, geo=INGEST_GEO)
+        except Exception as exc:  # noqa: BLE001 — provider raises requests.HTTPError and friends
+            region_failures.append((kw, type(exc).__name__))
+            region_breakdown = None
 
         captured_date = now_utc[:10]
 
@@ -89,12 +103,22 @@ def run_chain(provider_name: str, dry_run: bool = False):
             "provider": provider_name,
             "captured_at": now_utc,
             "series": series,
-            "region_breakdown": region_breakdown if region_breakdown else []
+            # None, not [] — an empty list claims "we asked and Madrid has
+            # no regional interest", which is a different statement from
+            # "we could not get a breakdown". The schema permits null.
+            "region_breakdown": region_breakdown if region_breakdown else None
         }
         snapshots.append(snapshot)
 
     
     print(f"[Ingest] Captured {len(snapshots)} snapshots")
+    if region_failures:
+        print(
+            f"[Ingest] region_breakdown unavailable for {len(region_failures)} "
+            f"of {len(universe)} keywords (stored as null, series unaffected): "
+            + ", ".join(f"{kw} ({err})" for kw, err in region_failures[:5])
+            + (" ..." if len(region_failures) > 5 else "")
+        )
     
     if not dry_run:
         store_snapshots(snapshots, client)
