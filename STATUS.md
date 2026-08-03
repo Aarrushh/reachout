@@ -621,3 +621,6 @@ Supabase project and Gemini key before writing any code:
 - [x] PHASE 3 — POST /api/chat (completed)
 - [x] PHASE 4 — GET /api/products, /api/stores, /api/neighbourhoods, CORS
 - [ ] PHASE 5 — quality loop + BACKEND_DONE.md
+- [x] PHASE D1 — demand ingest chain green through compute_signals,
+      ticks DEMAND_INGEST_READY (TASKs 69, 70, 71, 72)
+- [x] PHASE D2 — demand API + analytics live (TASK 75)

@@ -279,7 +279,7 @@ existing pipeline endpoint, not the Supabase one.
 [x] PHASE_2_SEARCH_READY    /api/search endpoint live
 [x] PHASE_3_CHAT_READY      /api/chat endpoint live
 [x] PHASE_4_PRODUCTS_READY  /api/products + /api/stores live
-[ ] DEMAND_INGEST_READY     ← added by M4, ticked by T72
+[x] DEMAND_INGEST_READY     ← added by M4, ticked by T72
 [ ] DEMAND_API_READY        ← added by M4, ticked by T75
 [ ] PICKS_READY             ← added by M4, ticked by T76
 ```

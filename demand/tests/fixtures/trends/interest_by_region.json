@@ -1,0 +1,10 @@
+{
+    "sneakers": [
+        {"region": "Madrid", "value": 100.0},
+        {"region": "Barcelona", "value": 85.0}
+    ],
+    "coffee": [
+        {"region": "Madrid", "value": 95.0},
+        {"region": "Valencia", "value": 60.0}
+    ]
+}

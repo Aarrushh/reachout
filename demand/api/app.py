@@ -1,0 +1,633 @@
+"""Public, unauthenticated read API for the demand service.
+
+NO AUTH, BY DESIGN (D2). `store_id` is a plain filter parameter, not an
+authorization subject; there is no RLS and no GRANT block in
+`demand/data/schema.sql`. Do not add auth here — but do assume every byte
+of every response body is public, which is why the 5xx paths below return
+fixed, described messages and log the underlying detail server-side instead
+of interpolating it into the body (W1-FIX-F Finding 14).
+
+Three rules this module lives by:
+
+1. **Never `SELECT *` on a demand table whose rows are schema-validated.**
+   `demand.trend_snapshots.captured_date` is a DB-only column deliberately
+   absent from `trend_snapshot.schema.json` (`additionalProperties: false`),
+   so a widened select turns every row into a contract violation. The column
+   lists below are the contract; `demand/tests/test_api.py` asserts that no
+   select in this file is `"*"`.
+2. **Validation stays ON, and it is the gate, not a decoration.** All
+   validation goes through `demand.shared.validation.validate_with_formats`,
+   which attaches a `FormatChecker` so draft-07 `format` keywords actually
+   assert. Bare `jsonschema.validate()` would let `format: uuid` through as
+   an annotation and this API would reflect caller input out of a response
+   it calls "schema-validated". (`format: date-time` is still unenforced in
+   this venv — see `UNENFORCED_FORMATS` — so do not read a passing
+   validation as proof a timestamp is a timestamp.)
+3. **Nothing is invented to satisfy a validator.** No placeholder store id,
+   no hardcoded confidence label, no metric that was not computed from rows
+   that were actually read. A number that cannot be computed is not
+   returned.
+"""
+
+import asyncio
+import datetime
+import json
+import logging
+import os
+from collections import Counter
+from contextlib import asynccontextmanager
+from functools import lru_cache
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+import jsonschema
+from supabase import Client, create_client
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+from demand.shared.validation import validate_with_formats
+
+
+#: Credentials live in `reachout/.env` (gitignored; see
+#: `reachout/.env.example`), the same file `reachout/api/supa.py` loads —
+#: one credentials file for the whole repo, not one per service. This is
+#: the choke point on purpose: `get_client()` below is the only Supabase
+#: client constructor in the workspace, and `demand/scripts/run_ingest.py`
+#: imports it, so loading here covers both the API process and the CLI
+#: chain. Without this the chain only ran if you exported both vars into
+#: the shell by hand.
+#:
+#: Two properties this relies on: `load_dotenv` does not overwrite a var
+#: that is already set (so an explicit `export` still wins), and a missing
+#: file is a no-op rather than an error. The second is what keeps the
+#: Jules-VM rule intact — those VMs hold no keys, and the whole suite runs
+#: on fakes and fixtures with no `.env` present.
+load_dotenv(Path(__file__).resolve().parents[2] / "reachout" / ".env")
+
+logger = logging.getLogger(__name__)
+
+SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "shared" / "schemas"
+
+#: Module-level so a test can point the fixture path somewhere else without
+#: monkeypatching `open`.
+ANALYTICS_FIXTURE_PATH = (
+    Path(__file__).resolve().parent / "fixtures" / "analytics_convenience_store.json"
+)
+
+
+def load_schema(name: str) -> dict:
+    with open(SCHEMAS_DIR / name, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+TREND_SCHEMA = load_schema("trend_snapshot.schema.json")
+SIGNAL_SCHEMA = load_schema("demand_signal.schema.json")
+REC_RESPONSE_SCHEMA = load_schema("recommendations_response.schema.json")
+ANALYTICS_SCHEMA = load_schema("analytics_response.schema.json")
+
+#: A caller-supplied id is checked against the SAME schema fragment the
+#: response is later checked against, so the boundary check and the contract
+#: check can never disagree about what a uuid is.
+UUID_SCHEMA = {"type": "string", "format": "uuid"}
+
+# --- Explicit column lists. Never "*" on a schema-validated demand table. ---
+TREND_COLUMNS = (
+    "id, keyword, geo, timeframe, provider, captured_at, series, region_breakdown"
+)
+SIGNAL_COLUMNS = (
+    "id, keyword, category, geo, window_start, window_end, interest_avg, "
+    "delta_pct, direction, rank, confidence, snapshot_ids, computed_at"
+)
+RECOMMENDATION_COLUMNS = (
+    "id, store_id, signal_id, headline, body, action, confidence, caveat, created_at"
+)
+#: The analytics live path builds points, not rows, so it reads only what a
+#: point (or the confidence rule, or the ordering) needs.
+ANALYTICS_SIGNAL_COLUMNS = (
+    "keyword, category, interest_avg, delta_pct, direction, confidence, rank, window_end"
+)
+#: `stock_qty` is the input the plan (§5.5) names for `stock_out_risk`. It
+#: was never selected before W1-FIX-F, which is why the metric was faked.
+ANALYTICS_PRODUCT_COLUMNS = "category, stock_qty"
+
+# --- Bounds. Every read is bounded and ordered; none of these are magic. ---
+#: Default page size for the three list endpoints.
+DEFAULT_PAGE_SIZE = 100
+#: Documented hard cap. `limit` above this is a 422 from FastAPI, not a
+#: silently-clamped value: a caller that asked for 10_000 rows should be
+#: told it cannot have them rather than quietly handed 500.
+MAX_PAGE_SIZE = 500
+#: `demand.demand_signals` holds one row per keyword per weekly window; the
+#: keyword universe is capped at 100 (`build_universe`), so 500 covers five
+#: windows of the full universe.
+ANALYTICS_SIGNALS_CAP = 500
+#: `public.products` is specified at 3000-5000 rows
+#: (`reachout/data/schema.sql`). The cap sits at the top of that range so a
+#: full-inventory read is normally complete; when it is not, the composition
+#: segments say so through their confidence label (see `_census_confidence`).
+ANALYTICS_PRODUCTS_CAP = 5000
+#: `top_movers` is a chart, not a data dump.
+TOP_MOVERS_MAX_POINTS = 20
+
+#: A SKU with this many units or fewer on hand counts as at risk of stocking
+#: out. Deterministic, documented, and applied to `products.stock_qty` — the
+#: column §5.5 names. The seeder stocks 0-12 units per SKU
+#: (`reachout/data/sku_catalog.json`), so "2 or fewer" is the bottom fifth of
+#: that range: low enough to mean something, high enough to be reachable.
+STOCK_OUT_QTY_THRESHOLD = 2
+
+#: Weakest to strongest. The only ordering of confidence labels in this file.
+CONFIDENCE_ORDER = ("low", "medium", "high")
+
+CANONICAL_CAVEAT = (
+    "Basado en interés de búsqueda en Madrid, no en compras reales."
+)
+
+#: Fixed body for every dependency failure. The driver's own message can name
+#: hosts, credentials and SQL; this service has no auth, so "the caller" is
+#: the public. The detail goes to the log instead.
+DB_FAILURE_DETAIL = "Database dependency failed"
+
+
+@lru_cache(maxsize=1)
+def get_client() -> Client:
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    if not url or not key:
+        raise RuntimeError("SUPABASE_URL / SUPABASE_KEY not set")
+    # In Supabase python client, you can specify schema in ClientOptions
+    from supabase.client import ClientOptions
+    return create_client(url, key, options=ClientOptions(schema="demand"))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler = None
+    if os.environ.get("DEMAND_INGEST_CRON") == "1":
+        from demand.scripts.run_ingest import run_chain
+        scheduler = AsyncIOScheduler()
+        # Run daily
+
+        async def run_chain_async():
+            await asyncio.to_thread(run_chain, provider_name="trendspy", dry_run=False)
+
+        scheduler.add_job(run_chain_async, 'cron', hour=0, minute=0)
+        scheduler.start()
+        print("Started DEMAND_INGEST_CRON daily job")
+
+    yield
+
+    if scheduler:
+        scheduler.shutdown()
+        print("Stopped DEMAND_INGEST_CRON daily job")
+
+
+app = FastAPI(title="Demand API", lifespan=lifespan)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"^https?://localhost:5173$|^https://.*\.netlify\.app$",
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
+
+# ---------------------------------------------------------------------------
+# Guarded plumbing. Everything that can touch Supabase goes through _fetch.
+# ---------------------------------------------------------------------------
+
+async def _fetch(build_query) -> List[dict]:
+    """Build and run one Supabase read; any failure is a clean 502.
+
+    `build_query` is a zero-argument callable, not a built query, because
+    **client construction and query construction are part of the failure
+    surface**. `get_client()` raises on a missing `SUPABASE_URL`/`SUPABASE_KEY`
+    — the single most likely production failure — and `client.schema(...)` /
+    `client.table(...)` can raise too. Before W1-FIX-F those calls sat
+    outside the try/except and a misconfigured environment produced a raw
+    500 with a stack trace on every route. Pass the whole chain in as a
+    thunk and there is nowhere for that to hide.
+    """
+    def _work():
+        return build_query().execute()
+
+    try:
+        response = await asyncio.to_thread(_work)
+    except Exception:
+        # str(e) is NOT interpolated into the response: this API is public.
+        logger.exception("Supabase read failed")
+        raise HTTPException(status_code=502, detail=DB_FAILURE_DETAIL)
+    return getattr(response, "data", None) or []
+
+
+def _validate_response(instance: Any, schema: dict, contract: str) -> None:
+    """Validate an outgoing payload, or fail with a described 5xx.
+
+    Mirrors `reachout/api/server.py`'s pattern: a payload that fails its own
+    contract is a server-side fault, reported as such, never leaked as a
+    stack trace and never served anyway. The DB has no CHECK constraints on
+    `direction`, `confidence`, `interest_avg` or `rank`, so a row that
+    violates the contract is reachable in production, not hypothetical.
+    """
+    try:
+        validate_with_formats(instance, schema)
+    except jsonschema.ValidationError:
+        logger.exception("Payload failed the %s contract", contract)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Response failed the {contract} contract",
+        )
+
+
+def _require_uuid(value: Any, field: str) -> str:
+    """4xx on a malformed id, without echoing it back.
+
+    Checked against `UUID_SCHEMA` through the format-enforcing helper, i.e.
+    exactly the check the response body is held to. The rejected value is
+    never reflected into the detail: `?store_id=<script>` used to come back
+    200 with the script tag in a body this module called schema-validated.
+    """
+    try:
+        validate_with_formats(value, UUID_SCHEMA)
+    except jsonschema.ValidationError:
+        raise HTTPException(status_code=422, detail=f"{field} must be a UUID")
+    return value
+
+
+def _as_number(value: Any) -> Optional[float]:
+    """Coerce a PostgREST `numeric` to float, or None if it is not one.
+
+    None rather than a substituted default: a value we could not read is not
+    a zero, and the schema will reject the None loudly instead of us quietly
+    inventing a number.
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_int(value: Any) -> Optional[int]:
+    number = _as_number(value)
+    if number is None or number != int(number):
+        return None
+    return int(number)
+
+
+# ---------------------------------------------------------------------------
+# Confidence. Derived, never asserted.
+# ---------------------------------------------------------------------------
+
+def _weakest_confidence(rows: List[dict]) -> str:
+    """The weakest label carried by the rows a segment was computed from.
+
+    THE rule for any segment whose inputs carry their own deterministic
+    confidence (`demand_signals.confidence`, set by `compute_signals.py`):
+    a segment is exactly as trustworthy as its least trustworthy input.
+
+    Written down here because the alternative is what this endpoint used to
+    do — hardcode `"high"` — while every contributing row said `low`.
+    Confidence is the honesty label on a number; asserting one is worse than
+    shipping no label at all.
+
+    No rows, or any row whose label is missing or outside the enum, yields
+    `low`: an unlabelled input cannot raise a segment's confidence.
+    """
+    if not rows:
+        return "low"
+    labels = [row.get("confidence") for row in rows]
+    if any(label not in CONFIDENCE_ORDER for label in labels):
+        return "low"
+    return min(labels, key=CONFIDENCE_ORDER.index)
+
+
+def _census_confidence(row_count: int, cap: int) -> str:
+    """Confidence for a segment computed by counting rows we actually read.
+
+    `category_mix` and `stock_out_risk` come from `public.products`, which
+    carries no confidence column of its own — the numbers are a census, not
+    an inference. So the only thing that can make them untrustworthy is not
+    having seen the whole population:
+
+    - read complete (fewer rows came back than the cap) -> `high`: every row
+      in scope was counted, the shares are exact.
+    - read truncated (the cap was reached) -> `low`: the shares describe a
+      prefix of the table, not the table, and we cannot tell how wrong they
+      are.
+
+    Deliberately conservative at the boundary: a read that returns exactly
+    `cap` rows is treated as truncated even when it happens to be complete.
+    There is no `medium` here because there is no third thing to say.
+    """
+    return "high" if row_count < cap else "low"
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+@app.get("/demand/api/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.get("/demand/api/trends")
+async def get_trends(
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+):
+    """Newest captures first, bounded. Never the whole table."""
+    data = await _fetch(
+        lambda: get_client()
+        .table("trend_snapshots")
+        .select(TREND_COLUMNS)
+        .order("captured_at", desc=True)
+        .limit(limit)
+    )
+
+    for item in data:
+        _validate_response(item, TREND_SCHEMA, "trend_snapshot")
+
+    return data
+
+
+@app.get("/demand/api/signals")
+async def get_signals(
+    window: Optional[str] = None,
+    direction: Optional[str] = None,
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+):
+    """Signals ordered by `rank` (best first), bounded."""
+    def _build():
+        query = (
+            get_client()
+            .table("demand_signals")
+            .select(SIGNAL_COLUMNS)
+        )
+        if window:
+            query = query.eq("window_start", window)
+        if direction:
+            query = query.eq("direction", direction)
+        return query.order("rank").limit(limit)
+
+    data = await _fetch(_build)
+
+    for item in data:
+        _validate_response(item, SIGNAL_SCHEMA, "demand_signal")
+
+    return data
+
+
+@app.get("/demand/api/recommendations")
+async def get_recommendations(
+    store_id: str = Query(..., description="Required. Must be a uuid."),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+):
+    """Recommendations for one store, newest first, bounded.
+
+    `store_id` is REQUIRED. `recommendations_response.schema.json` requires
+    it and is a DO-NOT-MODIFY contract, so the endpoint requires it too. The
+    previous behaviour — fabricating
+    `00000000-0000-0000-0000-000000000000` to get past the validator — put a
+    store that does not exist into a response body to satisfy a contract
+    check. Inventing data to pass validation is the failure the validator is
+    there to catch.
+    """
+    _require_uuid(store_id, "store_id")
+
+    data = await _fetch(
+        lambda: get_client()
+        .table("recommendations")
+        .select(RECOMMENDATION_COLUMNS)
+        .eq("store_id", store_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+    )
+
+    response_data = {"store_id": store_id, "recommendations": data}
+    _validate_response(response_data, REC_RESPONSE_SCHEMA, "recommendations_response")
+    return response_data
+
+
+def _top_movers_points(signals: List[dict]) -> List[dict]:
+    """One point per keyword, best rank first, bounded.
+
+    The live path used to emit one point per signal ROW, so three weekly
+    windows for `cerveza` produced three `cerveza` points, unsorted and
+    unlimited — a different shape from the committed fixture the frontend
+    builds against, which defeats the entire point of shipping a fixture
+    first.
+
+    Deduplication rule, fully deterministic so the same table always yields
+    the same chart: order by `rank` ascending (dense rank within window, so
+    lowest is strongest), ties broken by the most recent `window_end`, then
+    by keyword alphabetically. Keep the first row seen per keyword.
+    """
+    def _rank_key(row):
+        rank = _as_number(row.get("rank"))
+        # An unrankable row sorts last rather than crashing the comparison.
+        return rank if rank is not None else float("inf")
+
+    # Three stable sorts, weakest key first: the result is rank asc, then
+    # window_end desc, then keyword asc.
+    ordered = sorted(signals, key=lambda row: str(row.get("keyword") or ""))
+    ordered.sort(key=lambda row: str(row.get("window_end") or ""), reverse=True)
+    ordered.sort(key=_rank_key)
+
+    seen = set()
+    points = []
+    for row in ordered:
+        keyword = row.get("keyword")
+        if keyword in seen:
+            continue
+        seen.add(keyword)
+        points.append(
+            {
+                # .get() throughout: a row missing `keyword` used to be a
+                # raw 500. Now it becomes a null the contract rejects with a
+                # described error.
+                "keyword": row.get("keyword"),
+                "category": row.get("category"),
+                "interest_avg": _as_number(row.get("interest_avg")),
+                "delta_pct": _as_number(row.get("delta_pct")),
+                "direction": row.get("direction"),
+            }
+        )
+        if len(points) >= TOP_MOVERS_MAX_POINTS:
+            break
+    return points
+
+
+def _contributing_signal_rows(signals: List[dict], points: List[dict]) -> List[dict]:
+    """The rows the returned points were actually built from.
+
+    Confidence is derived from these and only these — not from rows that
+    were read and then dropped by the per-keyword dedupe or the point cap.
+    """
+    keywords = {point["keyword"] for point in points}
+    contributing = {}
+    for row in signals:
+        keyword = row.get("keyword")
+        if keyword in keywords and keyword not in contributing:
+            contributing[keyword] = row
+    return list(contributing.values())
+
+
+def _composition_points(products: List[dict]) -> List[dict]:
+    """`category_mix`: a census of the products actually read."""
+    categories = [
+        str(row.get("category")).strip()
+        for row in products
+        if row.get("category") and str(row.get("category")).strip()
+    ]
+    total = len(categories)
+    if total == 0:
+        return []
+    counts = Counter(categories)
+    return [
+        {
+            "category": category,
+            "share_pct": round((count / total) * 100, 2),
+            "product_count": count,
+        }
+        for category, count in sorted(counts.items())
+    ]
+
+
+def _stock_out_points(products: List[dict]) -> List[dict]:
+    """`stock_out_risk`, computed from `products.stock_qty`.
+
+    Before W1-FIX-F this was `at_risk = total // 2` over a query that never
+    selected `stock_qty` at all: every even-sized category reported exactly
+    50% risk, a number with no input. It is now a count of SKUs at or below
+    `STOCK_OUT_QTY_THRESHOLD`.
+
+    Two documented scoping decisions:
+
+    - **Every category in scope gets a point**, not only categories that
+      happen to carry a `rising` signal. Stock-out risk is a property of
+      stock; a point shape of `{category, at_risk_count, total_count,
+      risk_pct}` has no field in which to disclose "…among rising
+      categories", so a hidden filter would silently drop the categories
+      whose shelves are emptiest.
+    - **A SKU with an unreadable `stock_qty` is excluded from BOTH counts**,
+      so `risk_pct` is always computed over the population it was measured
+      on. A category with no readable stock level at all is omitted: its
+      risk cannot be computed, so it is not reported. (`products.stock_qty`
+      is `not null` in `reachout/data/schema.sql`, so this is a guard, not
+      an expected path.)
+    """
+    totals: Dict[str, int] = Counter()
+    at_risk: Dict[str, int] = Counter()
+    for row in products:
+        category = row.get("category")
+        if not category or not str(category).strip():
+            continue
+        stock_qty = _as_int(row.get("stock_qty"))
+        if stock_qty is None:
+            continue
+        category = str(category).strip()
+        totals[category] += 1
+        if stock_qty <= STOCK_OUT_QTY_THRESHOLD:
+            at_risk[category] += 1
+
+    return [
+        {
+            "category": category,
+            "at_risk_count": at_risk.get(category, 0),
+            "total_count": total,
+            "risk_pct": round((at_risk.get(category, 0) / total) * 100, 2),
+        }
+        for category, total in sorted(totals.items())
+        if total > 0
+    ]
+
+
+@app.get("/demand/api/analytics")
+async def get_analytics(
+    store_id: Optional[str] = Query(
+        None,
+        description=(
+            "Optional uuid. Scopes the inventory-derived segments "
+            "(category_mix, stock_out_risk) to that store's products."
+        ),
+    ),
+    inventory_type: str = "convenience_store",
+):
+    """Three chart segments for the retail dashboard.
+
+    `store_id` is USED, not merely accepted: it filters `public.products`, so
+    `category_mix` and `stock_out_risk` describe that store's shelves. It
+    does not touch `top_movers` — `demand.demand_signals` has no store
+    dimension by design (search interest is ES-MD wide, per the caveat), and
+    pretending otherwise would be the same class of lie as the numbers this
+    fix removed. It is still not an authorization subject: no auth (D2).
+    """
+    if inventory_type != "convenience_store":
+        raise HTTPException(status_code=422, detail="Unsupported inventory_type")
+
+    if store_id is not None:
+        _require_uuid(store_id, "store_id")
+
+    source = os.environ.get("DEMAND_ANALYTICS_SOURCE", "fixture")
+
+    if source != "live":
+        # Fixture mode is store-agnostic by construction and says so in
+        # `generated_from`; it is a canned document, not this store's data.
+        with open(ANALYTICS_FIXTURE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        _validate_response(data, ANALYTICS_SCHEMA, "analytics_response")
+        return data
+
+    signals = await _fetch(
+        lambda: get_client()
+        .table("demand_signals")
+        .select(ANALYTICS_SIGNAL_COLUMNS)
+        .order("rank")
+        .limit(ANALYTICS_SIGNALS_CAP)
+    )
+
+    def _products_query():
+        query = (
+            get_client()
+            .schema("public")
+            .table("products")
+            .select(ANALYTICS_PRODUCT_COLUMNS)
+        )
+        if store_id:
+            query = query.eq("store_id", store_id)
+        return query.order("category").limit(ANALYTICS_PRODUCTS_CAP)
+
+    products = await _fetch(_products_query)
+
+    top_movers_points = _top_movers_points(signals)
+    contributing = _contributing_signal_rows(signals, top_movers_points)
+    census = _census_confidence(len(products), ANALYTICS_PRODUCTS_CAP)
+
+    response_data = {
+        "inventory_type": "convenience_store",
+        "generated_from": "live",
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "caveat": CANONICAL_CAVEAT,
+        "segments": {
+            "top_movers": {
+                "confidence": _weakest_confidence(contributing),
+                "points": top_movers_points,
+            },
+            "category_mix": {
+                "confidence": census,
+                "points": _composition_points(products),
+            },
+            "stock_out_risk": {
+                "confidence": census,
+                "points": _stock_out_points(products),
+            },
+        },
+    }
+
+    _validate_response(response_data, ANALYTICS_SCHEMA, "analytics_response")
+    return response_data
