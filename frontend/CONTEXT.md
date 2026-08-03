@@ -14,7 +14,7 @@ U4, U5 and U7 follow.
 
 | Route | File | Reads | Renders |
 |-------|------|-------|---------|
-| `/` | `src/routes/search.tsx` | — | Entry hero: barrio autocomplete + geolocation + bilingual search |
+| `/` | `src/routes/search.tsx` | — | Entry hero: barrio autocomplete + geolocation + bilingual search, then the picks rail (U4) |
 | `/results` | `src/routes/results.tsx` | `?q=&near=\|lat,lng&radius=&lang=` | Split view: ranked shop cards left, MapLibre map right, ping animation |
 
 `main.tsx` mounts exactly these two routes inside `BrowserRouter` — no
@@ -46,8 +46,11 @@ disagree with the address bar.
 | `BarrioCombobox` | `src/components/consumer/BarrioCombobox.tsx` | Neighbourhood autocomplete over the generated Madrid gazetteer |
 | `ResultsPanel` | `src/components/consumer/ResultsPanel.tsx` | Ranked card list: filters, sort, pagination, skeleton/error/empty states |
 | `ChatPanel` | `src/components/ChatPanel.tsx` | The one chat UI, in two presentations. `variant="overlay"` (default) is the consumer slide-over, lazy-loaded from `routes/results.tsx`; `variant="pane"` is retail mode's permanent left column — no scrim, no dialog role, no Escape handler |
+| `PicksRail` | `src/components/consumer/PicksRail.tsx` | Landing-page rail off `GET /api/picks`. Renders **nothing at all** while loading, on error, or when the list is empty — it is a decoration beside a search box that still works |
 | `RetailView` | `src/components/retail/RetailView.tsx` | Everything behind `?mode=retail`: chat left, dashboard right |
 | `RetailChatPane` | `src/components/retail/RetailChatPane.tsx` | The retail column. Same mock engine, a **sample** shop context, and an always-visible notice saying so |
+| `RetailDashboard` | `src/components/retail/RetailDashboard.tsx` | One `fetchAnalytics()` feeding three charts; labels a `generated_from: "fixture"` response as practice data |
+| `charts/` | `src/components/retail/charts/` | `EChart` (the only ECharts import), pure `options.ts` builders, and the `ChartPanel` frame that always shows chip + caveat. Has its own README — read it first |
 | `chat/shopkeeper.ts` | `src/chat/shopkeeper.ts` | Chat message types (SHARED_CONTRACT shapes) + a **mock** reply engine — answers only from real result data, never invents inventory; swaps for a real `POST /api/chat` call in one function body when that endpoint ships |
 
 `src/map/map-layers.ts` and `src/map/geojson-source.ts` are pure GeoJSON
@@ -63,6 +66,8 @@ All server access goes through `src/api/client.ts`. No component calls
 | `fetchRankedShops` | `GET /api/search?q&near\|lat,lng&radius` | `RankedShops` |
 | `fetchShopsGeoJSON` | `GET /api/search.geojson?…same params…` | `ShopMapGeoJSON` |
 | `fetchAllShops` | `GET /api/shops.geojson` | `ShopsGeoJSON` |
+| `fetchPicks` | `GET /api/picks?neighbourhood=` | `PicksResponse` |
+| `fetchAnalytics` | `GET /demand/api/analytics?inventory_type=&store_id=` (demand service, `VITE_DEMAND_API_BASE`) | `AnalyticsResponse` |
 
 These all target the pipeline's `GET /api/search` family in
 `reachout/api/server.py` (decision S6) — not the Supabase `POST

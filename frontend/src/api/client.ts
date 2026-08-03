@@ -4,6 +4,7 @@
  * that, using ApiError.status to skip retrying permanent 4xx), no visuals.
  */
 import type { AnalyticsResponse } from "../types/AnalyticsResponse";
+import type { PicksResponse } from "../types/PicksResponse";
 import type { RankedShops } from "../types/RankedShops";
 import type { ShopMapGeoJSON } from "../types/MapGeojson";
 import type { ShopsGeoJSON } from "../types/ShopsGeojson";
@@ -54,6 +55,21 @@ export async function fetchShopsGeoJSON(params: SearchParams): Promise<ShopMapGe
 export async function fetchAllShops(): Promise<ShopsGeoJSON> {
   const res = await fetch(`${API_BASE}/api/shops.geojson`);
   if (!res.ok) throw new ApiError(`GET /api/shops.geojson failed: ${res.status}`, res.status);
+  return res.json();
+}
+
+/**
+ * The consumer landing page's "picks for you" rail (U4). `generated_by` is a
+ * const `"deterministic"` in the schema — these are ranked by store rating
+ * and round-robined across categories in pure Python, not recommended by a
+ * model, and nothing in the UI may imply otherwise.
+ */
+export async function fetchPicks(neighbourhood?: string | null): Promise<PicksResponse> {
+  const usp = new URLSearchParams();
+  if (neighbourhood) usp.set("neighbourhood", neighbourhood);
+  const qs = usp.toString();
+  const res = await fetch(`${API_BASE}/api/picks${qs ? `?${qs}` : ""}`);
+  if (!res.ok) throw new ApiError(`GET /api/picks failed: ${res.status}`, res.status);
   return res.json();
 }
 

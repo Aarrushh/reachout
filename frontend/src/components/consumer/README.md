@@ -11,9 +11,19 @@ search entry, results list, the map, shop cards, the picks rail (U4).
 needed by both halves it stays in `components/` proper and is imported by
 each; it does not get copied into both trees.
 
-Here now, unchanged: `SearchInput`, `BarrioCombobox`, `TopBar`,
-`ResultsPanel`, `ShopCard`, `MapPanel`, `MapOverlay`, plus the two
-stylesheets only these screens import — `entry.css` and `results.css`.
+Here now: `SearchInput`, `BarrioCombobox`, `TopBar`, `ResultsPanel`,
+`ShopCard`, `MapPanel`, `MapOverlay` (all unchanged from U1), `PicksRail`
+(U4), plus the two stylesheets only these screens import — `entry.css` and
+`results.css`.
+
+**`PicksRail` disappears instead of complaining.** Loading, a failed fetch
+and an empty list all render `null` — no heading, no skeleton, no reserved
+space. It sits on the landing page beside the search box, and an error
+banner there would tell a shopper the site is broken while the thing they
+came for still works. Its heading is *"popular near you"*, not *"for you"*:
+`GET /api/picks` ranks by store rating and round-robins categories with no
+per-shopper signal at all (`generated_by: "deterministic"`), so copy
+implying personalisation would be a claim the backend cannot support.
 
 `ChatPanel.tsx` and `chat.css` stayed in `components/` proper on purpose:
 retail mode reuses that exact component from U2, and a component both halves

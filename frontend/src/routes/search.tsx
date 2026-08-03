@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import { fetchAllShops } from "../api/client";
 import BarrioCombobox from "../components/consumer/BarrioCombobox";
+import PicksRail from "../components/consumer/PicksRail";
 import SearchInput from "../components/consumer/SearchInput";
 import { CATEGORY_ICONS } from "../components/consumer/ShopCard";
 import { CATEGORIES } from "../components/consumer/TopBar";
@@ -71,6 +72,19 @@ export default function SearchRoute() {
     navigate(`/results?${params.toString()}`);
   }
 
+  // A pick is a shortcut into the same search the box performs, so it takes
+  // the same location guard: results are ranked by distance, and there is no
+  // sensible ranking from nowhere.
+  function goPick(productName: string) {
+    if (!loc) {
+      setNeedLocation(true);
+      return;
+    }
+    const params = locParams(loc);
+    params.set("q", productName);
+    navigate(`/results?${params.toString()}`);
+  }
+
   function useMyLocation() {
     setLocating(true);
     setGeoError(false);
@@ -124,6 +138,11 @@ export default function SearchRoute() {
           {needLocation && !loc && <p className="entry-geo-error">{t(lang, "entry.needLocation")}</p>}
         </div>
       </header>
+      <PicksRail
+        lang={lang}
+        neighbourhood={loc?.kind === "barrio" ? loc.name : null}
+        onSelect={goPick}
+      />
       <section className="entry-cats">
         <h2>{t(lang, "landing.categoriesTitle")}</h2>
         <div className="cat-tiles">
