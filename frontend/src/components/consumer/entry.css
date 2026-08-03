@@ -145,3 +145,14 @@
   margin-top: auto; font-size: 15px; font-weight: 500; color: var(--price-red);
 }
 .pick-card__stock { font-size: 11px; color: var(--sand-dim); }
+
+/* U5: the install button, rendered only once the browser offers a prompt. */
+.entry-actions {
+  position: absolute; top: 14px; left: 16px; z-index: 2;
+}
+.install-prompt {
+  background: rgba(255, 255, 255, 0.1); color: var(--ink-900);
+  border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 999px;
+  padding: 6px 12px; font-size: 12px; cursor: pointer;
+}
+.install-prompt:hover { background: rgba(255, 255, 255, 0.2); }

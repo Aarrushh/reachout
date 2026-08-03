@@ -50,6 +50,19 @@ If the frontend ever "needs" a field that isn't in a schema, the schema
 changes first, backend second, generated types third — never a frontend-side
 invention.
 
+## PWA (U5) — consumer routes only
+
+`public/sw.js` is hand-written, with no plugin and no build step. Its one
+non-negotiable rule: **the offline cache holds the consumer app and nothing
+else.** Anything at `?mode=retail`, and every request to the demand service,
+bypasses the cache entirely — served from the network or failed honestly.
+A cached dashboard would show yesterday's demand figures with nothing on
+screen saying they were stale.
+
+`src/pwa/sw.test.ts` evaluates that shipped file itself rather than a copy of
+its logic, so the assertions hold for the artefact that reaches a phone.
+`manifest.webmanifest` has `start_url: "/"` — never a retail URL.
+
 ## Generated files — never hand-edited
 
 - `src/types/*.d.ts` — from **both** `reachout/shared/schemas/` and
@@ -74,7 +87,10 @@ src/
 ├── chat/shopkeeper.ts       chat types (SHARED_CONTRACT shapes) + mock reply
 │                            engine — swaps for POST /api/chat when it ships
 ├── map/map-layers.ts        pure GeoJSON builders (unit-tested, no maplibre)
-├── components/              entry + results UI, MapPanel (all maplibre code)
+├── pwa/register.ts          service-worker registration (U5)
+├── shell/                   AppShell + the ?mode= toggle (U0)
+├── components/consumer/     entry + results UI, MapPanel, PicksRail, InstallPrompt
+├── components/retail/       RetailView, chat pane, dashboard, charts/ (ECharts only here)
 └── routes/                  search.tsx (entry), results.tsx (split view)
 ```
 
@@ -88,4 +104,6 @@ npm run gen-types    # regenerate src/types from backend schemas
 npm run gen-barrios  # regenerate src/data/barrios.ts from the gazetteer
 ```
 
-`VITE_API_BASE` (`.env`, default `http://localhost:8000`) points at the API.
+`VITE_API_BASE` (`.env`, default `http://localhost:8000`) points at the
+shopper API; `VITE_DEMAND_API_BASE` (default `http://localhost:8001`) points
+at the demand service.

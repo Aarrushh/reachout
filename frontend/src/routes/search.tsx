@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import { fetchAllShops } from "../api/client";
 import BarrioCombobox from "../components/consumer/BarrioCombobox";
+import InstallPrompt from "../components/consumer/InstallPrompt";
 import PicksRail from "../components/consumer/PicksRail";
 import SearchInput from "../components/consumer/SearchInput";
 import { CATEGORY_ICONS } from "../components/consumer/ShopCard";
@@ -117,6 +118,9 @@ export default function SearchRoute() {
             })}
           </svg>
         )}
+        <div className="entry-actions">
+          <InstallPrompt lang={lang} />
+        </div>
         <div className="entry-lang microcaps">
           <button className={lang === "es" ? "on" : ""} onClick={() => setLang("es")}>ES</button>
           <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>

@@ -4,11 +4,11 @@ This is a routing table, not a tutorial. It says what exists **today** and
 draws a hard line under what is still **planned**. If a doc elsewhere
 disagrees with this file, trust this file — it is kept honest on purpose.
 
-**U0, U1, U2, U6 and U3 have landed.** The shell and the mode toggle exist, the
+**U0–U6 have all landed.** The shell and the mode toggle exist, the
 consumer surface lives under `src/components/consumer/`, and retail mode
 renders a real two-column view with a working chat pane and the deliberately
 dead AI button, and U3's three charts draw the demand service's numbers.
-U4, U5 and U7 follow.
+U4's picks rail and U5's PWA have landed too. Only U7 is left.
 
 ## Routes — today
 
@@ -46,6 +46,7 @@ disagree with the address bar.
 | `BarrioCombobox` | `src/components/consumer/BarrioCombobox.tsx` | Neighbourhood autocomplete over the generated Madrid gazetteer |
 | `ResultsPanel` | `src/components/consumer/ResultsPanel.tsx` | Ranked card list: filters, sort, pagination, skeleton/error/empty states |
 | `ChatPanel` | `src/components/ChatPanel.tsx` | The one chat UI, in two presentations. `variant="overlay"` (default) is the consumer slide-over, lazy-loaded from `routes/results.tsx`; `variant="pane"` is retail mode's permanent left column — no scrim, no dialog role, no Escape handler |
+| `InstallPrompt` | `src/components/consumer/InstallPrompt.tsx` | The PWA install button (U5). Absent until the browser fires `beforeinstallprompt`; consumer mode only |
 | `PicksRail` | `src/components/consumer/PicksRail.tsx` | Landing-page rail off `GET /api/picks`. Renders **nothing at all** while loading, on error, or when the list is empty — it is a decoration beside a search box that still works |
 | `RetailView` | `src/components/retail/RetailView.tsx` | Everything behind `?mode=retail`: chat left, dashboard right |
 | `RetailChatPane` | `src/components/retail/RetailChatPane.tsx` | The retail column. Same mock engine, a **sample** shop context, and an always-visible notice saying so |
@@ -85,12 +86,12 @@ Query retry predicate can skip retrying 4xx responses.
 Edit the schema or the gazetteer, then regenerate — never edit the
 generated output by hand.
 
-## PLANNED — the rest of the consumer/retail split (U4 onward)
+## PLANNED — what is left (U7)
 
 `src/components/consumer/` is populated (U1) and `src/components/retail/`
 holds `RetailView`, `RetailChatPane` (U2), `AiAnalystButton` (U6) and
-`RetailDashboard` + `charts/` (U3). Retail mode is complete; U4, U5 and U7
-are consumer-side or cross-cutting.
+`RetailDashboard` + `charts/` (U3). Every UI task except **U7** — driving the
+whole thing in a real browser — is done.
 
 **What deliberately stayed in `components/` proper:** `ChatPanel.tsx` and
 `chat.css`. Both halves use it — consumer's "ask the shop" slide-over today,

@@ -25,6 +25,14 @@ came for still works. Its heading is *"popular near you"*, not *"for you"*:
 per-shopper signal at all (`generated_by: "deterministic"`), so copy
 implying personalisation would be a claim the backend cannot support.
 
+**`InstallPrompt` (U5) is consumer-only, and that is a rule, not a layout
+choice.** It renders `null` until the browser fires `beforeinstallprompt`,
+because without that event there is no prompt to open and the button would do
+nothing when pressed. Retail mode never mounts it: an offline-capable shell
+installed around a shopkeeper's dashboard is the exact outcome U5 exists to
+prevent. The cache rule itself lives in `public/sw.js`, which is the only
+place it can be enforced — see that file's header.
+
 `ChatPanel.tsx` and `chat.css` stayed in `components/` proper on purpose:
 retail mode reuses that exact component from U2, and a component both halves
 need belongs to neither tree.

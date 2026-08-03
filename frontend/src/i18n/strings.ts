@@ -57,6 +57,7 @@ const STRINGS = {
   "landing.how2":          { es: "Las tiendas cercanas reciben un ping al instante", en: "Nearby shops get pinged instantly" },
   "landing.how3":          { es: "Elige por distancia, precio y stock real", en: "Choose by distance, price and live stock" },
   "landing.categoriesTitle": { es: "Compra por categoría", en: "Shop by category" },
+  "pwa.install":           { es: "Instalar la app", en: "Install the app" },
   "picks.title":           { es: "Populares cerca de ti", en: "Popular near you" },
   "picks.note":            { es: "Elegidos por valoración de la tienda y variedad de categoría, no por tu historial.", en: "Chosen by shop rating and category variety, not by your history." },
   "chat.ask":              { es: "Preguntar a la tienda", en: "Ask the shop" },

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ReachOut">
+  <rect width="512" height="512" fill="#131921"/>
+  <circle cx="256" cy="256" r="34" fill="#ff9900"/>
+  <circle cx="256" cy="256" r="76" fill="none" stroke="#ff9900" stroke-width="12" opacity="0.7"/>
+  <circle cx="256" cy="256" r="118" fill="none" stroke="#ff9900" stroke-width="10" opacity="0.4"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#ff9900" stroke-width="8" opacity="0.2"/>
+</svg>

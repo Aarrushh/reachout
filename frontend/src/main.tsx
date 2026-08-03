@@ -15,6 +15,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "./api/client";
 import SearchRoute from "./routes/search";
 import ResultsRoute from "./routes/results";
+import { registerServiceWorker } from "./pwa/register";
 import AppShell from "./shell/AppShell";
 
 // A 4xx is permanent (bad query, bad params) — retrying only delays the
@@ -45,3 +46,5 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+registerServiceWorker();

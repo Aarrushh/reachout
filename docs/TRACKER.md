@@ -3,9 +3,9 @@
 **Last updated:** 2026-08-04 (both lanes merged; **all work is on `main`**)
 **Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
 only thing left that nobody is blocked on.
-**Progress:** 28 of 33 tasks done.
-**Next action:** **U5** (the PWA, consumer routes only), then **U7** drives
-the whole thing in a real browser.
+**Progress:** 29 of 33 tasks done.
+**Next action:** **U7** — drive the whole thing in a real browser. Every
+other UI task is done.
 
 **The dashboard is showing practice data, and says so.** The demand service
 answers with `generated_from: "fixture"` until a live ingest lands (V1a is
@@ -187,7 +187,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 |---|---|---|---|---|---|
 | **T75** | TASK 75 — the one command that runs the whole chain end to end, safe to run twice. Ticks `DEMAND_API_READY`. | Jules | T73, T74, T77, M4 | V1a | `[x] 2026-08-02` |
 | **U4** | The "picks for you" rail in consumer mode. | Claude | T76, U1 | U7 | `[x] 2026-08-04` |
-| **U5** | Make the app installable and work offline — **consumer screens only.** The offline cache must never hold the retail dashboard. | Claude | U0, U1 | U7 | `[ ]` |
+| **U5** | Make the app installable and work offline — **consumer screens only.** The offline cache must never hold the retail dashboard. | Claude | U0, U1 | U7 | `[x] 2026-08-04` |
 | **U7** | Drive the whole thing in a real browser: consumer flow on a phone-sized screen, retail flow via `?mode=retail`, and check every caveat caption is visible without hovering. | Claude | U3, U4, U5 | V1b, H1 | `[ ]` |
 
 ### Wave 6–7 — live verify and housekeeping
