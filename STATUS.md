@@ -641,3 +641,17 @@ Supabase project and Gemini key before writing any code:
   weekly windows): running it produced 49 empty-series snapshots, which were
   deleted rather than left in the table. Retry `--provider trendspy` once the
   throttle clears.
+- [x] UI chain U0–U7 complete (2026-08-04). One shell with a `?mode=retail`
+      toggle; consumer search/map re-homed under `components/consumer/`;
+      retail mode has the reused chat pane, the deliberately dead AI button
+      and three ECharts panels off `GET /demand/api/analytics`; a picks rail
+      on the landing page off `GET /api/picks`; and a consumer-only PWA whose
+      service worker never caches `?mode=retail` or the demand service.
+      U7 drove the production build in Chrome via Playwright against both
+      live APIs: **25/25 checks**. Counts: frontend 79, demand 158,
+      shopper 273.
+      The dashboard currently draws **fixture** data and says so on screen —
+      `generated_from: "fixture"` renders a labelled practice-data banner,
+      because fixture and live responses are byte-identical in shape. That
+      banner disappears on its own when V1a's live ingest lands; nothing
+      needs editing. V1b cannot close until then.

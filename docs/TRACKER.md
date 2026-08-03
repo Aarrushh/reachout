@@ -3,9 +3,39 @@
 **Last updated:** 2026-08-04 (both lanes merged; **all work is on `main`**)
 **Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
 only thing left that nobody is blocked on.
-**Progress:** 29 of 33 tasks done.
-**Next action:** **U7** — drive the whole thing in a real browser. Every
-other UI task is done.
+**Progress:** 30 of 33 tasks done. **The whole UI chain U0–U7 is finished.**
+**Next action:** **H1** (housekeeping) is runnable now. **V1b** — confirming
+the dashboard draws real ingested numbers — stays blocked behind V1a, which
+is blocked on Google's throttling and nothing we can code around.
+
+**U7 drove the real production build in a real browser and passed 25 of 25
+checks** (Chrome, Playwright, both APIs live). Test counts at that point:
+frontend **79**, demand **158**, shopper **273**.
+
+**Three things U7 found that no test could have.** All are recorded because
+each would have bitten the next person, not just this session:
+
+1. **The results screen was unusable at 375px.** The top bar was one
+   non-wrapping flex row, so the search field was crushed to a sliver and the
+   radius slider and language toggle sat off-screen with no way to reach
+   them — the page does not scroll sideways, so they were simply gone. And
+   `align-items: flex-start`, correct for the two-column desktop layout,
+   means "size to content" once the direction flips to a column, so shop
+   cards rendered **729px wide inside a 375px viewport**. Both fixed in the
+   U7 commit; the fixes wrap rather than hide, because dropping controls on a
+   phone would make the phone build quietly less capable than the desktop one.
+2. **`reachout/data/reachout.db` existed with zero tables**, and
+   `_ensure_db_ready` only calls `init_db` when the file is *absent* — so
+   every search returned 500 `no such table: shops` and would have on any
+   fresh checkout. Bootstrapped offline from the committed cache: 3328 shops,
+   24 regions. The repair recipe is now in the `verify` skill.
+3. **The `verify` skill was wrong in four places** — it named Edge (not
+   installed here; Chrome is), `python` (system `python3` is 3.9 and cannot
+   parse the code — use `.venv/bin/python`), `npm run dev` (the service
+   worker is skipped under `DEV`, so the PWA can only be verified against
+   `vite preview`), and "93 tests" for a suite that is now 273 and fails
+   collection unless run from `reachout/` with the repo root on `PYTHONPATH`.
+   All four corrected in the same commit.
 
 **The dashboard is showing practice data, and says so.** The demand service
 answers with `generated_from: "fixture"` until a live ingest lands (V1a is
@@ -188,7 +218,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 | **T75** | TASK 75 — the one command that runs the whole chain end to end, safe to run twice. Ticks `DEMAND_API_READY`. | Jules | T73, T74, T77, M4 | V1a | `[x] 2026-08-02` |
 | **U4** | The "picks for you" rail in consumer mode. | Claude | T76, U1 | U7 | `[x] 2026-08-04` |
 | **U5** | Make the app installable and work offline — **consumer screens only.** The offline cache must never hold the retail dashboard. | Claude | U0, U1 | U7 | `[x] 2026-08-04` |
-| **U7** | Drive the whole thing in a real browser: consumer flow on a phone-sized screen, retail flow via `?mode=retail`, and check every caveat caption is visible without hovering. | Claude | U3, U4, U5 | V1b, H1 | `[ ]` |
+| **U7** | Drive the whole thing in a real browser: consumer flow on a phone-sized screen, retail flow via `?mode=retail`, and check every caveat caption is visible without hovering. | Claude | U3, U4, U5 | V1b, H1 | `[x] 2026-08-04` |
 
 ### Wave 6–7 — live verify and housekeeping
 

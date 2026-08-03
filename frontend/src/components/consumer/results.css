@@ -134,7 +134,14 @@
 .pagination button:disabled { color: var(--sand-dim); cursor: default; }
 .pagination button.current { border-color: var(--sand); color: var(--sand); font-weight: 600; }
 @media (max-width: 1200px) {
-  .results-body { flex-direction: column; }
+  /* `align-items: flex-start` is right for the two-column desktop layout —
+   * it stops the filter rail stretching to the height of the card list. Once
+   * the direction flips to a column it means something else entirely: each
+   * child is sized to its CONTENT width instead of the viewport's, so at
+   * 375px the cards rendered 729px wide and had to be scrolled sideways to
+   * be read. Stretch is what a stacked layout wants. */
+  .results-body { flex-direction: column; align-items: stretch; }
+  .card-column { min-width: 0; }
   .filter-rail { position: static; width: 100%; display: flex; gap: 16px; align-items: center; }
   .filter-cats { display: flex; gap: 10px; flex-wrap: wrap; }
   .filter-stock { margin: 0; border: none; padding: 3px 0; }
@@ -265,3 +272,48 @@
 }
 .shop-popup .maplibregl-popup-tip { border-top-color: var(--ink-700); }
 .shop-popup .mono { color: var(--gold); font-family: var(--font-mono); font-size: 12px; }
+
+/* ================= PHONE (U7 finding, 2026-08-04) =================
+ * At 375px the results top bar was a single non-wrapping flex row, so the
+ * search field was crushed to a sliver and the radius slider and language
+ * toggle sat off-screen with no way to reach them — the page itself does not
+ * scroll sideways, so they were simply gone. Found by driving the real build
+ * in a browser at phone size, not by any test.
+ *
+ * The fix wraps rather than hides. Dropping controls at narrow widths would
+ * make the phone build quietly less capable than the desktop one, and the
+ * radius slider is how a shopper widens a search that found nothing. */
+@media (max-width: 640px) {
+  .top-bar-main {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 8px 12px;
+  }
+  /* Search takes its own full-width row beneath the brand and location. */
+  .top-bar .search-wrap {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .deliver-to { flex: 1; }
+  .deliver-to-value { max-width: none; }
+  .radius-slider { order: 4; flex: 1; }
+  .radius-slider input { width: 100%; min-width: 80px; }
+  .lang-toggle { order: 5; }
+
+  .results-header { flex-wrap: wrap; }
+  .results-count { flex-basis: 100%; }
+  .sort-select { flex: 1; min-width: 0; }
+  .sort-select select { flex: 1; min-width: 0; }
+  .filter-rail { flex-wrap: wrap; }
+
+  /* `white-space: nowrap` + `overflow: hidden` keeps this row to one line on
+   * desktop. On a phone the line does not fit, and what gets clipped off the
+   * end is the DISTANCE — the single field a shopper opened a proximity app
+   * to read. Wrap it instead. */
+  .meta-row {
+    white-space: normal;
+    overflow: visible;
+  }
+}
