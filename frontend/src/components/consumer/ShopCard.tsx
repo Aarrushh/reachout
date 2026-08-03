@@ -1,7 +1,7 @@
-import { formatDistance, formatPrice } from "../lib/format";
-import { monoNums } from "../lib/monoNums";
-import { t, type Lang, type StringKey } from "../i18n/strings";
-import type { RankedResult } from "../routes/results";
+import { formatDistance, formatPrice } from "../../lib/format";
+import { monoNums } from "../../lib/monoNums";
+import { t, type Lang, type StringKey } from "../../i18n/strings";
+import type { RankedResult } from "../../routes/results";
 
 export const CATEGORY_ICONS: Record<string, string> = {
   pharmacy: "⚕", grocery: "⛁", hardware: "⚒", electronics: "⚡", stationery: "✎",

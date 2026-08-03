@@ -1,6 +1,6 @@
 import { type FormEvent } from "react";
 
-import { t, type Lang } from "../i18n/strings";
+import { t, type Lang } from "../../i18n/strings";
 
 interface Props {
   value: string;

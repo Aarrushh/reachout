@@ -3,13 +3,13 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 
 import MapOverlay from "./MapOverlay";
-import { BARRIOS } from "../data/barrios";
-import { pingLinesFC, radiusRingFC } from "../map/map-layers";
-import { formatDistance, formatPrice } from "../lib/format";
+import { BARRIOS } from "../../data/barrios";
+import { pingLinesFC, radiusRingFC } from "../../map/map-layers";
+import { formatDistance, formatPrice } from "../../lib/format";
 import { CATEGORY_ICONS } from "./ShopCard";
-import { t, type Lang } from "../i18n/strings";
-import type { ShopMapGeoJSON } from "../types/MapGeojson";
-import type { ShopsGeoJSON } from "../types/ShopsGeojson";
+import { t, type Lang } from "../../i18n/strings";
+import type { ShopMapGeoJSON } from "../../types/MapGeojson";
+import type { ShopsGeoJSON } from "../../types/ShopsGeojson";
 
 const STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 const MADRID: [number, number] = [-3.7038, 40.4168];

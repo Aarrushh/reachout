@@ -32,7 +32,7 @@
 /* The body scrolls; the bar does not.
  *
  * `display: flex` here is load-bearing, not decoration: `.results-screen`
- * (results.css:2) is `height: 100%`, and a percentage height needs a parent
+ * (consumer/results.css:2) is `height: 100%`, and a percentage height needs a parent
  * whose height is definite. Making the body a flex column gives its children
  * a resolved height, so the results split — and the map inside it — keeps the
  * full viewport minus the bar instead of collapsing to zero. */

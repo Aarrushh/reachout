@@ -4,8 +4,9 @@ This is a routing table, not a tutorial. It says what exists **today** and
 draws a hard line under what is still **planned**. If a doc elsewhere
 disagrees with this file, trust this file — it is kept honest on purpose.
 
-**U0 has landed.** The shell and the mode toggle exist; the two component
-trees are declared but still empty. U1 onward remain planned.
+**U0 and U1 have landed.** The shell and the mode toggle exist, and the
+consumer surface now lives under `src/components/consumer/`. U2 onward
+remain planned.
 
 ## Routes — today
 
@@ -36,12 +37,12 @@ disagree with the address bar.
 
 | Component | File | Role |
 |-----------|------|------|
-| `TopBar` | `src/components/TopBar.tsx` | Results-screen header: query recap, language switch |
-| `MapPanel` | `src/components/MapPanel.tsx` | All MapLibre code — the only file that touches the map instance |
-| `MapOverlay` | `src/components/MapOverlay.tsx` | Non-map UI drawn over the map (legend, controls) |
-| `ShopCard` | `src/components/ShopCard.tsx` | One ranked shop: rating, split price, stock badge, "Ask the shop" button |
-| `BarrioCombobox` | `src/components/BarrioCombobox.tsx` | Neighbourhood autocomplete over the generated Madrid gazetteer |
-| `ResultsPanel` | `src/components/ResultsPanel.tsx` | Ranked card list: filters, sort, pagination, skeleton/error/empty states |
+| `TopBar` | `src/components/consumer/TopBar.tsx` | Results-screen header: query recap, language switch |
+| `MapPanel` | `src/components/consumer/MapPanel.tsx` | All MapLibre code — the only file that touches the map instance |
+| `MapOverlay` | `src/components/consumer/MapOverlay.tsx` | Non-map UI drawn over the map (legend, controls) |
+| `ShopCard` | `src/components/consumer/ShopCard.tsx` | One ranked shop: rating, split price, stock badge, "Ask the shop" button |
+| `BarrioCombobox` | `src/components/consumer/BarrioCombobox.tsx` | Neighbourhood autocomplete over the generated Madrid gazetteer |
+| `ResultsPanel` | `src/components/consumer/ResultsPanel.tsx` | Ranked card list: filters, sort, pagination, skeleton/error/empty states |
 | `ChatPanel` | `src/components/ChatPanel.tsx` | Lazy-loaded slide-over "ask the shopkeeper" chat UI |
 | `chat/shopkeeper.ts` | `src/chat/shopkeeper.ts` | Chat message types (SHARED_CONTRACT shapes) + a **mock** reply engine — answers only from real result data, never invents inventory; swaps for a real `POST /api/chat` call in one function body when that endpoint ships |
 
@@ -75,17 +76,20 @@ Query retry predicate can skip retrying 4xx responses.
 Edit the schema or the gazetteer, then regenerate — never edit the
 generated output by hand.
 
-## PLANNED — the rest of the consumer/retail split (U1 onward)
+## PLANNED — the rest of the consumer/retail split (U2 onward)
 
-`src/components/consumer/` and `src/components/retail/` exist and are
-**empty** — each holds a README stating what belongs in it and nothing else.
-Every component listed under "today" is still in `components/` proper; U1 is
-what moves them.
+`src/components/consumer/` is populated (U1). `src/components/retail/` still
+holds only its README — U2, U3 and U6 fill it.
+
+**What deliberately stayed in `components/` proper:** `ChatPanel.tsx` and
+`chat.css`. Both halves use it — consumer's "ask the shop" slide-over today,
+retail's left pane from U2 — and a component two trees need belongs to
+neither. It is not copied into both.
 
 | Task | Adds | Status |
 |------|------|--------|
 | **U0** | `AppShell` wrapping both routes; top-right toggle reading `?mode=retail` (S2) — absent/unrecognised = consumer; mode derived from the URL only, no store, no context; creates the empty `components/consumer/` and `components/retail/` trees | ✅ **DONE 2026-08-03** |
-| **U1** | Re-homes the "today" components above under `components/consumer/`; fetchers stay on `api/client.ts` / `GET /api/search`; no behaviour change | PLANNED |
+| **U1** | Re-homes the "today" components above under `components/consumer/`; fetchers stay on `api/client.ts` / `GET /api/search`; no behaviour change | ✅ **DONE 2026-08-03** |
 | **U2** | Retail mode's chat pane — reuses `ChatPanel` + `chat/shopkeeper.ts` as-is, left pane of retail mode, still client-side mock, still no backend | PLANNED |
 | **U3** | Analytics dashboard: `echarts-for-react` (D9), three charts confined to `components/retail/charts/`, fed by a new `fetchAnalytics()` in `api/client.ts` against `GET /demand/api/analytics`; the frontend draws only, every rendered number is server-computed | PLANNED |
 | **U6** | Disabled "ask AI about my analytics" button — visible, `aria-disabled`, no handler, no fetcher | PLANNED |

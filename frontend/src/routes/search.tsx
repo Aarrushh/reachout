@@ -5,13 +5,13 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { fetchAllShops } from "../api/client";
-import BarrioCombobox from "../components/BarrioCombobox";
-import SearchInput from "../components/SearchInput";
-import { CATEGORY_ICONS } from "../components/ShopCard";
-import { CATEGORIES } from "../components/TopBar";
+import BarrioCombobox from "../components/consumer/BarrioCombobox";
+import SearchInput from "../components/consumer/SearchInput";
+import { CATEGORY_ICONS } from "../components/consumer/ShopCard";
+import { CATEGORIES } from "../components/consumer/TopBar";
 import { useLang } from "../hooks/useLang";
 import { t, type StringKey } from "../i18n/strings";
-import "../components/entry.css";
+import "../components/consumer/entry.css";
 
 type Loc = { kind: "barrio"; name: string } | { kind: "geo"; lat: number; lng: number };
 

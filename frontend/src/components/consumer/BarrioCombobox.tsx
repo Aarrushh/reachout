@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
-import { matchBarrios } from "../lib/matchBarrios";
-import { t, type Lang } from "../i18n/strings";
+import { matchBarrios } from "../../lib/matchBarrios";
+import { t, type Lang } from "../../i18n/strings";
 
 interface Props {
   selected: string | null;

@@ -3,10 +3,10 @@
 **Last updated:** 2026-08-03 (both lanes merged; **all work is on `main`**)
 **Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
 only thing left that nobody is blocked on.
-**Progress:** 23 of 33 tasks done.
-**Next action:** **U1** (re-home the consumer components), then U2 and U6 —
-all three are unblocked by U0 and independent of each other. The UI chain is
-the whole critical path now.
+**Progress:** 24 of 33 tasks done.
+**Next action:** **U2** (retail chat pane) and **U6** (the disabled AI
+button) — both unblocked and independent of each other, then **U3** (the
+charts). The UI chain is the whole critical path now.
 
 **Node was not installed on this machine.** `frontend/` had never been built
 here: no `node`, no `npm`, no `node_modules`. Installed Node 26.5.1 via the
@@ -157,7 +157,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 |---|---|---|---|---|---|
 | **T73** | TASK 73 — turn signals into per-shop recommendations, worded from fixed Spanish templates, each carrying its confidence and its caveat. | Jules | T72 | T74, T75, T77 | `[x] 2026-08-02` |
 | **U0** | One app shell with a top-right consumer/retail toggle driven by `?mode=retail` in the address bar. Declare the two component folders. | Claude | M12 | U1, U2, U3, U5, U6 | `[x] 2026-08-03` |
-| **U1** | Move the existing search-and-map screens into the consumer half of the shell. No behaviour change. | Claude | U0 | U4, U5 | `[ ]` |
+| **U1** | Move the existing search-and-map screens into the consumer half of the shell. No behaviour change. | Claude | U0 | U4, U5 | `[x] 2026-08-03` |
 | **U2** | Retail mode's chat pane, reusing the chat panel and its client-side mock that already exist. No backend needed at all. | Claude | U0 | — | `[ ]` |
 | **U6** | The "ask AI about my analytics" button: visible, greyed out, wired to nothing. It marks the future feature without building it. | Claude | U0 | — | `[ ]` |
 

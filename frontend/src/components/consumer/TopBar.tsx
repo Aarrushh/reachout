@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import SearchInput from "./SearchInput";
 import { CATEGORY_ICONS } from "./ShopCard";
-import { t, type Lang, type StringKey } from "../i18n/strings";
+import { t, type Lang, type StringKey } from "../../i18n/strings";
 
 export const CATEGORIES = ["pharmacy", "grocery", "hardware", "electronics", "stationery"] as const;
 

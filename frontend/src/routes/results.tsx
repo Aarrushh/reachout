@@ -5,13 +5,13 @@ import { lazy, Suspense, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 
 import { fetchAllShops, fetchRankedShops, fetchShopsGeoJSON, type SearchParams } from "../api/client";
-import MapPanel from "../components/MapPanel";
-import ResultsPanel, { type SortMode } from "../components/ResultsPanel";
-import TopBar from "../components/TopBar";
+import MapPanel from "../components/consumer/MapPanel";
+import ResultsPanel, { type SortMode } from "../components/consumer/ResultsPanel";
+import TopBar from "../components/consumer/TopBar";
 import { useLang } from "../hooks/useLang";
 import { usePingSequence } from "../hooks/usePingSequence";
 import type { RankedShops } from "../types/RankedShops";
-import "../components/results.css";
+import "../components/consumer/results.css";
 
 // Chat is off the critical path — keep it out of the initial bundle.
 const ChatPanel = lazy(() => import("../components/ChatPanel"));

@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import ShopCard, { CATEGORY_ICONS } from "./ShopCard";
-import { monoNums } from "../lib/monoNums";
+import { monoNums } from "../../lib/monoNums";
 import { CATEGORIES } from "./TopBar";
-import { t, type Lang, type StringKey } from "../i18n/strings";
-import type { RankedShops } from "../types/RankedShops";
-import type { RankedResult } from "../routes/results";
+import { t, type Lang, type StringKey } from "../../i18n/strings";
+import type { RankedShops } from "../../types/RankedShops";
+import type { RankedResult } from "../../routes/results";
 
 export type SortMode = "relevance" | "price_asc" | "price_desc" | "distance";
 

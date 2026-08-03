@@ -1,5 +1,5 @@
-import { BARRIOS } from "../data/barrios";
-import { t, type Lang } from "../i18n/strings";
+import { BARRIOS } from "../../data/barrios";
+import { t, type Lang } from "../../i18n/strings";
 
 interface Props {
   region: string | null;
