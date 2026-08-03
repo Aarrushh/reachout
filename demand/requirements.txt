@@ -36,14 +36,29 @@ httpx>=0.27
 # explicit .schema("public").
 supabase>=2.15
 
-# Loads the repo-root .env. Jules VMs hold no keys, so every test must pass
-# with fakes and fixtures and never touch this.
+# Loads reachout/.env — one credentials file for the whole repo, the same one
+# reachout/api/supa.py reads. Loaded at import time in demand/api/app.py, which
+# is where the workspace's only Supabase client is built. (This comment used to
+# say "repo-root .env"; nothing loaded any .env at all, so a live run needed the
+# vars exported by hand.) Jules VMs hold no keys, so every test must pass with
+# fakes and fixtures and never touch this — a missing .env is a no-op.
 python-dotenv>=1.0
 
 # Optional: only imported when DEMAND_INGEST_CRON=1 turns on the in-process
 # ingest schedule in demand/scripts/run_ingest.py. Same in-process, no-broker
 # pattern as the v1 pipeline's simulator.
 apscheduler>=3.10
+
+# Live-provider only: imported inside TrendspyProvider in
+# demand/ingest/trends_client.py, which is reached solely by
+# `run_ingest.py --provider trendspy` (the argparse default). Nothing else needs
+# them — `--provider fixture` reads committed JSON, and the whole test suite runs
+# on fixtures, so a VM without these still goes green. They are declared here
+# because the code imports them: previously neither appeared in any requirements
+# file, so the one command V1 actually runs died on ImportError after it had
+# already read the database.
+trendspy>=0.1
+pandas>=2.0
 
 # Dev/test only. Run from the REPO ROOT, never from inside a tests/ directory:
 # the suites import demand.* / reachout.*, which resolve only with the repo

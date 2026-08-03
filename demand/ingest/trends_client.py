@@ -33,12 +33,39 @@ def retry_on_429(max_retries: int = 3, base_delay: int = 1):
         return wrapper
     return decorator
 
+def _load_trendspy():
+    """Import the live-scrape dependencies, or fail with the fix in the message.
+
+    Imported here rather than at module scope on purpose: `FixtureProvider`
+    below, and every test in the suite, must keep working on a machine that
+    has neither package — which is the normal state of a Jules VM. So the
+    cost of a missing dep is paid only by the one caller that actually
+    scrapes.
+
+    What this replaces: a bare `ImportError` raised from inside a retry
+    wrapper, several frames deep, on the single command V1 depends on — and
+    raised *after* `run_ingest.run_chain` has already built the keyword
+    universe out of the database, so the failure looked like it came from
+    the ingest chain rather than from an uninstalled package.
+    """
+    try:
+        import pandas as pd
+        import trendspy
+    except ImportError as exc:
+        raise ImportError(
+            f"--provider trendspy needs the live-scrape dependencies ({exc.name} "
+            "is missing). Install them with `pip install -r demand/requirements.txt`, "
+            "or re-run with `--provider fixture` to use the committed captures in "
+            "demand/tests/fixtures/trends/ instead."
+        ) from exc
+    return pd, trendspy
+
+
 class TrendspyProvider:
     @retry_on_429()
     def interest_over_time(self, keywords: List[str], geo: str = "ES-MD", timeframe: str = "today 1-m") -> Dict[str, List[Dict[str, Any]]]:
-        import pandas as pd
-        import trendspy
-        
+        pd, trendspy = _load_trendspy()
+
         client = trendspy.Trends()
         df = client.interest_over_time(keywords, geo=geo, timeframe=timeframe)
         
@@ -59,9 +86,8 @@ class TrendspyProvider:
 
     @retry_on_429()
     def interest_by_region(self, keyword: str, geo: str = "ES-MD") -> List[Dict[str, Any]]:
-        import pandas as pd
-        import trendspy
-        
+        pd, trendspy = _load_trendspy()
+
         client = trendspy.Trends()
         df = client.interest_by_region([keyword], geo=geo)
         

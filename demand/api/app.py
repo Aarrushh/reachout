@@ -40,6 +40,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import jsonschema
@@ -48,6 +49,22 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from demand.shared.validation import validate_with_formats
 
+
+#: Credentials live in `reachout/.env` (gitignored; see
+#: `reachout/.env.example`), the same file `reachout/api/supa.py` loads —
+#: one credentials file for the whole repo, not one per service. This is
+#: the choke point on purpose: `get_client()` below is the only Supabase
+#: client constructor in the workspace, and `demand/scripts/run_ingest.py`
+#: imports it, so loading here covers both the API process and the CLI
+#: chain. Without this the chain only ran if you exported both vars into
+#: the shell by hand.
+#:
+#: Two properties this relies on: `load_dotenv` does not overwrite a var
+#: that is already set (so an explicit `export` still wins), and a missing
+#: file is a no-op rather than an error. The second is what keeps the
+#: Jules-VM rule intact — those VMs hold no keys, and the whole suite runs
+#: on fakes and fixtures with no `.env` present.
+load_dotenv(Path(__file__).resolve().parents[2] / "reachout" / ".env")
 
 logger = logging.getLogger(__name__)
 
