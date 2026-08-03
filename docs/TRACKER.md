@@ -1,12 +1,13 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-03 (both lanes merged; **all work is on `main`**)
+**Last updated:** 2026-08-04 (both lanes merged; **all work is on `main`**)
 **Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
 only thing left that nobody is blocked on.
-**Progress:** 25 of 33 tasks done.
-**Next action:** **U6** (the disabled AI button), then **U3** (the three
-charts). Both fill retail mode's right column, which U2 left as a labelled
-placeholder. The UI chain is the whole critical path now.
+**Progress:** 26 of 33 tasks done.
+**Next action:** **U3** — the three charts, and the only task that adds a
+dependency (`echarts-for-react`, decision D9). It fills the rest of retail
+mode's right column, where U6's disabled AI button now sits. The UI chain is
+the whole critical path now.
 
 **One thing to know about the retail chat pane:** it quotes a stock number
 that is a *sample* — retail mode has no store picker and no inventory sync,
@@ -165,7 +166,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 | **U0** | One app shell with a top-right consumer/retail toggle driven by `?mode=retail` in the address bar. Declare the two component folders. | Claude | M12 | U1, U2, U3, U5, U6 | `[x] 2026-08-03` |
 | **U1** | Move the existing search-and-map screens into the consumer half of the shell. No behaviour change. | Claude | U0 | U4, U5 | `[x] 2026-08-03` |
 | **U2** | Retail mode's chat pane, reusing the chat panel and its client-side mock that already exist. No backend needed at all. | Claude | U0 | — | `[x] 2026-08-03` |
-| **U6** | The "ask AI about my analytics" button: visible, greyed out, wired to nothing. It marks the future feature without building it. | Claude | U0 | — | `[ ]` |
+| **U6** | The "ask AI about my analytics" button: visible, greyed out, wired to nothing. It marks the future feature without building it. | Claude | U0 | — | `[x] 2026-08-04` |
 
 ### Wave 4 — the demand API ‖ the charts
 

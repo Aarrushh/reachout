@@ -4,10 +4,10 @@ This is a routing table, not a tutorial. It says what exists **today** and
 draws a hard line under what is still **planned**. If a doc elsewhere
 disagrees with this file, trust this file — it is kept honest on purpose.
 
-**U0, U1 and U2 have landed.** The shell and the mode toggle exist, the
+**U0, U1, U2 and U6 have landed.** The shell and the mode toggle exist, the
 consumer surface lives under `src/components/consumer/`, and retail mode
-renders a real two-column view with a working chat pane. U3 and U6 fill the
-right column; U4, U5 and U7 follow.
+renders a real two-column view with a working chat pane and the deliberately
+dead AI button. U3 fills the rest of the right column; U4, U5 and U7 follow.
 
 ## Routes — today
 
@@ -82,8 +82,8 @@ generated output by hand.
 ## PLANNED — the rest of the consumer/retail split (U3 onward)
 
 `src/components/consumer/` is populated (U1) and `src/components/retail/`
-now holds `RetailView` + `RetailChatPane` (U2). U3 and U6 fill the dashboard
-column.
+now holds `RetailView` + `RetailChatPane` (U2) + `AiAnalystButton` (U6). U3
+fills the rest of the dashboard column.
 
 **What deliberately stayed in `components/` proper:** `ChatPanel.tsx` and
 `chat.css`. Both halves use it — consumer's "ask the shop" slide-over today,
@@ -96,6 +96,6 @@ neither. It is not copied into both.
 | **U1** | Re-homes the "today" components above under `components/consumer/`; fetchers stay on `api/client.ts` / `GET /api/search`; no behaviour change | ✅ **DONE 2026-08-03** |
 | **U2** | Retail mode's chat pane — reuses `ChatPanel` + `chat/shopkeeper.ts`, left pane of retail mode, still client-side mock, still no backend | ✅ **DONE 2026-08-03** |
 | **U3** | Analytics dashboard: `echarts-for-react` (D9), three charts confined to `components/retail/charts/`, fed by a new `fetchAnalytics()` in `api/client.ts` against `GET /demand/api/analytics`; the frontend draws only, every rendered number is server-computed | PLANNED |
-| **U6** | Disabled "ask AI about my analytics" button — visible, `aria-disabled`, no handler, no fetcher | PLANNED |
+| **U6** | Disabled "ask AI about my analytics" button — visible, `disabled` **and** `aria-disabled`, no handler, no fetcher; the reason is an on-screen caption tied by `aria-describedby`, never a `title` tooltip | ✅ **DONE 2026-08-04** |
 
 There is still no chart dependency in `package.json` — U3 adds it.

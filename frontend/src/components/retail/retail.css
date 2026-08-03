@@ -47,3 +47,36 @@
   margin: 0;
   max-width: 60ch;
 }
+
+.retail-dash__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+/* U6: the dead "ask AI" control. Greyed and unclickable, with its reason
+ * printed underneath — never in a tooltip, because a phone has no hover and
+ * an unexplained disabled button reads as a broken one. */
+.retail-askai {
+  max-width: 32ch;
+}
+
+.retail-askai__button {
+  font: inherit;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--ink-600);
+  background: transparent;
+  color: var(--sand-dim);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.retail-askai__why {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--sand-dim);
+}

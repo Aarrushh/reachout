@@ -1,15 +1,16 @@
 import { useLang } from "../../hooks/useLang";
 import { t } from "../../i18n/strings";
+import AiAnalystButton from "./AiAnalystButton";
 import RetailChatPane from "./RetailChatPane";
 import "./retail.css";
 
 /**
  * Everything behind `?mode=retail`: chat on the left, dashboard on the right.
  *
- * The right column is a placeholder until U3 brings the three charts and U6
- * the disabled AI button. It says what is missing rather than showing an
- * empty frame — an unexplained blank panel reads as a broken dashboard, and
- * a shopkeeper cannot tell those two apart.
+ * The right column still carries a placeholder line until U3 brings the three
+ * charts. It says what is missing rather than showing an empty frame — an
+ * unexplained blank panel reads as a broken dashboard, and a shopkeeper cannot
+ * tell those two apart.
  */
 export default function RetailView() {
   const [lang] = useLang();
@@ -20,8 +21,13 @@ export default function RetailView() {
         <RetailChatPane lang={lang} />
       </div>
       <section className="retail-split__dash" aria-labelledby="retail-dash-title">
-        <h1 id="retail-dash-title" className="retail-dash__title">{t(lang, "retail.title")}</h1>
-        <p className="retail-dash__note">{t(lang, "retail.placeholder")}</p>
+        <header className="retail-dash__head">
+          <div>
+            <h1 id="retail-dash-title" className="retail-dash__title">{t(lang, "retail.title")}</h1>
+            <p className="retail-dash__note">{t(lang, "retail.placeholder")}</p>
+          </div>
+          <AiAnalystButton lang={lang} />
+        </header>
       </section>
     </div>
   );

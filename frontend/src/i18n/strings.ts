@@ -73,6 +73,8 @@ const STRINGS = {
   "retail.title":          { es: "Modo tienda", en: "Retail mode" },
   "retail.placeholder":    { es: "Los gráficos llegan en el siguiente paso. Aquí todavía no hay datos.", en: "The charts arrive in the next step. There is no data here yet." },
   "retail.chatSampleNotice": { es: "Tienda y existencias de ejemplo — no es tu inventario real", en: "Sample shop and stock — not your real inventory" },
+  "retail.askAi":          { es: "Pregunta a la IA sobre tus analíticas", en: "Ask AI about my analytics" },
+  "retail.askAiUnavailable": { es: "Todavía no disponible. Necesita el inventario real de tu tienda, que aún no está conectado.", en: "Not available yet. It needs your shop's real inventory, which is not connected yet." },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

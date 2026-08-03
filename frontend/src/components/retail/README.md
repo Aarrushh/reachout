@@ -1,8 +1,15 @@
 # `components/retail/` — the shopkeeper half
 
-Declared by task **U0**. **U2 has landed** (2026-08-03): `RetailView` is the
-two-column surface behind `?mode=retail`, with `RetailChatPane` on the left.
-U3 (charts) and U6 (the disabled AI button) fill the right column.
+Declared by task **U0**. **U2 and U6 have landed**: `RetailView` is the
+two-column surface behind `?mode=retail`, with `RetailChatPane` on the left
+and `AiAnalystButton` heading the right. U3 (charts) fills the rest.
+
+**`AiAnalystButton` is wired to nothing on purpose** (U6). It is `disabled`
+*and* `aria-disabled`, has no `onClick`, and this file imports no fetcher —
+if a future edit gives it a handler, it stops being the thing the plan asked
+for. Its "not available yet" reason is a caption bound by `aria-describedby`,
+not a `title`: a shopkeeper on a phone cannot hover, and a greyed button with
+no reachable explanation reads as a broken app rather than an unbuilt feature.
 
 **What belongs here:** everything reachable only at `?mode=retail` — the chat
 pane (U2, reusing the existing `ChatPanel` and its client-side mock), the
