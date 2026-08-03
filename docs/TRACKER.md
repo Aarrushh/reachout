@@ -4,15 +4,35 @@
 **Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
 only thing left that nobody is blocked on.
 **Progress:** 21 of 33 tasks done.
-**Next action:** Start **U0** (app shell + `?mode=retail` toggle). Two things
-need the founder:
+**Next action:** Start **U0** (app shell + `?mode=retail` toggle). The UI
+chain is the whole critical path now — nothing in it is blocked.
 
-- **M3** — apply `demand/data/schema.sql` in the Supabase SQL editor, **then
-  two steps that are not in that file**: expose the `demand` schema in
-  Settings → API → Data API → Exposed schemas, and grant `service_role`
-  usage + table privileges. Without either, the tables exist and every API
-  call still fails (404, then 42501). Full wording in the **V1a** row.
-- **V1a/V1b** — the live verify, once M3 is done.
+**M3 is done** (verified 2026-08-03 by probe, not by asking: a REST call with
+`Accept-Profile: demand` returns `200 []`, which only happens once the schema
+exists, is exposed, and `service_role` is granted). Credentials are in
+`reachout/.env`, and `demand/` loads them.
+
+**V1a is BLOCKED, and not by us.** The live ingest ran for real and got three
+distinct answers out of Google:
+
+1. All 49 keywords in one request → `400`. Google compares five terms at a
+   time. Fixed in `9cecea2`: batched at five with a shared anchor term so the
+   pieces come back on one scale.
+2. `interest_by_region` → `400` on a low-volume term. Fixed in the same
+   commit: optional field, best-effort, stored null when unavailable.
+3. Re-run → `429` redirecting to `google.com/sorry` — this IP is now serving
+   a CAPTCHA. That is Google throttling, not a bug, and no code change gets
+   past it.
+
+**The fixture fallback is not a fallback.** `demand/tests/fixtures/trends/`
+holds two English keywords (`sneakers`, `coffee`) with three daily points
+each. It is a unit-test fixture. Run the ingest against it and you get 49
+snapshots with empty series, zero signals, zero recommendations — which is
+what happened, and those 49 empty rows were deleted again rather than left
+sitting in the table looking like data. So V1a cannot be closed either way
+today: no live data, and nothing honest to substitute. **Do not present
+fixture output as an ingest.** The retry is free — wait out the throttle (or
+run it from a different IP) and re-run `--provider trendspy`.
 
 **The board had drifted, and this is how it was caught.** The previous entry
 showed T73–T77 as `[ ]` and described two live lanes. In fact every one of
@@ -65,7 +85,7 @@ human, live credentials, or a decision).
 |---|---|---|---|---|---|
 | **M1** | Build the `demand/` folder: its two layer docs, its seed-keyword list, and the empty folders and test helpers the Jules tasks expect. The task fuel already says this exists; it does not. | Claude | nothing | M2, M7, T69, T70, T71 | `[x] 2026-08-02` |
 | **M2** | Write the five data contracts (JSON Schemas) and the database table definitions for the demand service, plus the spec for what the practice data must look like. | Claude | M1 | M3, M7, M13, T69–T71, T77, U3 | `[x] 2026-08-02` |
-| **M3** | **Apply the database table definitions to Supabase**, then expose the `demand` schema and grant `service_role` on it — three steps, only the first is in the SQL file. Our key cannot run DDL, so all three happen in the dashboard. Exact wording in the V1a row. | **You (founder)** | M2 | V1a | `[ ]` |
+| **M3** | ✅ **Done — verified live 2026-08-03**, not by asking: a REST probe with `Accept-Profile: demand` returned `200 []`, which only happens once the schema exists, is exposed, and `service_role` has been granted. **Apply the database table definitions to Supabase**, then expose the `demand` schema and grant `service_role` on it — three steps, only the first is in the SQL file. Our key cannot run DDL, so all three happen in the dashboard. Exact wording in the V1a row. | **You (founder)** | M2 | V1a | `[x] 2026-08-03` |
 | **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[x] 2026-08-02` |
 | **M5** | Create and push the two work branches, one per parallel lane. | Claude | M4 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[x] 2026-08-02` |
@@ -154,7 +174,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **V1a** | **Live ingest.** Founder does three things first, and only the first is in the SQL file: (a) paste all of `demand/data/schema.sql` into the Supabase SQL editor and run it; (b) Settings → API → Data API → **Exposed schemas** → add `demand` — the client sends `Accept-Profile: demand` and PostgREST refuses any schema not on that list, so skipping this 404s every call with the tables sitting right there; (c) back in the SQL editor, `grant usage on schema demand to service_role;` + `grant all on all tables in schema demand to service_role;` + `alter default privileges in schema demand grant all on tables to service_role;` — a new schema carries zero privileges, so skipping this is 42501 on every call. `service_role` only, **never `anon`**: RLS is off and the service has no auth, so granting `anon` would put write access on the public internet. Then Claude runs the dry-run, the live `--provider trendspy` run, checks rows landed, re-runs and confirms the counts stay **flat** (that is the dedupe indexes and the uuid5 natural keys working — doubling counts is a finding), and curls the API. | **You (founder)** → Claude | M3, T75 | V1b | `[ ]` |
+| **V1a** | **Live ingest.** Founder does three things first, and only the first is in the SQL file: (a) paste all of `demand/data/schema.sql` into the Supabase SQL editor and run it; (b) Settings → API → Data API → **Exposed schemas** → add `demand` — the client sends `Accept-Profile: demand` and PostgREST refuses any schema not on that list, so skipping this 404s every call with the tables sitting right there; (c) back in the SQL editor, `grant usage on schema demand to service_role;` + `grant all on all tables in schema demand to service_role;` + `alter default privileges in schema demand grant all on tables to service_role;` — a new schema carries zero privileges, so skipping this is 42501 on every call. `service_role` only, **never `anon`**: RLS is off and the service has no auth, so granting `anon` would put write access on the public internet. Then Claude runs the dry-run, the live `--provider trendspy` run, checks rows landed, re-runs and confirms the counts stay **flat** (that is the dedupe indexes and the uuid5 natural keys working — doubling counts is a finding), and curls the API. | **You (founder)** → Claude | M3, T75 | V1b | `[!] blocked: Google IP-throttled (CAPTCHA); no usable fallback dataset` |
 | **V1b** | **Live dashboard.** With V1a's real rows in the database and U7 passing, open retail mode and confirm the three charts render the **ingested** numbers, each with its confidence label and its caveat visible without hovering. If the scrape was blocked and the data came from fixtures, the dashboard must **say so** — practice data is never presented as live. | Claude | V1a, U7 | H1 | `[ ]` |
 | **H1** | Archive the three finished task documents to `docs/archive/` with `git mv` (see BLOAT below). **The six scratch deletions are already done** (`901b444`, pulled forward on 2026-08-03): `reachout/test_tick_debug.py` was putting `reachout/` on `sys.path` as a pytest rootdir, which shadowed the `reachout` package and broke collection for the entire repo — it could not wait for close-out. | Claude | U7 | — | `[~] since 2026-08-03` |
 

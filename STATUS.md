@@ -631,3 +631,13 @@ Supabase project and Gemini key before writing any code:
   review — the reviewer was killed by a spend limit. Deliberate tradeoff to
   hold one branch instead of three. Per-task reviews and five controller fix
   rounds did run; the union suite is green.
+- Live ingest pending (scrape blocked, 2026-08-03). V1a ran for real against
+  Google Trends and surfaced two code defects, both fixed in `9cecea2`: the
+  provider sent all 49 keywords in one request (Google caps comparison at
+  five; six returns 400) and `interest_by_region` 400s on a low-volume term,
+  which killed the run after every series had been fetched. On the retry
+  Google served `google.com/sorry` — this IP is CAPTCHA-throttled. No rows
+  landed. The fixture provider is not a substitute (two English keywords, no
+  weekly windows): running it produced 49 empty-series snapshots, which were
+  deleted rather than left in the table. Retry `--provider trendspy` once the
+  throttle clears.
