@@ -1,16 +1,27 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import AppShell from "./AppShell";
 
+// Retail mode now fetches analytics and draws charts (U3). Neither belongs to
+// what this file tests — which half the shell renders — so the chart library
+// is stubbed (jsdom has no canvas) and fetch never resolves, leaving the
+// dashboard in its loading state.
+vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echart" /> }));
+vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+
 function mountAt(url: string) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[url]}>
-      <AppShell>
-        <div data-testid="consumer-content">consumer content</div>
-      </AppShell>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[url]}>
+        <AppShell>
+          <div data-testid="consumer-content">consumer content</div>
+        </AppShell>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

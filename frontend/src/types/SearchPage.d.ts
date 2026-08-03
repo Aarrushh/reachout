@@ -5,7 +5,7 @@
  */
 
 /**
- * Paginated envelope for GET /api/search. The ranks stay the GLOBAL ranks (page 2 starts at rank 11). result_count equals the slice length.
+ * Producer: /api/search. Consumer: frontend search results. additionalProperties:false is the hallucination gate. Paginated envelope for GET /api/search. The ranks stay the GLOBAL ranks (page 2 starts at rank 11). result_count equals the slice length.
  */
 export type SearchPage = {
   [k: string]: unknown;

@@ -5,7 +5,7 @@
  */
 
 /**
- * Stage 02 output: real shops inside the radius, sorted nearest-first, with no stock information yet. Script invariants (tested, not expressible here): shop_count == shops.length; shops sorted ascending by distance_km.
+ * Producer: stage 02. Consumer: stage 03. additionalProperties:false is the hallucination gate. Stage 02 output: real shops inside the radius, sorted nearest-first, with no stock information yet. Script invariants (tested, not expressible here): shop_count == shops.length; shops sorted ascending by distance_km.
  */
 export type GeoShops = {
   [k: string]: unknown;

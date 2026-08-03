@@ -42,12 +42,6 @@
   margin: 0 0 8px;
 }
 
-.retail-dash__note {
-  color: var(--sand-dim);
-  margin: 0;
-  max-width: 60ch;
-}
-
 .retail-dash__head {
   display: flex;
   flex-wrap: wrap;
@@ -77,6 +71,87 @@
 .retail-askai__why {
   margin: 6px 0 0;
   font-size: 12px;
+  line-height: 1.4;
+  color: var(--sand-dim);
+}
+
+/* U3: the three chart panels. */
+
+.retail-dash__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.retail-dash__state {
+  margin: 24px 0;
+  color: var(--sand-dim);
+}
+
+.retail-dash__state--error {
+  color: var(--err);
+}
+
+/* Practice data announces itself. It sits above the charts, in the flow,
+ * because a shopkeeper who mistakes canned figures for their own shop's is
+ * the exact failure the caveat discipline exists to prevent. */
+.retail-dash__practice {
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--terracotta);
+  background: var(--ink-800);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.chart-panel {
+  border: 1px solid var(--ink-600);
+  border-radius: 8px;
+  background: var(--ink-900);
+  padding: 14px;
+  min-width: 0;
+}
+
+.chart-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.chart-panel__title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  margin: 0;
+}
+
+.chart-panel__chip {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+
+.chart-panel__chip--high { color: var(--stock-green); }
+.chart-panel__chip--medium { color: var(--terracotta-hot); }
+.chart-panel__chip--low { color: var(--err); }
+
+.chart-panel__empty {
+  margin: 24px 0;
+  color: var(--sand-dim);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Never `display: none` at any width, never a tooltip: the caveat is the
+ * condition under which every number above it is true. */
+.chart-panel__caveat {
+  margin: 10px 0 0;
+  font-size: 11px;
   line-height: 1.4;
   color: var(--sand-dim);
 }

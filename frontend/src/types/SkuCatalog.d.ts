@@ -14,7 +14,7 @@ export type CategoryArray = {
 }[];
 
 /**
- * Schema for data/sku_catalog.json which contains template and dummyjson products per category.
+ * Producer: static data (sku_catalog.json). Consumer: inventory seeder / search engine. additionalProperties:false is the hallucination gate. Schema for data/sku_catalog.json which contains template and dummyjson products per category.
  */
 export interface SKUCatalog {
   _comment?: string;

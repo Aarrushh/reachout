@@ -1,8 +1,11 @@
 # `components/retail/` — the shopkeeper half
 
-Declared by task **U0**. **U2 and U6 have landed**: `RetailView` is the
-two-column surface behind `?mode=retail`, with `RetailChatPane` on the left
-and `AiAnalystButton` heading the right. U3 (charts) fills the rest.
+Declared by task **U0**. **U2, U6 and U3 have landed**, so retail mode is
+complete: `RetailView` is the two-column surface behind `?mode=retail`, with
+`RetailChatPane` on the left, and on the right `AiAnalystButton` heading
+`RetailDashboard` — one fetch of `GET /demand/api/analytics` feeding the
+three charts in `charts/`. That folder has its own README; read it before
+touching anything in it.
 
 **`AiAnalystButton` is wired to nothing on purpose** (U6). It is `disabled`
 *and* `aria-disabled`, has no `onClick`, and this file imports no fetcher —

@@ -5,7 +5,7 @@
  */
 
 /**
- * A geographical region with associated shop metadata
+ * Producer: db_seeder / gazetteer. Consumer: SQLite DB / API responses. additionalProperties:false is the hallucination gate. A geographical region with associated shop metadata
  */
 export interface RegionRecord {
   region_id: string;

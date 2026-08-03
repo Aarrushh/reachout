@@ -5,7 +5,7 @@
  */
 
 /**
- * RFC 7946 FeatureCollection of matched shops. 'metadata' is a GeoJSON foreign member (allowed by RFC 7946 §6.1). Coordinates are [longitude, latitude] — the per-position bounds below make a lat/lng swap fail validation. Errors never appear in this file: on bad input, stage 05 writes output/error.json (status envelope) instead and no .geojson. Script invariant: features.length == metadata.result_count.
+ * Producer: stage 05. Consumer: /api/search.geojson (map matched layer). additionalProperties:false is the hallucination gate. RFC 7946 FeatureCollection of matched shops. 'metadata' is a GeoJSON foreign member (allowed by RFC 7946 §6.1). Coordinates are [longitude, latitude] — the per-position bounds below make a lat/lng swap fail validation. Errors never appear in this file: on bad input, stage 05 writes output/error.json (status envelope) instead and no .geojson. Script invariant: features.length == metadata.result_count.
  */
 export interface ShopMapGeoJSON {
   type: "FeatureCollection";

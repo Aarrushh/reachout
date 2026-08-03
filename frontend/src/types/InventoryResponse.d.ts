@@ -5,7 +5,7 @@
  */
 
 /**
- * Envelope for GET /api/inventory
+ * Producer: /api/inventory. Consumer: frontend / API clients. additionalProperties:false is the hallucination gate. Envelope for GET /api/inventory
  */
 export interface InventoryResponse {
   status: "ok" | "error";

@@ -5,7 +5,7 @@
  */
 
 /**
- * RFC 7946 FeatureCollection of ALL known shops (no inventory, no ranking) for the map's always-on network layer. Facts only: id, name, category, position. Same coordinate-order guard as map_geojson.schema.json.
+ * Producer: /api/shops.geojson. Consumer: map network layer + entry backdrop. additionalProperties:false is the hallucination gate. RFC 7946 FeatureCollection of ALL known shops (no inventory, no ranking) for the map's always-on network layer. Facts only: id, name, category, position. Same coordinate-order guard as map_geojson.schema.json.
  */
 export interface ShopsGeoJSON {
   type: "FeatureCollection";

@@ -5,7 +5,7 @@
  */
 
 /**
- * Stage 03 output: shops from geo_shops that hold matching in-stock items right now. Facts copied from the DB and geo_shops only. Script invariants: match_count == matches.length; pinged_shop_ids == [m.shop_id for m in matches]; matches preserve the ranking nearest -> most matching stock -> cheapest.
+ * Producer: stage 03. Consumer: stage 04. additionalProperties:false is the hallucination gate. Stage 03 output: shops from geo_shops that hold matching in-stock items right now. Facts copied from the DB and geo_shops only. Script invariants: match_count == matches.length; pinged_shop_ids == [m.shop_id for m in matches]; matches preserve the ranking nearest -> most matching stock -> cheapest.
  */
 export type StockMatches = {
   [k: string]: unknown;
@@ -55,6 +55,9 @@ export type StockMatches = {
          * minimum 1: out-of-stock rows are schema-invalid here by design.
          */
         qty: number;
+        source?: "template" | "dummyjson";
+        rating?: number;
+        review_count?: number;
       },
       ...{
         sku: string;
@@ -66,6 +69,9 @@ export type StockMatches = {
          * minimum 1: out-of-stock rows are schema-invalid here by design.
          */
         qty: number;
+        source?: "template" | "dummyjson";
+        rating?: number;
+        review_count?: number;
       }[]
     ];
   }[];

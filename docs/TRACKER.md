@@ -3,11 +3,17 @@
 **Last updated:** 2026-08-04 (both lanes merged; **all work is on `main`**)
 **Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
 only thing left that nobody is blocked on.
-**Progress:** 26 of 33 tasks done.
-**Next action:** **U3** — the three charts, and the only task that adds a
-dependency (`echarts-for-react`, decision D9). It fills the rest of retail
-mode's right column, where U6's disabled AI button now sits. The UI chain is
-the whole critical path now.
+**Progress:** 27 of 33 tasks done.
+**Next action:** **U4** (the picks rail) and **U5** (the PWA), then **U7**
+drives the whole thing in a real browser. Retail mode is finished; what is
+left is consumer-side.
+
+**The dashboard is showing practice data, and says so.** The demand service
+answers with `generated_from: "fixture"` until a live ingest lands (V1a is
+still blocked on Google's throttling), and fixture and live responses are
+byte-identical in shape by design. The dashboard prints a labelled banner
+whenever that field says fixture. When V1a clears, the banner disappears on
+its own — nothing needs editing.
 
 **One thing to know about the retail chat pane:** it quotes a stock number
 that is a *sample* — retail mode has no store picker and no inventory sync,
@@ -174,7 +180,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 |---|---|---|---|---|---|
 | **T74** | TASK 74 (rewritten, no login) — the demand service's own API. All endpoints public for the POC. | Jules | T73, M7 | T75 | `[x] 2026-08-02` |
 | **T77** | TASK 77 (new) — the analytics endpoint feeding the dashboard: real shape, practice content, three metrics, no footfall. | Jules | T73, M2, M7 | T75, U3 | `[x] 2026-08-02` |
-| **U3** | The three dashboard charts (top movers, category mix, stock-out risk) using ECharts. The screen only draws; every number is computed on the server. Confidence chip and caveat caption always visible. | Claude | U0, M2, T77 | U7 | `[ ]` |
+| **U3** | The three dashboard charts (top movers, category mix, stock-out risk) using ECharts. The screen only draws; every number is computed on the server. Confidence chip and caveat caption always visible. | Claude | U0, M2, T77 | U7 | `[x] 2026-08-04` |
 
 ### Wave 5 — batch runner ‖ rail and offline
 

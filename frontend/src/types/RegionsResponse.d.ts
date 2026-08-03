@@ -5,7 +5,7 @@
  */
 
 /**
- * Envelope for GET /api/regions
+ * Producer: /api/regions. Consumer: frontend / API clients. additionalProperties:false is the hallucination gate. Envelope for GET /api/regions
  */
 export type RegionsResponse = {
   [k: string]: unknown;

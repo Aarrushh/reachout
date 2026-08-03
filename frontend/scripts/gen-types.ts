@@ -1,6 +1,13 @@
 /**
- * Generates src/types/*.d.ts from reachout/shared/schemas/*.schema.json.
- * Run via `npm run gen-types`. Output is never hand-edited (see README.md).
+ * Generates src/types/*.d.ts from the JSON Schemas of BOTH backends —
+ * reachout/shared/schemas/ (the shopper API) and demand/shared/schemas/ (the
+ * retail demand service). Run via `npm run gen-types`. Output is never
+ * hand-edited (see README.md).
+ *
+ * Both roots are walked because the frontend is one app over two services:
+ * U3's charts are typed from demand's analytics_response.schema.json. A file
+ * name appearing in both roots is a collision, not a merge — the second one
+ * would silently overwrite the first, so it aborts instead.
  */
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -9,7 +16,11 @@ import { fileURLToPath } from "node:url";
 import { compile } from "json-schema-to-typescript";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SCHEMAS_DIR = join(HERE, "..", "..", "reachout", "shared", "schemas");
+const REPO_ROOT = join(HERE, "..", "..");
+const SCHEMA_ROOTS = [
+  join("reachout", "shared", "schemas"),
+  join("demand", "shared", "schemas"),
+];
 const OUT_DIR = join(HERE, "..", "src", "types");
 
 function toTypeName(schemaFileName: string): string {
@@ -22,18 +33,33 @@ function toTypeName(schemaFileName: string): string {
 
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
-  const files = readdirSync(SCHEMAS_DIR).filter((f: string) => f.endsWith(".schema.json"));
+  const seen = new Map<string, string>();
 
-  for (const file of files) {
-    const schema = JSON.parse(readFileSync(join(SCHEMAS_DIR, file), "utf-8"));
-    const typeName = toTypeName(basename(file));
-    const ts = await compile(schema, typeName, {
-      bannerComment:
-        `/* eslint-disable */\n` +
-        `/**\n * Generated from reachout/shared/schemas/${file} — do not hand-edit.\n * Run \`npm run gen-types\` to regenerate.\n */`,
-    });
-    writeFileSync(join(OUT_DIR, `${typeName}.d.ts`), ts);
-    console.log(`wrote src/types/${typeName}.d.ts`);
+  for (const root of SCHEMA_ROOTS) {
+    const dir = join(REPO_ROOT, root);
+    const files = readdirSync(dir).filter((f: string) => f.endsWith(".schema.json"));
+
+    for (const file of files) {
+      const typeName = toTypeName(basename(file));
+      const previous = seen.get(typeName);
+      if (previous) {
+        throw new Error(
+          `${root}/${file} and ${previous} both generate ${typeName}.d.ts. ` +
+            `Rename one schema — silently overwriting would type one service ` +
+            `with the other's contract.`,
+        );
+      }
+      seen.set(typeName, `${root}/${file}`);
+
+      const schema = JSON.parse(readFileSync(join(dir, file), "utf-8"));
+      const ts = await compile(schema, typeName, {
+        bannerComment:
+          `/* eslint-disable */\n` +
+          `/**\n * Generated from ${root}/${file} — do not hand-edit.\n * Run \`npm run gen-types\` to regenerate.\n */`,
+      });
+      writeFileSync(join(OUT_DIR, `${typeName}.d.ts`), ts);
+      console.log(`wrote src/types/${typeName}.d.ts`);
+    }
   }
 }
 

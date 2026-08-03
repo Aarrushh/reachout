@@ -4,6 +4,9 @@
  * Run `npm run gen-types` to regenerate.
  */
 
+/**
+ * Producer: /api/health. Consumer: frontend/monitoring. additionalProperties:false is the hallucination gate.
+ */
 export interface HealthResponse {
   status: "ok";
   shop_count?: number;

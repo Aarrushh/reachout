@@ -1,13 +1,18 @@
 /**
- * The typed fetchers over reachout/api/server.py and the ApiError they throw.
+ * The typed fetchers over the two backends and the ApiError they throw.
  * Nothing else lives here — no caching, no retries (TanStack Query owns
  * that, using ApiError.status to skip retrying permanent 4xx), no visuals.
  */
+import type { AnalyticsResponse } from "../types/AnalyticsResponse";
 import type { RankedShops } from "../types/RankedShops";
 import type { ShopMapGeoJSON } from "../types/MapGeojson";
 import type { ShopsGeoJSON } from "../types/ShopsGeojson";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+
+// The demand service is a separate FastAPI app on its own port (D2), not a
+// path under the shopper API. Two bases, because they are two deployments.
+const DEMAND_API_BASE = import.meta.env.VITE_DEMAND_API_BASE ?? "http://localhost:8001";
 
 /** Fetch error carrying the HTTP status so callers can skip retries on 4xx. */
 export class ApiError extends Error {
@@ -49,5 +54,20 @@ export async function fetchShopsGeoJSON(params: SearchParams): Promise<ShopMapGe
 export async function fetchAllShops(): Promise<ShopsGeoJSON> {
   const res = await fetch(`${API_BASE}/api/shops.geojson`);
   if (!res.ok) throw new ApiError(`GET /api/shops.geojson failed: ${res.status}`, res.status);
+  return res.json();
+}
+
+/**
+ * The retail dashboard's one fetch (U3). Everything the three charts draw
+ * arrives here already computed — including each segment's confidence label
+ * and the caveat — because the browser is not allowed to derive either.
+ */
+export async function fetchAnalytics(storeId?: string): Promise<AnalyticsResponse> {
+  const usp = new URLSearchParams({ inventory_type: "convenience_store" });
+  if (storeId) usp.set("store_id", storeId);
+  const res = await fetch(`${DEMAND_API_BASE}/demand/api/analytics?${usp.toString()}`);
+  if (!res.ok) {
+    throw new ApiError(`GET /demand/api/analytics failed: ${res.status}`, res.status);
+  }
   return res.json();
 }

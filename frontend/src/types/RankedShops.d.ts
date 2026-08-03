@@ -5,7 +5,7 @@
  */
 
 /**
- * The final consumer-facing artifact: a ranked FACTUAL list of nearby shops holding the item. additionalProperties:false on every object is the narrative gate. Now includes optional rating and review_count. Script invariants: result_count == results.length; ranks are 1..N contiguous in array order.
+ * Producer: stage 04. Consumer: /api/search (frontend cards). additionalProperties:false is the hallucination gate. The final consumer-facing artifact: a ranked FACTUAL list of nearby shops holding the item. additionalProperties:false on every object is the narrative gate. Now includes optional rating and review_count. Script invariants: result_count == results.length; ranks are 1..N contiguous in array order.
  */
 export type RankedShops = {
   [k: string]: unknown;

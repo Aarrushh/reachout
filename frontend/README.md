@@ -31,7 +31,12 @@ every matched shop IS pinged; the hook staggers when each lights up.
 Retries: TanStack defaults, except permanent 4xx responses are not retried
 (see `ApiError` in `src/api/client.ts`).
 
-## Endpoints consumed (from `reachout/api/server.py`)
+## Endpoints consumed
+
+Two backends, two ports. The shopper API (`reachout/api/server.py`) serves
+consumer mode; the demand service (`demand/api/app.py`) serves retail mode.
+Base URLs are `VITE_API_BASE` (default `:8000`) and `VITE_DEMAND_API_BASE`
+(default `:8001`).
 
 | Endpoint | Response contract |
 |----------|-------------------|
@@ -39,6 +44,7 @@ Retries: TanStack defaults, except permanent 4xx responses are not retried
 | `GET /api/search.geojson?…same params…` | `reachout/shared/schemas/map_geojson.schema.json` |
 | `GET /api/shops.geojson` | `reachout/shared/schemas/shops_geojson.schema.json` (all shops, network layer) |
 | `GET /api/health` | `{"status":"ok"}` |
+| `GET /demand/api/analytics?inventory_type=&store_id=` | `demand/shared/schemas/analytics_response.schema.json` (retail dashboard, U3) |
 
 If the frontend ever "needs" a field that isn't in a schema, the schema
 changes first, backend second, generated types third — never a frontend-side
@@ -46,7 +52,10 @@ invention.
 
 ## Generated files — never hand-edited
 
-- `src/types/*.d.ts` — from `reachout/shared/schemas/` via `npm run gen-types`
+- `src/types/*.d.ts` — from **both** `reachout/shared/schemas/` and
+  `demand/shared/schemas/` via `npm run gen-types`. Two roots because the app
+  is one frontend over two services; a file name present in both roots aborts
+  the run rather than silently overwriting one contract with the other.
 - `src/data/barrios.ts` — from `reachout/data/gazetteer_madrid.json` via `npm run gen-barrios`
 
 ## Layout

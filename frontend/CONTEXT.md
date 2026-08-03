@@ -4,10 +4,11 @@ This is a routing table, not a tutorial. It says what exists **today** and
 draws a hard line under what is still **planned**. If a doc elsewhere
 disagrees with this file, trust this file — it is kept honest on purpose.
 
-**U0, U1, U2 and U6 have landed.** The shell and the mode toggle exist, the
+**U0, U1, U2, U6 and U3 have landed.** The shell and the mode toggle exist, the
 consumer surface lives under `src/components/consumer/`, and retail mode
 renders a real two-column view with a working chat pane and the deliberately
-dead AI button. U3 fills the rest of the right column; U4, U5 and U7 follow.
+dead AI button, and U3's three charts draw the demand service's numbers.
+U4, U5 and U7 follow.
 
 ## Routes — today
 
@@ -79,11 +80,12 @@ Query retry predicate can skip retrying 4xx responses.
 Edit the schema or the gazetteer, then regenerate — never edit the
 generated output by hand.
 
-## PLANNED — the rest of the consumer/retail split (U3 onward)
+## PLANNED — the rest of the consumer/retail split (U4 onward)
 
 `src/components/consumer/` is populated (U1) and `src/components/retail/`
-now holds `RetailView` + `RetailChatPane` (U2) + `AiAnalystButton` (U6). U3
-fills the rest of the dashboard column.
+holds `RetailView`, `RetailChatPane` (U2), `AiAnalystButton` (U6) and
+`RetailDashboard` + `charts/` (U3). Retail mode is complete; U4, U5 and U7
+are consumer-side or cross-cutting.
 
 **What deliberately stayed in `components/` proper:** `ChatPanel.tsx` and
 `chat.css`. Both halves use it — consumer's "ask the shop" slide-over today,
@@ -95,7 +97,9 @@ neither. It is not copied into both.
 | **U0** | `AppShell` wrapping both routes; top-right toggle reading `?mode=retail` (S2) — absent/unrecognised = consumer; mode derived from the URL only, no store, no context; creates the empty `components/consumer/` and `components/retail/` trees | ✅ **DONE 2026-08-03** |
 | **U1** | Re-homes the "today" components above under `components/consumer/`; fetchers stay on `api/client.ts` / `GET /api/search`; no behaviour change | ✅ **DONE 2026-08-03** |
 | **U2** | Retail mode's chat pane — reuses `ChatPanel` + `chat/shopkeeper.ts`, left pane of retail mode, still client-side mock, still no backend | ✅ **DONE 2026-08-03** |
-| **U3** | Analytics dashboard: `echarts-for-react` (D9), three charts confined to `components/retail/charts/`, fed by a new `fetchAnalytics()` in `api/client.ts` against `GET /demand/api/analytics`; the frontend draws only, every rendered number is server-computed | PLANNED |
+| **U3** | Analytics dashboard: `echarts-for-react` (D9) imported by `charts/EChart.tsx` alone, three charts in `components/retail/charts/`, fed by `fetchAnalytics()` in `api/client.ts` against `GET /demand/api/analytics` on the demand service's own base URL; the frontend draws only, every rendered number is server-computed, and `generated_from: "fixture"` is labelled on screen as practice data | ✅ **DONE 2026-08-04** |
 | **U6** | Disabled "ask AI about my analytics" button — visible, `disabled` **and** `aria-disabled`, no handler, no fetcher; the reason is an on-screen caption tied by `aria-describedby`, never a `title` tooltip | ✅ **DONE 2026-08-04** |
 
-There is still no chart dependency in `package.json` — U3 adds it.
+`package.json` now carries `echarts` + `echarts-for-react` (D9). Exactly one
+file imports them — `components/retail/charts/EChart.tsx` — which is the
+condition that keeps D9 reversible in one folder.

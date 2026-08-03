@@ -5,7 +5,7 @@
  */
 
 /**
- * One real shop sourced from OpenStreetMap. Identity fields are never AI-generated; osm_ingest.py validates every row against this before upsert.
+ * Producer: osm_ingest.py. Consumer: SQLite DB. additionalProperties:false is the hallucination gate. One real shop sourced from OpenStreetMap. Identity fields are never AI-generated; osm_ingest.py validates every row against this before upsert.
  */
 export interface ShopRecord {
   shop_id: string;

@@ -71,10 +71,20 @@ const STRINGS = {
   "mode.switchToRetail":   { es: "Modo tienda", en: "Retail mode" },
   "mode.switchToConsumer": { es: "Modo cliente", en: "Shopper mode" },
   "retail.title":          { es: "Modo tienda", en: "Retail mode" },
-  "retail.placeholder":    { es: "Los gráficos llegan en el siguiente paso. Aquí todavía no hay datos.", en: "The charts arrive in the next step. There is no data here yet." },
   "retail.chatSampleNotice": { es: "Tienda y existencias de ejemplo — no es tu inventario real", en: "Sample shop and stock — not your real inventory" },
   "retail.askAi":          { es: "Pregunta a la IA sobre tus analíticas", en: "Ask AI about my analytics" },
   "retail.askAiUnavailable": { es: "Todavía no disponible. Necesita el inventario real de tu tienda, que aún no está conectado.", en: "Not available yet. It needs your shop's real inventory, which is not connected yet." },
+  "retail.chart.topMovers":  { es: "Lo que más sube", en: "Top movers" },
+  "retail.chart.categoryMix": { es: "Reparto por categoría", en: "Category mix" },
+  "retail.chart.stockOutRisk": { es: "Riesgo de quedarte sin stock", en: "Stock-out risk" },
+  "retail.confidenceLabel": { es: "Confianza: {level}", en: "Confidence: {level}" },
+  "retail.confidence.low":  { es: "baja", en: "low" },
+  "retail.confidence.medium": { es: "media", en: "medium" },
+  "retail.confidence.high": { es: "alta", en: "high" },
+  "retail.chartEmpty":      { es: "Todavía no hay datos para este gráfico.", en: "No data for this chart yet." },
+  "retail.loading":         { es: "Cargando analíticas…", en: "Loading analytics…" },
+  "retail.loadFailed":      { es: "No se pudieron cargar las analíticas. Vuelve a intentarlo.", en: "Could not load the analytics. Try again." },
+  "retail.practiceData":    { es: "Datos de práctica, no de tu tienda. Todavía no hay una ingesta real detrás de estas cifras.", en: "Practice data, not your shop's. There is no live ingest behind these figures yet." },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

@@ -5,7 +5,7 @@
  */
 
 /**
- * Stage 01 output. Grounded only in the user's words plus the committed SYNONYMS map. Stage 01 never geocodes and never invents products.
+ * Producer: stage 01. Consumer: stage 02/03. additionalProperties:false is the hallucination gate. Stage 01 output. Grounded only in the user's words plus the committed SYNONYMS map. Stage 01 never geocodes and never invents products.
  */
 export type SearchIntent = {
   [k: string]: unknown;

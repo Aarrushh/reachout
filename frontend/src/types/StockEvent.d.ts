@@ -5,7 +5,7 @@
  */
 
 /**
- * SSE event payload for real-time inventory updates
+ * Producer: inventory_simulator.py / event bus. Consumer: /api/events SSE stream. additionalProperties:false is the hallucination gate. SSE event payload for real-time inventory updates
  */
 export interface StockEvent {
   type: "sale" | "restock" | "new_item";
