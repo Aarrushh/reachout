@@ -68,6 +68,10 @@ const STRINGS = {
   "chat.suggestStock":     { es: "¿Lo tenéis en stock?", en: "Is it in stock?" },
   "chat.suggestPrice":     { es: "¿Cuánto cuesta?", en: "How much is it?" },
   "chat.suggestReserve":   { es: "¿Me lo puedes apartar?", en: "Can you hold one for me?" },
+  "mode.switchToRetail":   { es: "Modo tienda", en: "Retail mode" },
+  "mode.switchToConsumer": { es: "Modo cliente", en: "Shopper mode" },
+  "retail.title":          { es: "Modo tienda", en: "Retail mode" },
+  "retail.placeholder":    { es: "El chat y el panel de analítica llegan en los siguientes pasos. Aquí todavía no hay datos.", en: "The chat pane and the analytics dashboard arrive in the next steps. There is no data here yet." },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

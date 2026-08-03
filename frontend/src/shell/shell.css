@@ -1,0 +1,93 @@
+/*
+ * The shell chrome only — the bar across the top and the frame the two modes
+ * render inside. Mode-specific styling belongs to the mode's own components,
+ * not here, so that consumer and retail can diverge visually without this
+ * file becoming the place they fight over.
+ */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-shell__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--amz-navbar);
+  color: var(--ink-900);
+  flex: none;
+}
+
+.app-shell__brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+
+/* The body scrolls; the bar does not.
+ *
+ * `display: flex` here is load-bearing, not decoration: `.results-screen`
+ * (results.css:2) is `height: 100%`, and a percentage height needs a parent
+ * whose height is definite. Making the body a flex column gives its children
+ * a resolved height, so the results split — and the map inside it — keeps the
+ * full viewport minus the bar instead of collapsing to zero. */
+.app-shell__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell__body > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.mode-toggle {
+  background: transparent;
+  color: var(--ink-900);
+  border: 1px solid var(--ink-600);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.mode-toggle:hover {
+  border-color: var(--terracotta);
+  color: var(--gold);
+}
+
+.mode-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Pressed = retail mode is showing. */
+.mode-toggle[aria-pressed="true"] {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+  color: var(--amz-navbar);
+}
+
+.retail-placeholder {
+  max-width: 560px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+.retail-placeholder__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.retail-placeholder__note {
+  color: var(--sand-dim);
+  margin: 0;
+}

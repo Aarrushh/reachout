@@ -1,9 +1,11 @@
 # CONTEXT.md  (Layer 1: Where do I go?)
 
 This is a routing table, not a tutorial. It says what exists **today** and
-draws a hard line under what is still **planned** (task U0 onward, the
-consumer/retail shell split). If a doc elsewhere disagrees with this file,
-trust this file — it is kept honest on purpose.
+draws a hard line under what is still **planned**. If a doc elsewhere
+disagrees with this file, trust this file — it is kept honest on purpose.
+
+**U0 has landed.** The shell and the mode toggle exist; the two component
+trees are declared but still empty. U1 onward remain planned.
 
 ## Routes — today
 
@@ -13,7 +15,21 @@ trust this file — it is kept honest on purpose.
 | `/results` | `src/routes/results.tsx` | `?q=&near=\|lat,lng&radius=&lang=` | Split view: ranked shop cards left, MapLibre map right, ping animation |
 
 `main.tsx` mounts exactly these two routes inside `BrowserRouter` — no
-other routes exist. `lang=es|en` (absent = Spanish) selects UI copy via
+other routes exist. Since U0 they are wrapped in `AppShell`, which is
+inside the router because it reads `?mode=`.
+
+**Modes are not routes.** `?mode=retail` selects the shopkeeper half of the
+app on whatever route you are on; anything else (absent, misspelled, wrong
+case) is the shopper half. There is no `/dashboard` and there will not be
+one — the toggle is a query param so a mode is shareable and a reload cannot
+disagree with the address bar.
+
+| File | Role |
+|------|------|
+| `src/shell/useMode.ts` | `parseMode()` (the rule: only the exact string `retail`) + `useMode()` (URL in, URL out; no store, no context) |
+| `src/shell/AppShell.tsx` | The frame both halves render in. Consumer mode renders the wrapped routes; retail mode renders its own surface **instead of** them, never on top of them |
+| `src/shell/ModeToggle.tsx` | Top-right switch. `aria-pressed` mirrors the URL |
+| `src/shell/shell.css` | Shell chrome only. `.app-shell__body` is a flex column on purpose — `.results-screen` is `height: 100%` and needs a definite parent height or the map collapses | `lang=es|en` (absent = Spanish) selects UI copy via
 `src/i18n/strings.ts`; it is read/written through `src/hooks/useLang.ts`.
 
 ## Key components — today
@@ -59,19 +75,19 @@ Query retry predicate can skip retrying 4xx responses.
 Edit the schema or the gazetteer, then regenerate — never edit the
 generated output by hand.
 
-## PLANNED — the consumer/retail shell (task U0 onward, NOT YET BUILT)
+## PLANNED — the rest of the consumer/retail split (U1 onward)
 
-Nothing below this line exists in the tree today. `main.tsx` still mounts
-only `/` and `/results` as plain routes with no shell around them, and
-`src/components/consumer/` / `src/components/retail/` do not exist.
+`src/components/consumer/` and `src/components/retail/` exist and are
+**empty** — each holds a README stating what belongs in it and nothing else.
+Every component listed under "today" is still in `components/` proper; U1 is
+what moves them.
 
 | Task | Adds | Status |
 |------|------|--------|
-| **U0** | `AppShell` wrapping both routes; top-right toggle reading `?mode=retail` (S2) — absent/unrecognised = consumer; mode derived from the URL only, no store, no context; creates the empty `components/consumer/` and `components/retail/` trees | PLANNED |
+| **U0** | `AppShell` wrapping both routes; top-right toggle reading `?mode=retail` (S2) — absent/unrecognised = consumer; mode derived from the URL only, no store, no context; creates the empty `components/consumer/` and `components/retail/` trees | ✅ **DONE 2026-08-03** |
 | **U1** | Re-homes the "today" components above under `components/consumer/`; fetchers stay on `api/client.ts` / `GET /api/search`; no behaviour change | PLANNED |
 | **U2** | Retail mode's chat pane — reuses `ChatPanel` + `chat/shopkeeper.ts` as-is, left pane of retail mode, still client-side mock, still no backend | PLANNED |
 | **U3** | Analytics dashboard: `echarts-for-react` (D9), three charts confined to `components/retail/charts/`, fed by a new `fetchAnalytics()` in `api/client.ts` against `GET /demand/api/analytics`; the frontend draws only, every rendered number is server-computed | PLANNED |
 | **U6** | Disabled "ask AI about my analytics" button — visible, `aria-disabled`, no handler, no fetcher | PLANNED |
 
-Until U0 lands: there is one shell-less app, one mode, and no chart
-dependency in `package.json`.
+There is still no chart dependency in `package.json` — U3 adds it.

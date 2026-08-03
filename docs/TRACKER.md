@@ -3,9 +3,17 @@
 **Last updated:** 2026-08-03 (both lanes merged; **all work is on `main`**)
 **Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
 only thing left that nobody is blocked on.
-**Progress:** 21 of 33 tasks done.
-**Next action:** Start **U0** (app shell + `?mode=retail` toggle). The UI
-chain is the whole critical path now — nothing in it is blocked.
+**Progress:** 23 of 33 tasks done.
+**Next action:** **U1** (re-home the consumer components), then U2 and U6 —
+all three are unblocked by U0 and independent of each other. The UI chain is
+the whole critical path now.
+
+**Node was not installed on this machine.** `frontend/` had never been built
+here: no `node`, no `npm`, no `node_modules`. Installed Node 26.5.1 via the
+Homebrew that was already present (not on `PATH` — it lives at
+`/opt/homebrew/bin`), then `npm ci`. The frontend gate is
+`cd frontend && npm test` (33 passing) and `npm run build` (which runs
+`tsc --noEmit` first).
 
 **M3 is done** (verified 2026-08-03 by probe, not by asking: a REST call with
 `Accept-Profile: demand` returns `200 []`, which only happens once the schema
@@ -148,7 +156,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
 | **T73** | TASK 73 — turn signals into per-shop recommendations, worded from fixed Spanish templates, each carrying its confidence and its caveat. | Jules | T72 | T74, T75, T77 | `[x] 2026-08-02` |
-| **U0** | One app shell with a top-right consumer/retail toggle driven by `?mode=retail` in the address bar. Declare the two component folders. | Claude | M12 | U1, U2, U3, U5, U6 | `[ ]` |
+| **U0** | One app shell with a top-right consumer/retail toggle driven by `?mode=retail` in the address bar. Declare the two component folders. | Claude | M12 | U1, U2, U3, U5, U6 | `[x] 2026-08-03` |
 | **U1** | Move the existing search-and-map screens into the consumer half of the shell. No behaviour change. | Claude | U0 | U4, U5 | `[ ]` |
 | **U2** | Retail mode's chat pane, reusing the chat panel and its client-side mock that already exist. No backend needed at all. | Claude | U0 | — | `[ ]` |
 | **U6** | The "ask AI about my analytics" button: visible, greyed out, wired to nothing. It marks the future feature without building it. | Claude | U0 | — | `[ ]` |

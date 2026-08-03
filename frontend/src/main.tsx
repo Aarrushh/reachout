@@ -15,6 +15,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "./api/client";
 import SearchRoute from "./routes/search";
 import ResultsRoute from "./routes/results";
+import AppShell from "./shell/AppShell";
 
 // A 4xx is permanent (bad query, bad params) — retrying only delays the
 // error state. Keep TanStack's default 3 retries for everything else.
@@ -31,10 +32,15 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<SearchRoute />} />
-          <Route path="/results" element={<ResultsRoute />} />
-        </Routes>
+        {/* One shell, both modes. It is INSIDE the router on purpose: mode
+            comes from `?mode=`, so the shell needs the router's search
+            params, and both routes keep the same toggle in the same place. */}
+        <AppShell>
+          <Routes>
+            <Route path="/" element={<SearchRoute />} />
+            <Route path="/results" element={<ResultsRoute />} />
+          </Routes>
+        </AppShell>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,
