@@ -1,34 +1,43 @@
 # TRACKER.md — the live board
 
-**Last updated:** 2026-08-02 (all Jules backend tasks landed except T77, in flight)
-**Wave in flight:** Wave 1 is done. Lane P **finished**; lane D **finished**
-T69–T75 unattended and is now running T77 alone.
-**Progress:** 20 of 32 tasks done.
-**Next action:** Nothing to dispatch — T77 is live in the background and is
-the last Jules task in the series. One thing needs a human:
+**Last updated:** 2026-08-03 (both lanes merged; **all work is on `main`**)
+**Wave in flight:** Waves 1–3 backend are done. The UI chain (U0→U7) is the
+only thing left that nobody is blocked on.
+**Progress:** 21 of 33 tasks done.
+**Next action:** Start **U0** (app shell + `?mode=retail` toggle). Two things
+need the founder:
 
-- **M3** (apply `demand/data/schema.sql` to Supabase) still waits on the
-  founder. Nothing built so far needs it; **V1** (live verify) does. The file
-  changed on 2026-08-02 (natural keys + `captured_date`) — paste the current
-  version, not an earlier copy.
+- **M3** — apply `demand/data/schema.sql` in the Supabase SQL editor, **then
+  two steps that are not in that file**: expose the `demand` schema in
+  Settings → API → Data API → Exposed schemas, and grant `service_role`
+  usage + table privileges. Without either, the tables exist and every API
+  call still fails (404, then 42501). Full wording in the **V1a** row.
+- **V1a/V1b** — the live verify, once M3 is done.
 
-**Correction to the previous entry:** it warned that T74 would trip the lane D
-test gate on Python 3.9. It did not. Lane D's gate runs only `demand/`'s
-tests, and nothing under `demand/` uses the `X | None` annotations that 3.9
-cannot import — only `reachout/api/` does. Verified 34 passing under both
-interpreters. The **W1-FIX-A** interpreter fix was still necessary; it was
-lane P, not lane D, that needed it.
+**The board had drifted, and this is how it was caught.** The previous entry
+showed T73–T77 as `[ ]` and described two live lanes. In fact every one of
+those tasks had landed: `git log --oneline main..origin/jules-demand-integration`
+returned 15 commits and `..origin/jules-picks-integration` returned 3, and
+each lane had ticked only *its own* contract flags on *its own* branch, so
+neither branch ever showed the true state and `main` showed none of it. The
+board is only ever as true as its last commit — when a lane runs unattended,
+nothing updates this file for it.
 
-Landed on `jules-demand-integration`: T69 `76e751e`, T70 `10ffc7d`, T71
-`bef4254`, T72 `35fa1d4`, T73 `21df7e2`, T74 `a028047`, T75 `b69ea1a`.
-`DEMAND_INGEST_READY` and `DEMAND_API_READY` are both ticked — but note T75
-ticked `DEMAND_API_READY — demand API + analytics live` before analytics
-(T77) existed. True for the API half, premature for the analytics half until
-T77 lands. Landed on `jules-picks-integration`: T76 `c50e966` + controller
-fix `54284c6` (that fix was not optional — `select("*")` against an
-`additionalProperties:false` schema made every real `/api/picks` request a
+Both lanes are now merged into `main` (`4d0dd05`, `df9b36e`) and both branches
+are **deleted**, locally and on the remote, along with their worktrees. There
+are no lanes any more. **All work happens on `main`.**
+
+**Merged without a whole-branch review** — the reviewer was killed mid-run by
+a spend limit. A deliberate tradeoff to hold one branch instead of three;
+recorded in `STATUS.md` and not to be re-litigated. Per-task reviews and five
+controller fix rounds (W1-FIX-D…H) did run.
+
+Landed: T69 `76e751e`, T70 `10ffc7d`, T71 `bef4254`, T72 `35fa1d4`, T73
+`21df7e2`, T74 `a028047`, T75 `b69ea1a`, T77 `d65465c`, T76 `c50e966` +
+controller fix `54284c6` (that fix was not optional — `select("*")` against
+an `additionalProperties:false` schema made every real `/api/picks` request a
 500, invisible to the tests because the fixtures were trimmed to exactly the
-schema's keys). Neither lane touches `main`.
+schema's keys). All seven contract flags are now `[x]` on `main`.
 
 ---
 
@@ -56,7 +65,7 @@ human, live credentials, or a decision).
 |---|---|---|---|---|---|
 | **M1** | Build the `demand/` folder: its two layer docs, its seed-keyword list, and the empty folders and test helpers the Jules tasks expect. The task fuel already says this exists; it does not. | Claude | nothing | M2, M7, T69, T70, T71 | `[x] 2026-08-02` |
 | **M2** | Write the five data contracts (JSON Schemas) and the database table definitions for the demand service, plus the spec for what the practice data must look like. | Claude | M1 | M3, M7, M13, T69–T71, T77, U3 | `[x] 2026-08-02` |
-| **M3** | **Apply the database table definitions to Supabase.** The key we have cannot do this — it has to be pasted into the Supabase SQL editor, same as last time. | **You (founder)** | M2 | V1 | `[ ]` |
+| **M3** | **Apply the database table definitions to Supabase**, then expose the `demand` schema and grant `service_role` on it — three steps, only the first is in the SQL file. Our key cannot run DDL, so all three happen in the dashboard. Exact wording in the V1a row. | **You (founder)** | M2 | V1a | `[ ]` |
 | **M4** | Add three missing "phase done" checkboxes to `SHARED_CONTRACT.md`. Three tasks are told to tick lines that aren't in the file. | Claude | nothing | M5, T72, T75, T76 | `[x] 2026-08-02` |
 | **M5** | Create and push the two work branches, one per parallel lane. | Claude | M4 | T69–T71, T76 | `[x] 2026-08-02` |
 | **M6** | Tell git to ignore the runner's working files, so they stop showing up as clutter or getting committed by accident. | Claude | nothing | — | `[x] 2026-08-02` |
@@ -77,57 +86,36 @@ human, live credentials, or a decision).
 | **T71** | TASK 71 — save captured trend data to the database without ever creating duplicates. | Jules | M1, M2, M5, M7, M8 | T72 | `[x] 2026-08-02` |
 | **T76** | TASK 76 — the "picks for you" endpoint for shoppers. Runs in its own lane, in parallel with everything above. Ticks `PICKS_READY`. | Jules | M4, M5, M8 | U4 | `[x] 2026-08-02` |
 
-**Wave 1 — runner launch commands.** `docs/EXECUTION_PROMPTS.md` §3/§4 are
-stale (wrong parsed-task count, TASK 77 unreachable by either lane, and
-Terminal A/B given the *same* `--state`/`--branch` — M9's lock now turns
-that collision into an immediate exit for whichever terminal loses the
-race). These two commands are current against the actual `argparse` block
-in `tools/jules_runner.py` and the task order in `docs/JULES_DEMAND.md`
-(`python3`, not `python` — see M10-fix). Run each in its own terminal;
-they touch disjoint state/branch/worktree so nothing races:
+**All work is on `main`.** There are no lanes. Both integration branches
+were merged on 2026-08-03 and then deleted, locally and on the remote, along
+with their worktrees. The runner launch commands that used to sit here are
+gone with them — every Jules task in the 69–77 series has landed, so there is
+nothing left to dispatch. Any new work is a commit on `main`.
 
-Lane D (`jules-demand-integration`, TASKs 69–75 — 72 needs 69+71 done and
-75 needs 73/74/77, but the runner does one task at a time in file order so
-this single background run resolves the chain correctly on its own):
+**The test gate — two commands, not one.** Running `pytest` from the repo root
+collects nothing: 21 modules error out. Two independent reasons, both real,
+both discovered on 2026-08-03 during the merge:
 
-```
-python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_demand.json --branch jules-demand-integration --from 69 --max 7
-```
+1. `reachout/tests/*` import `api.server` and `tests.test_api` — relative to
+   `reachout/`, not to the repo root. They only resolve with `reachout/` as
+   the working directory.
+2. `reachout/tests/test_api.py` and `demand/tests/test_api.py` collide on the
+   module name `tests.test_api`. One root-level run cannot hold both.
 
-Lane P (`jules-picks-integration`, TASK 76 only — its own `--test-cmd` is
-required, not optional: the shared tasks-file `TEST_CMD` header resolves to
-`python3 -m pytest demand/tests -q`, which tests none of TASK 76's code in
-`reachout/`; see I1 in the wave-0 review and the MULTI-LANE WARNING in
-`tools/jules_runner.py`'s module docstring):
+So the gate is:
 
 ```
-python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_picks.json --branch jules-picks-integration --only 76 --test-cmd "REACHOUT_OFFLINE=1 python3 -m pytest reachout/tests -q"
+cd reachout && PYTHONPATH=<repo-root> ../.venv/bin/python -m pytest -q   # 273 passed
+cd <repo-root> &&               .venv/bin/python -m pytest demand/tests -q   # 153 passed
 ```
 
-Both test commands run from the **repo root** (the runner sets cwd to the
-worktree root), never from inside a `tests/` directory — those suites
-import `reachout.*` / `demand.*`, which resolve only with the repo root on
-`sys.path`. The local gate needs **Python 3.10+**: macOS system `python3`
-is 3.9 and cannot import `reachout/api/` at all (`X | None` at module
-scope), which is why the runner substitutes the repo-root `.venv`
-interpreter for `python3` when running the gate — see `resolve_pybin()`.
-Create it once with `uv venv --python 3.12 .venv && uv pip install --python
-.venv/bin/python -r reachout/requirements.txt`.
-
-Both default to **not** touching `main` — work lands on the integration
-branch only. Append `--promote-main` to either command to opt into also
-fast-forwarding `main` after each green task; this is a deliberate choice
-per task, not a default.
-
-**TASK 77 is not in wave 1** (it needs T73, wave 3) and is not reachable by
-either command above — `--from 69 --max 7` stops at 75, and 76 sits
-between 75 and 77 in the tasks file, so no single contiguous `--from`/
-`--max` range can cover 69–75 and 77 while skipping lane P's 76. Once T73
-is done, submit it as its own run on lane D's same state/branch:
-
-```
-python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_runner_state_demand.json --branch jules-demand-integration --only 77
-```
+426 total. `PYTHONPATH` is required for the first one because a handful of
+`reachout/tests/*` import `reachout.*` while the rest import `api.*` — the
+suite is split against itself and needs both roots visible. The `.venv`
+interpreter is deliberate: macOS system `python3` is 3.9 and cannot import
+`reachout/api/` at all (`X | None` at module scope). Create it once with
+`uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r
+reachout/requirements.txt -r demand/requirements.txt`.
 
 ### Wave 2 — signals
 
@@ -150,24 +138,25 @@ python3 tools/jules_runner.py --tasks docs/JULES_DEMAND.md --state tools/.jules_
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
 | **T74** | TASK 74 (rewritten, no login) — the demand service's own API. All endpoints public for the POC. | Jules | T73, M7 | T75 | `[x] 2026-08-02` |
-| **T77** | TASK 77 (new) — the analytics endpoint feeding the dashboard: real shape, practice content, three metrics, no footfall. | Jules | T73, M2, M7 | T75, U3 | `[ ]` |
+| **T77** | TASK 77 (new) — the analytics endpoint feeding the dashboard: real shape, practice content, three metrics, no footfall. | Jules | T73, M2, M7 | T75, U3 | `[x] 2026-08-02` |
 | **U3** | The three dashboard charts (top movers, category mix, stock-out risk) using ECharts. The screen only draws; every number is computed on the server. Confidence chip and caveat caption always visible. | Claude | U0, M2, T77 | U7 | `[ ]` |
 
 ### Wave 5 — batch runner ‖ rail and offline
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **T75** | TASK 75 — the one command that runs the whole chain end to end, safe to run twice. Ticks `DEMAND_API_READY`. | Jules | T73, T74, T77, M4 | V1 | `[x] 2026-08-02` |
+| **T75** | TASK 75 — the one command that runs the whole chain end to end, safe to run twice. Ticks `DEMAND_API_READY`. | Jules | T73, T74, T77, M4 | V1a | `[x] 2026-08-02` |
 | **U4** | The "picks for you" rail in consumer mode. | Claude | T76, U1 | U7 | `[ ]` |
 | **U5** | Make the app installable and work offline — **consumer screens only.** The offline cache must never hold the retail dashboard. | Claude | U0, U1 | U7 | `[ ]` |
-| **U7** | Drive the whole thing in a real browser: consumer flow on a phone-sized screen, retail flow via `?mode=retail`, and check every caveat caption is visible without hovering. | Claude | U3, U4, U5 | V1, H1 | `[ ]` |
+| **U7** | Drive the whole thing in a real browser: consumer flow on a phone-sized screen, retail flow via `?mode=retail`, and check every caveat caption is visible without hovering. | Claude | U3, U4, U5 | V1b, H1 | `[ ]` |
 
 ### Wave 6–7 — live verify and housekeeping
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **V1** | **Run the ingest against the real Google Trends once**, confirm real rows landed, and view the dashboard on live data. If the scrape is blocked, fall back to practice data and say so — never fake it. | **You (founder)** | M3, T75, U7 | — | `[ ]` |
-| **H1** | Delete the six dead scratch files and archive the three finished task documents (see BLOAT below). Authorized; do it here, not earlier. | Claude | U7 | — | `[ ]` |
+| **V1a** | **Live ingest.** Founder does three things first, and only the first is in the SQL file: (a) paste all of `demand/data/schema.sql` into the Supabase SQL editor and run it; (b) Settings → API → Data API → **Exposed schemas** → add `demand` — the client sends `Accept-Profile: demand` and PostgREST refuses any schema not on that list, so skipping this 404s every call with the tables sitting right there; (c) back in the SQL editor, `grant usage on schema demand to service_role;` + `grant all on all tables in schema demand to service_role;` + `alter default privileges in schema demand grant all on tables to service_role;` — a new schema carries zero privileges, so skipping this is 42501 on every call. `service_role` only, **never `anon`**: RLS is off and the service has no auth, so granting `anon` would put write access on the public internet. Then Claude runs the dry-run, the live `--provider trendspy` run, checks rows landed, re-runs and confirms the counts stay **flat** (that is the dedupe indexes and the uuid5 natural keys working — doubling counts is a finding), and curls the API. | **You (founder)** → Claude | M3, T75 | V1b | `[ ]` |
+| **V1b** | **Live dashboard.** With V1a's real rows in the database and U7 passing, open retail mode and confirm the three charts render the **ingested** numbers, each with its confidence label and its caveat visible without hovering. If the scrape was blocked and the data came from fixtures, the dashboard must **say so** — practice data is never presented as live. | Claude | V1a, U7 | H1 | `[ ]` |
+| **H1** | Archive the three finished task documents to `docs/archive/` with `git mv` (see BLOAT below). **The six scratch deletions are already done** (`901b444`, pulled forward on 2026-08-03): `reachout/test_tick_debug.py` was putting `reachout/` on `sys.path` as a pytest rootdir, which shadowed the `reachout` package and broke collection for the entire repo — it could not wait for close-out. | Claude | U7 | — | `[~] since 2026-08-03` |
 
 ---
 
@@ -206,11 +195,11 @@ Reserved in advance, so two tasks never collide on them:
 
 | File | Verdict | Reason | Deleted? |
 |---|---|---|---|
-| `debug_tick.py` (repo root) | DELETE | one-off debug scratch; the tick work shipped | `[ ]` |
-| `debug_tick2.py` (repo root) | DELETE | same | `[ ]` |
-| `test_tick2.py` (repo root) | DELETE | same | `[ ]` |
-| `test_tick_debug.py` (repo root) | DELETE | same | `[ ]` |
-| `reachout/test_tick_debug.py` | DELETE | same — and it sits at the workspace root instead of `tests/`, which breaks the layer rule. Missed by the original register; found in the Phase-1 audit. | `[ ]` |
+| `debug_tick.py` (repo root) | DELETE | one-off debug scratch; the tick work shipped | `[x] 2026-08-03 (901b444)` |
+| `debug_tick2.py` (repo root) | DELETE | same | `[x] 2026-08-03 (901b444)` |
+| `test_tick2.py` (repo root) | DELETE | same | `[x] 2026-08-03 (901b444)` |
+| `test_tick_debug.py` (repo root) | DELETE | same | `[x] 2026-08-03 (901b444)` |
+| `reachout/test_tick_debug.py` | DELETE | same — and it sits at the workspace root instead of `tests/`, which breaks the layer rule. Missed by the original register; found in the Phase-1 audit. | `[x] 2026-08-03 (901b444)` |
 | `plan.md` (repo root) | DELETE | 29-line tick-scheduler micro-plan; the work already shipped (its own banner says so) | `[ ]` |
 | `docs/JULES_BACKEND.md` | ARCHIVE → `docs/archive/` | finished task fuel (TASKs 01–52); keep as history, never load as input | `[ ]` |
 | `docs/JULES_BACKEND_V2.md` | ARCHIVE → `docs/archive/` | finished task fuel (TASKs 53–68); same | `[ ]` |
@@ -280,13 +269,20 @@ existing pipeline endpoint, not the Supabase one.
 [x] PHASE_3_CHAT_READY      /api/chat endpoint live
 [x] PHASE_4_PRODUCTS_READY  /api/products + /api/stores live
 [x] DEMAND_INGEST_READY     ← added by M4, ticked by T72
-[ ] DEMAND_API_READY        ← added by M4, ticked by T75
-[ ] PICKS_READY             ← added by M4, ticked by T76
+[x] DEMAND_API_READY        ← added by M4, ticked by T75
+[x] PICKS_READY             ← added by M4, ticked by T76
 ```
 
-The three `DEMAND_*` / `PICKS_*` lines **are now in `SHARED_CONTRACT.md`.**
-Task M4 added them on 2026-08-02. All three flags are present and unticked,
-ready for T72, T75, and T76 to tick them in turn.
+All seven are `[x]` on `main` as of 2026-08-03. They did not all become true
+at once: each lane ticked only its own flags on its own branch, so until the
+merge no single branch showed more than a partial picture. The union is what
+is written above, and it is what `SHARED_CONTRACT.md` now holds.
+
+One caveat that survives the merge: T75 ticked `DEMAND_API_READY — demand
+API + analytics live` before T77's analytics endpoint existed. T77 has since
+landed (`d65465c`), so the flag is now true — but it was ticked early, and
+the lesson is that a flag ticked by the task that *needs* it is not the same
+as a flag ticked by the task that *provides* it.
 
 ---
 
