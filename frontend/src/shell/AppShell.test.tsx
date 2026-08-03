@@ -1,14 +1,8 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import AppShell from "./AppShell";
-
-// This project runs vitest without `globals: true`, so RTL's automatic
-// per-test cleanup never registers and every render stacks up in the same
-// document. Without this, the second test onward sees two shells and every
-// `getBy*` fails with "multiple elements found".
-afterEach(cleanup);
 
 function mountAt(url: string) {
   return render(

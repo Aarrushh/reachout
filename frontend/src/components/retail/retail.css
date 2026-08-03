@@ -1,0 +1,49 @@
+/*
+ * Retail mode's two columns. Chat left, dashboard right — the split the plan
+ * specifies (IMPLEMENTATION_PLAN_V2.md §1).
+ */
+
+.retail-split {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.retail-split__chat {
+  flex: none;
+  width: min(380px, 40%);
+  min-height: 0;
+  display: flex;
+}
+
+.retail-split__dash {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 24px;
+}
+
+/* On a phone the two columns stack: 380px of chat beside a chart is neither.
+ * Dashboard first — it is what the shopkeeper opened retail mode for. */
+@media (max-width: 720px) {
+  .retail-split {
+    flex-direction: column-reverse;
+    height: auto;
+  }
+  .retail-split__chat {
+    width: auto;
+    height: 60vh;
+  }
+}
+
+.retail-dash__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.retail-dash__note {
+  color: var(--sand-dim);
+  margin: 0;
+  max-width: 60ch;
+}

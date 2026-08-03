@@ -1,7 +1,8 @@
 # `components/retail/` — the shopkeeper half
 
-Declared by task **U0**, populated by **U2**, **U3** and **U6**. Empty on
-purpose right now.
+Declared by task **U0**. **U2 has landed** (2026-08-03): `RetailView` is the
+two-column surface behind `?mode=retail`, with `RetailChatPane` on the left.
+U3 (charts) and U6 (the disabled AI button) fill the right column.
 
 **What belongs here:** everything reachable only at `?mode=retail` — the chat
 pane (U2, reusing the existing `ChatPanel` and its client-side mock), the
@@ -20,3 +21,20 @@ about my analytics" button (U6).
 
 **U5 note:** the service worker's precache must exclude everything in this
 tree. An offline shell must never serve a stale dashboard.
+
+## The chat pane's sample data — read before touching it
+
+`RetailChatPane` quotes a stock level ("12 units right now"). Retail mode has
+no store picker and no inventory sync, so that number comes from
+`SAMPLE_CONTEXT`, a constant. The pane therefore carries an always-visible
+notice saying the shop and stock are samples, and a test asserts that notice
+in both languages.
+
+That test is not ceremony. A chat that quotes an invented stock figure to a
+shopkeeper about their **own** shop is indistinguishable, to them, from their
+real till. When inventory sync lands, replace the constant and delete the
+notice together — never one without the other.
+
+The pane reuses `components/ChatPanel.tsx` through its `variant="pane"` prop
+rather than reimplementing it. Two copies of one chat are two chats that
+drift.

@@ -4,9 +4,10 @@ This is a routing table, not a tutorial. It says what exists **today** and
 draws a hard line under what is still **planned**. If a doc elsewhere
 disagrees with this file, trust this file — it is kept honest on purpose.
 
-**U0 and U1 have landed.** The shell and the mode toggle exist, and the
-consumer surface now lives under `src/components/consumer/`. U2 onward
-remain planned.
+**U0, U1 and U2 have landed.** The shell and the mode toggle exist, the
+consumer surface lives under `src/components/consumer/`, and retail mode
+renders a real two-column view with a working chat pane. U3 and U6 fill the
+right column; U4, U5 and U7 follow.
 
 ## Routes — today
 
@@ -43,7 +44,9 @@ disagree with the address bar.
 | `ShopCard` | `src/components/consumer/ShopCard.tsx` | One ranked shop: rating, split price, stock badge, "Ask the shop" button |
 | `BarrioCombobox` | `src/components/consumer/BarrioCombobox.tsx` | Neighbourhood autocomplete over the generated Madrid gazetteer |
 | `ResultsPanel` | `src/components/consumer/ResultsPanel.tsx` | Ranked card list: filters, sort, pagination, skeleton/error/empty states |
-| `ChatPanel` | `src/components/ChatPanel.tsx` | Lazy-loaded slide-over "ask the shopkeeper" chat UI |
+| `ChatPanel` | `src/components/ChatPanel.tsx` | The one chat UI, in two presentations. `variant="overlay"` (default) is the consumer slide-over, lazy-loaded from `routes/results.tsx`; `variant="pane"` is retail mode's permanent left column — no scrim, no dialog role, no Escape handler |
+| `RetailView` | `src/components/retail/RetailView.tsx` | Everything behind `?mode=retail`: chat left, dashboard right |
+| `RetailChatPane` | `src/components/retail/RetailChatPane.tsx` | The retail column. Same mock engine, a **sample** shop context, and an always-visible notice saying so |
 | `chat/shopkeeper.ts` | `src/chat/shopkeeper.ts` | Chat message types (SHARED_CONTRACT shapes) + a **mock** reply engine — answers only from real result data, never invents inventory; swaps for a real `POST /api/chat` call in one function body when that endpoint ships |
 
 `src/map/map-layers.ts` and `src/map/geojson-source.ts` are pure GeoJSON
@@ -76,10 +79,11 @@ Query retry predicate can skip retrying 4xx responses.
 Edit the schema or the gazetteer, then regenerate — never edit the
 generated output by hand.
 
-## PLANNED — the rest of the consumer/retail split (U2 onward)
+## PLANNED — the rest of the consumer/retail split (U3 onward)
 
-`src/components/consumer/` is populated (U1). `src/components/retail/` still
-holds only its README — U2, U3 and U6 fill it.
+`src/components/consumer/` is populated (U1) and `src/components/retail/`
+now holds `RetailView` + `RetailChatPane` (U2). U3 and U6 fill the dashboard
+column.
 
 **What deliberately stayed in `components/` proper:** `ChatPanel.tsx` and
 `chat.css`. Both halves use it — consumer's "ask the shop" slide-over today,
@@ -90,7 +94,7 @@ neither. It is not copied into both.
 |------|------|--------|
 | **U0** | `AppShell` wrapping both routes; top-right toggle reading `?mode=retail` (S2) — absent/unrecognised = consumer; mode derived from the URL only, no store, no context; creates the empty `components/consumer/` and `components/retail/` trees | ✅ **DONE 2026-08-03** |
 | **U1** | Re-homes the "today" components above under `components/consumer/`; fetchers stay on `api/client.ts` / `GET /api/search`; no behaviour change | ✅ **DONE 2026-08-03** |
-| **U2** | Retail mode's chat pane — reuses `ChatPanel` + `chat/shopkeeper.ts` as-is, left pane of retail mode, still client-side mock, still no backend | PLANNED |
+| **U2** | Retail mode's chat pane — reuses `ChatPanel` + `chat/shopkeeper.ts`, left pane of retail mode, still client-side mock, still no backend | ✅ **DONE 2026-08-03** |
 | **U3** | Analytics dashboard: `echarts-for-react` (D9), three charts confined to `components/retail/charts/`, fed by a new `fetchAnalytics()` in `api/client.ts` against `GET /demand/api/analytics`; the frontend draws only, every rendered number is server-computed | PLANNED |
 | **U6** | Disabled "ask AI about my analytics" button — visible, `aria-disabled`, no handler, no fetcher | PLANNED |
 

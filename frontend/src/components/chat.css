@@ -84,3 +84,15 @@
 }
 .chat-send:hover:not(:disabled) { background: var(--terracotta-hot); }
 .chat-send:disabled { opacity: 0.5; cursor: default; }
+
+/* Retail mode's permanent left column (U2). Same chat, different frame: no
+ * scrim to sit on and nothing to slide over, so the panel becomes a plain
+ * flex child of the retail split instead of a fixed overlay. */
+.chat-panel--pane {
+  position: static;
+  width: auto;
+  height: 100%;
+  box-shadow: none;
+  border-right: 1px solid var(--ink-600);
+  animation: none;
+}

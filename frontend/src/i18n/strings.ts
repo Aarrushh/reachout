@@ -71,7 +71,8 @@ const STRINGS = {
   "mode.switchToRetail":   { es: "Modo tienda", en: "Retail mode" },
   "mode.switchToConsumer": { es: "Modo cliente", en: "Shopper mode" },
   "retail.title":          { es: "Modo tienda", en: "Retail mode" },
-  "retail.placeholder":    { es: "El chat y el panel de analítica llegan en los siguientes pasos. Aquí todavía no hay datos.", en: "The chat pane and the analytics dashboard arrive in the next steps. There is no data here yet." },
+  "retail.placeholder":    { es: "Los gráficos llegan en el siguiente paso. Aquí todavía no hay datos.", en: "The charts arrive in the next step. There is no data here yet." },
+  "retail.chatSampleNotice": { es: "Tienda y existencias de ejemplo — no es tu inventario real", en: "Sample shop and stock — not your real inventory" },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;
