@@ -90,8 +90,10 @@ from api.chat import router as chat_router  # noqa: E402
 from api.madrid import BARRIOS  # noqa: E402
 from api.supa import get_client as _supa_client  # noqa: E402
 
+from api.picks import router as picks_router  # noqa: E402
 app.include_router(search_router)
 app.include_router(chat_router)
+app.include_router(picks_router)
 
 _V2_PRODUCT_FIELDS = ("id,name,description,category,price,stock_qty,store_id,"
                       "neighbourhood,tags,image_url")

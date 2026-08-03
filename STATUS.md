@@ -620,7 +620,14 @@ Supabase project and Gemini key before writing any code:
 - [x] PHASE 2 — POST /api/search (240 tests passed)
 - [x] PHASE 3 — POST /api/chat (completed)
 - [x] PHASE 4 — GET /api/products, /api/stores, /api/neighbourhoods, CORS
+- [x] PHASE D3 — GET /api/picks live (deterministic, category-diverse,
+      schema-validated against picks_response.schema.json; 273 tests passed).
 - [ ] PHASE 5 — quality loop + BACKEND_DONE.md
 - [x] PHASE D1 — demand ingest chain green through compute_signals,
       ticks DEMAND_INGEST_READY (TASKs 69, 70, 71, 72)
 - [x] PHASE D2 — demand API + analytics live (TASK 75)
+- Merged both lane branches into main unreviewed (2026-08-03): neither
+  `jules-demand-integration` nor `jules-picks-integration` got a whole-branch
+  review — the reviewer was killed by a spend limit. Deliberate tradeoff to
+  hold one branch instead of three. Per-task reviews and five controller fix
+  rounds did run; the union suite is green.
