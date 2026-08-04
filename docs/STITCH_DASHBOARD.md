@@ -5,7 +5,7 @@
 *Planning document for Track A's retailer-facing dashboard UI
 (`docs/IMPLEMENTATION_PLAN.md` §2 task A10). Hand each PROMPT to Google
 Stitch (via API, key placeholder `[STITCH_API_KEY]`, from local `.env`) one
-at a time, in order. Same operating rules as `docs/STITCH_FRONTEND.md`
+at a time, in order. Same operating rules as `docs/archive/STITCH_FRONTEND.md`
 (read its §2 TOOL OVERVIEW: plain-CSS reminder every prompt, one component
 per prompt, Stitch generates presentation with explicit props — data wiring
 stays in your hands; v0.dev is the drop-in fallback). Depends on the demand

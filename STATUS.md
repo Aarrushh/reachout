@@ -655,3 +655,13 @@ Supabase project and Gemini key before writing any code:
       because fixture and live responses are byte-identical in shape. That
       banner disappears on its own when V1a's live ingest lands; nothing
       needs editing. V1b cannot close until then.
+- [x] H1 housekeeping (2026-08-04, founder-authorized 2026-08-02). Deleted
+      `plan.md`; `git mv`'d `docs/JULES_BACKEND.md`, `JULES_BACKEND_V2.md`
+      and `STITCH_FRONTEND.md` into `docs/archive/` — history, never fuel.
+      The six tick-scratch files went earlier, in `901b444`, because
+      `reachout/test_tick_debug.py` was shadowing the `reachout` package and
+      breaking collection repo-wide. Inbound pointers updated:
+      `tools/jules_runner.py`'s default `TASKS_FILE`, `PROJECT_OVERVIEW.md`'s
+      repo map, the TRACKER bloat register, and the "same rules as" pointers
+      in the two Stitch specs and `JULES_DEMAND.md`. Everything is
+      recoverable from git history.

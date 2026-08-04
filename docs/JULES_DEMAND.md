@@ -7,7 +7,7 @@
 *Task series for Jules covering Track A (demand service, TASKs 69–75, 77) and
 Track B's one backend task (picks endpoint, TASK 76) from
 `docs/IMPLEMENTATION_PLAN.md` §2. Continues the numbering from
-`docs/JULES_BACKEND.md` (01–52) and `docs/JULES_BACKEND_V2.md` (53–68) so
+`docs/archive/JULES_BACKEND.md` (01–52) and `docs/archive/JULES_BACKEND_V2.md` (53–68) so
 state files and commit history never collide. Submitted by
 `python tools/jules_runner.py --tasks docs/JULES_DEMAND.md
 --state tools/.jules_runner_state_demand.json --branch

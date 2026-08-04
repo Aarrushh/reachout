@@ -6,7 +6,7 @@
 (`docs/IMPLEMENTATION_PLAN.md` §2 tasks B3–B4). "Phone" = responsive web +
 PWA (plan §0 decision D3) — no native scaffold. Hand each PROMPT to Google
 Stitch (via API, key placeholder `[STITCH_API_KEY]`, from local `.env`) in
-order. Operating rules and fallback (v0.dev) as in `docs/STITCH_FRONTEND.md`
+order. Operating rules and fallback (v0.dev) as in `docs/archive/STITCH_FRONTEND.md`
 §2. This series EXTENDS the shipped Amazon-light redesign — same tokens
 (`frontend/src/styles/tokens.css` incl. --price-red, --star-gold,
 --stock-green, --amz-navbar), same i18n STRINGS pattern, same no-retry-4xx

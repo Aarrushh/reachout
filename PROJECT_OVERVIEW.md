@@ -182,12 +182,6 @@ reachout/  (repo root)
 ├── AGENTS.md                the original 10 workstreams + their dependency graph
 ├── SHARED_CONTRACT.md       phase flags between backend and frontend agents
 ├── STATUS.md                live build state — ticked by every agent session
-├── plan.md                  superseded tick-scheduler micro-plan, shipped;
-│                            scheduled for deletion by H1 (see docs/TRACKER.md BLOAT)
-├── debug_tick.py, debug_tick2.py,
-│   test_tick2.py, test_tick_debug.py
-│                            one-off debug scratch from the tick work, shipped;
-│                            scheduled for deletion by H1 (see docs/TRACKER.md BLOAT)
 ├── netlify.toml             frontend deploy config (base frontend/, publish dist/)
 ├── render.yaml              backend deploy config (uvicorn on Render, free plan)
 ├── .claude/skills/verify/   how to launch + drive the app for verification
@@ -202,13 +196,13 @@ reachout/  (repo root)
 │   ├── JULES_DEMAND.md          Jules TASK 69–77 specs
 │   ├── STITCH_DASHBOARD.md      dashboard prompt series D1–D5
 │   ├── STITCH_CONSUMER.md       consumer prompt series C1–C8
-│   ├── STITCH_FRONTEND.md       v1 UI redesign prompt series, executed + merged
-│   │                             (design record, history)
 │   ├── FINAL_SUMMARY.md         compiled summary of the 52-task backend run +
 │   │                             12-prompt Stitch frontend redesign (history)
 │   ├── frontend_contract_note.md  fields added to the schemas for the frontend
 │   │                             (history)
-│   ├── JULES_BACKEND*.md        earlier Jules task files (history)
+│   ├── archive/                 finished, never load as input (H1, 2026-08-04):
+│   │                             JULES_BACKEND.md + _V2.md (TASKs 01–68) and
+│   │                             STITCH_FRONTEND.md (the v1 UI design record)
 │   └── superpowers/             UI design spec + implementation plan (history)
 ├── tools/jules_runner.py    submits task files to Jules, patches + merges
 ├── frontend/                React SPA (see frontend/README.md)

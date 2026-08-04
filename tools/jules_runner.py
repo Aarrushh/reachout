@@ -1,4 +1,4 @@
-"""Submit the 52 backend tasks in docs/JULES_BACKEND.md to Jules, sequentially.
+"""Submit the 52 backend tasks in docs/archive/JULES_BACKEND.md to Jules, sequentially.
 
 Each task becomes one Jules session. Sessions start from the integration
 branch (jules-integration); when a session completes, its output branch is
@@ -120,7 +120,10 @@ REPO = "Aarrushh/reachout"
 # Overridable via --branch/--tasks/--state (main() rewrites these globals);
 # defaults preserve the original v1 run's behaviour.
 BRANCH = "jules-integration"
-TASKS_FILE = os.path.join(ROOT, "docs", "JULES_BACKEND.md")
+# H1 moved this file to docs/archive/ — it is finished fuel, kept as history.
+# The default still resolves so an unqualified `--tasks`-less run behaves as it
+# always did; live runs pass --tasks explicitly.
+TASKS_FILE = os.path.join(ROOT, "docs", "archive", "JULES_BACKEND.md")
 STATE_FILE = os.path.join(ROOT, "tools", ".jules_runner_state.json")
 WORKTREE = os.path.join(ROOT, "tools", ".jules-wt")
 # Overridable via --test-cmd or a tasks-file `<!-- TEST_CMD: ... -->` header
