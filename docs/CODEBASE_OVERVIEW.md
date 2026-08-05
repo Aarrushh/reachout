@@ -815,14 +815,24 @@ it. It also publishes what is *actually* enforced in the current environment:
 UNENFORCED_FORMATS = frozenset(f for f in DEMAND_FORMATS if f not in FORMAT_CHECKER.checkers)
 ```
 
-As of this writing, `uuid` and `date` are enforced (stdlib);
-**`date-time` is not** — it needs `rfc3339-validator` on the path. So do not
-read a passing validation of a timestamp field as proof it is a timestamp.
-Installing that package turns it on with no code change, and
-`UNENFORCED_FORMATS` empties itself. `compute_signals._capture_key`
-(`compute_signals.py:97-115`) already handles the consequence: an unparseable
-`captured_at` sorts below every real one rather than raising, because it can
-reach that far.
+**Evaluated live on 2026-08-05, this set is empty: `uuid`, `date` and
+`date-time` are all enforced.** `rfc3339-validator` is installed and is a
+declared, non-optional dependency in `demand/requirements.txt`.
+
+Three code comments still say `date-time` is unenforced — the module docstring
+of `demand/shared/validation.py`, and `compute_signals.py:104-105`, and
+`demand/api/app.py:24-25`. They were true when written and are now stale;
+**they understate the guarantee**, which is the safe direction to be wrong in,
+but they should be corrected. The defensive code they justify is still worth
+keeping: `compute_signals._capture_key` (`compute_signals.py:97-115`) sorts an
+unparseable `captured_at` below every real one rather than raising, which
+remains the right behaviour for a value read back out of a database that has no
+CHECK constraints.
+
+The `UNENFORCED_FORMATS` mechanism is the real safeguard here, and it is a good
+pattern: if that dependency ever goes missing, the set silently repopulates and
+timestamps stop being checked with **nothing failing loudly to say so**. Assert
+on it in a test rather than trusting a comment.
 
 ---
 
@@ -1137,8 +1147,9 @@ repeatedly checked — and treat the *absence* of a comment as unexamined.
   today; a trap when `use_llm` is turned on.
 - **`/api/products` and `/api/stores` are unvalidated**, and `/api/stores` does
   `select("*")` (§6.1).
-- **`format: date-time` is unenforced** in this environment (§6.4). Install
-  `rfc3339-validator`.
+- **Three code comments claim `date-time` is unenforced. It is enforced**
+  (§6.4). Stale in the safe direction, but wrong. Worth a test asserting
+  `UNENFORCED_FORMATS == frozenset()` so the claim stops depending on prose.
 - **`POST /api/chat` is shipped but unused** — the frontend runs a mock.
 - **The Supabase secret key was pasted into a prompt during the build and
   should be rotated.**
@@ -1188,13 +1199,19 @@ repeatedly checked — and treat the *absence* of a comment as unexamined.
 
 ### Traps — documents that will mislead you
 
-**Stale, and actively wrong right now:**
+**Fixed on 2026-08-05** — both L1 routing files now match the tree:
+
+| File | Was | Now |
+|---|---|---|
+| `demand/CONTEXT.md` | Declared every chain file **PLANNED**, *"zero `.py` chain files exist yet"* — while all seven were shipped and tested. Worse, it instructed the reader to trust itself over any disagreeing doc. | Chain table reads BUILT, with a "Live status" section stating plainly that the three tables hold 0 rows and why the fixture is not a substitute. |
+| `frontend/CONTEXT.md` | *"Only U7 is left"* plus a `## PLANNED — what is left (U7)` section; U7 shipped in `ac4f515`. Named one schema root for `gen-types`. | U0–U7 marked complete with U4/U5/U7 rows added; both schema roots named; V1b called out as the one thing the UI cannot finish alone. |
+
+**Still stale — read with care:**
 
 | File | The lie |
 |---|---|
-| `demand/CONTEXT.md` | States every chain file is **PLANNED** and *"zero `.py` chain files exist yet."* All seven exist and are tested. The file even says "trust this table — this file is kept honest on purpose," which makes it worse. **Highest-priority doc fix in the repo.** |
-| `frontend/CONTEXT.md` | Header says *"Only U7 is left"* and there is a `## PLANNED — what is left (U7)` section. U7 shipped in `ac4f515`. The generated-files table also names only `reachout/shared/schemas/` as the type source; `gen-types.ts` walks **both** schema roots since U3. |
-| `SHARED_CONTRACT.md` | Its endpoint list (`POST /api/search`, `GET /api/products`, …) is not what the frontend consumes. It carries its own reality-check banner at the top admitting this. **The flags at the bottom are correct; the body is not.** |
+| `SHARED_CONTRACT.md` | Its endpoint list (`POST /api/search`, `GET /api/products`, …) is not what the frontend consumes. It carries its own reality-check banner at the top admitting this. **The seven flags at the bottom are correct; the body is not.** |
+| `demand/shared/validation.py` (docstring), `compute_signals.py:104`, `demand/api/app.py:24` | All three say `format: date-time` is unenforced. It **is** enforced — `rfc3339-validator` is installed and declared. Stale in the safe direction (§6.4). |
 | `docs/TRACKER.md` | Correct *now*, but has drifted before (five tasks behind, fixed in `30def57`). Verify against code. |
 
 **Superseded run-books — carry a banner, do not execute:**

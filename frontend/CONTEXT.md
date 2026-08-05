@@ -4,11 +4,15 @@ This is a routing table, not a tutorial. It says what exists **today** and
 draws a hard line under what is still **planned**. If a doc elsewhere
 disagrees with this file, trust this file — it is kept honest on purpose.
 
-**U0–U6 have all landed.** The shell and the mode toggle exist, the
-consumer surface lives under `src/components/consumer/`, and retail mode
-renders a real two-column view with a working chat pane and the deliberately
-dead AI button, and U3's three charts draw the demand service's numbers.
-U4's picks rail and U5's PWA have landed too. Only U7 is left.
+**The UI chain is COMPLETE — U0 through U7 have all landed.** The shell and
+the mode toggle exist, the consumer surface lives under
+`src/components/consumer/`, retail mode renders a real two-column view with a
+working chat pane and the deliberately dead AI button, U3's three charts draw
+the demand service's numbers, U4's picks rail and U5's consumer-only PWA are
+in, and U7 drove the whole thing in a real browser (Playwright + Chrome,
+25/25 against the **production** build with both APIs live).
+
+Suite: **79 tests across 16 files**, `npm test`. `npm run build` green.
 
 ## Routes — today
 
@@ -32,8 +36,11 @@ disagree with the address bar.
 | `src/shell/useMode.ts` | `parseMode()` (the rule: only the exact string `retail`) + `useMode()` (URL in, URL out; no store, no context) |
 | `src/shell/AppShell.tsx` | The frame both halves render in. Consumer mode renders the wrapped routes; retail mode renders its own surface **instead of** them, never on top of them |
 | `src/shell/ModeToggle.tsx` | Top-right switch. `aria-pressed` mirrors the URL |
-| `src/shell/shell.css` | Shell chrome only. `.app-shell__body` is a flex column on purpose — `.results-screen` is `height: 100%` and needs a definite parent height or the map collapses | `lang=es|en` (absent = Spanish) selects UI copy via
-`src/i18n/strings.ts`; it is read/written through `src/hooks/useLang.ts`.
+| `src/shell/shell.css` | Shell chrome only. `.app-shell__body` is a flex column on purpose — `.results-screen` is `height: 100%` and needs a definite parent height or the map collapses |
+
+`?lang=es|en` (absent = Spanish) selects UI copy via `src/i18n/strings.ts`;
+it is read and written through `src/hooks/useLang.ts`. Like `?mode=`, it
+lives in the URL and nowhere else.
 
 ## Key components — today
 
@@ -80,18 +87,30 @@ Query retry predicate can skip retrying 4xx responses.
 
 | Path | Generator | Source |
 |------|-----------|--------|
-| `src/types/*.d.ts` | `npm run gen-types` (`scripts/gen-types.ts`) | JSON Schemas in `reachout/shared/schemas/` |
+| `src/types/*.d.ts` | `npm run gen-types` (`scripts/gen-types.ts`) | JSON Schemas in **both** `reachout/shared/schemas/` and `demand/shared/schemas/` |
 | `src/data/barrios.ts` | `npm run gen-barrios` (`scripts/gen-barrios.ts`) | `reachout/data/gazetteer_madrid.json` |
 
 Edit the schema or the gazetteer, then regenerate — never edit the
 generated output by hand.
 
-## PLANNED — what is left (U7)
+**Two schema roots, because this is one frontend over two services** (U3).
+`gen-types.ts` walks both and aborts the run if a file name appears in both
+roots rather than silently overwriting one service's contract with the
+other's.
+
+## What is left: nothing in the UI chain
 
 `src/components/consumer/` is populated (U1) and `src/components/retail/`
 holds `RetailView`, `RetailChatPane` (U2), `AiAnalystButton` (U6) and
-`RetailDashboard` + `charts/` (U3). Every UI task except **U7** — driving the
-whole thing in a real browser — is done.
+`RetailDashboard` + `charts/` (U3). Every UI task U0–U7 is done.
+
+The one thing the UI cannot finish on its own is **V1b**: confirming the
+three charts draw *ingested* numbers rather than the committed fixture. That
+is blocked on V1a (the live Trends ingest), which has never landed a row —
+Google IP-throttled the scrape. Nothing in this workspace needs editing when
+it unblocks: `RetailDashboard` reads `generated_from` off the validated
+response, so the "practice data" banner disappears by itself the moment the
+payload says `"live"`.
 
 **What deliberately stayed in `components/` proper:** `ChatPanel.tsx` and
 `chat.css`. Both halves use it — consumer's "ask the shop" slide-over today,
@@ -105,6 +124,9 @@ neither. It is not copied into both.
 | **U2** | Retail mode's chat pane — reuses `ChatPanel` + `chat/shopkeeper.ts`, left pane of retail mode, still client-side mock, still no backend | ✅ **DONE 2026-08-03** |
 | **U3** | Analytics dashboard: `echarts-for-react` (D9) imported by `charts/EChart.tsx` alone, three charts in `components/retail/charts/`, fed by `fetchAnalytics()` in `api/client.ts` against `GET /demand/api/analytics` on the demand service's own base URL; the frontend draws only, every rendered number is server-computed, and `generated_from: "fixture"` is labelled on screen as practice data | ✅ **DONE 2026-08-04** |
 | **U6** | Disabled "ask AI about my analytics" button — visible, `disabled` **and** `aria-disabled`, no handler, no fetcher; the reason is an on-screen caption tied by `aria-describedby`, never a `title` tooltip | ✅ **DONE 2026-08-04** |
+| **U4** | `PicksRail` on the landing page off `GET /api/picks` via `fetchPicks()`; renders `null` on loading, error and empty; heading is *"popular near you"*, never *"for you"* — the endpoint has no per-shopper signal (`generated_by: "deterministic"`) | ✅ **DONE 2026-08-04** |
+| **U5** | Hand-written classic service worker at `public/sw.js` (no plugin, no build step) + `src/pwa/register.ts` + `InstallPrompt`; **consumer routes only** — `?mode=retail` and every `/demand/` request bypass the cache entirely. `src/pwa/sw.test.ts` evaluates the shipped file itself | ✅ **DONE 2026-08-04** |
+| **U7** | Browser verification: Playwright + Chrome, consumer at 375×812 and retail at 1280×900, every chip and caveat asserted visible **without hover**, zero `title` attributes in the retail tree, and the live worker confirmed to hold nothing retail even after visiting `?mode=retail` through it. Found and fixed three phone-layout defects in `consumer/results.css` | ✅ **DONE 2026-08-04** (25/25) |
 
 `package.json` now carries `echarts` + `echarts-for-react` (D9). Exactly one
 file imports them — `components/retail/charts/EChart.tsx` — which is the
