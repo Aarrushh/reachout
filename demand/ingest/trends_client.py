@@ -3,11 +3,54 @@ import os
 import time
 from typing import Any, Dict, List, Protocol
 
+#: Google's literal answer when growth exceeds roughly 5000%. It is a refusal
+#: to quantify, not a large number, and is stored as one.
+#:
+#: This token is LOCALIZED by the `hl` parameter -- the Task 1 probe measured
+#: `hl=es` returning "Aumento puntual" for the same rows `hl=en` returns
+#: "Breakout" for. Discovery therefore pins `hl="en"` (see Task 4), so this
+#: constant stays one English string instead of tracking Google's translations.
+#: The `query` values are unaffected: those are real user searches and come
+#: back in Spanish either way.
+BREAKOUT_TOKEN = "Breakout"
+
+
+def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """One RELATED_QUERIES payload -> rising rows.
+
+    Only the `rising` list is read. `top` ranks all-time popularity, which
+    would put steady bestsellers into a panel whose entire claim is that these
+    products are NEW demand.
+    """
+    rows: List[Dict[str, Any]] = []
+    rising = payload.get("related_queries", {}).get("rising", []) or []
+
+    for item in rising:
+        query = item.get("query")
+        if not query:
+            continue
+        # `extracted_value` is populated even on Breakout rows -- the probe
+        # measured 89800 and 91000 sitting behind the refusal. That number is
+        # Google's internal scale artifact, not a growth percentage anyone can
+        # defend to a shopkeeper, so `is_breakout` wins over it here.
+        is_breakout = str(item.get("value", "")).strip() == BREAKOUT_TOKEN
+        extracted = item.get("extracted_value")
+        growth = None if (is_breakout or extracted is None) else float(extracted)
+        rows.append({"query": query, "growth_pct": growth,
+                     "is_breakout": is_breakout})
+
+    return rows
+
+
 class TrendsProvider(Protocol):
     def interest_over_time(self, keywords: List[str], geo: str, timeframe: str) -> Dict[str, List[Dict[str, Any]]]:
         ...
 
     def interest_by_region(self, keyword: str, geo: str) -> List[Dict[str, Any]]:
+        ...
+
+    def rising_queries(self, keyword: str, geo: str, date: str,
+                       gprop: str) -> List[Dict[str, Any]]:
         ...
 
 def retry_on_429(max_retries: int = 3, base_delay: int = 1):
@@ -234,6 +277,21 @@ class FixtureProvider:
             return data.get(keyword, [])
         except FileNotFoundError:
             return []
+
+    def rising_queries(self, keyword: str, geo: str = "ES-MD",
+                       date: str = "today 1-m",
+                       gprop: str = "") -> List[Dict[str, Any]]:
+        """Replay a captured discovery response. Costs zero searches."""
+        slug = keyword.replace(" ", "_")
+        prop = gprop or "web"
+        path = os.path.join(self.fixtures_dir, "captured",
+                            f"related_queries_{prop}_{slug}.json")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                payload = json.load(fh)
+        except FileNotFoundError:
+            return []
+        return parse_rising_queries(payload)
 
 def get_provider(name: str) -> TrendsProvider:
     if name == "trendspy":

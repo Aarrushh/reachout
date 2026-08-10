@@ -279,3 +279,103 @@ def test_provider_splits_a_large_universe_into_capped_requests(monkeypatch):
 
     assert set(out) == set(universe), "every requested keyword must be answered"
     assert all(out[k] for k in universe), "flat-50 input should yield a series for each"
+
+
+from demand.ingest.trends_client import parse_rising_queries
+
+
+def test_parse_rising_queries_extracts_percentage():
+    payload = {"related_queries": {"rising": [
+        {"query": "leche sin lactosa", "value": "+4,200%",
+         "extracted_value": 4200},
+    ]}}
+    assert parse_rising_queries(payload) == [
+        {"query": "leche sin lactosa", "growth_pct": 4200.0,
+         "is_breakout": False},
+    ]
+
+
+def test_parse_rising_queries_flags_breakout_without_inventing_a_number():
+    # Google refuses to quantify Breakout. Assigning it 5000 -- or max+1, or
+    # anything -- fabricates a figure the source declined to give. The same
+    # refusal _rescale_to_anchor already makes when it drops an unreconcilable
+    # batch rather than emit it on a guessed scale.
+    payload = {"related_queries": {"rising": [
+        {"query": "leche de avena", "value": "Breakout"},
+    ]}}
+    assert parse_rising_queries(payload) == [
+        {"query": "leche de avena", "growth_pct": None, "is_breakout": True},
+    ]
+
+
+def test_parse_rising_queries_ignores_the_top_list():
+    # `top` is all-time popularity, not growth. Mixing it into a "rising"
+    # panel would present steady bestsellers as new demand.
+    payload = {"related_queries": {
+        "rising": [{"query": "a", "value": "+10%", "extracted_value": 10}],
+        "top": [{"query": "b", "value": "100", "extracted_value": 100}],
+    }}
+    assert [row["query"] for row in parse_rising_queries(payload)] == ["a"]
+
+
+def test_parse_rising_queries_handles_empty_response():
+    assert parse_rising_queries({"related_queries": {}}) == []
+    assert parse_rising_queries({}) == []
+
+
+def test_parse_rising_queries_skips_rows_without_a_query():
+    payload = {"related_queries": {"rising": [
+        {"value": "+10%", "extracted_value": 10},
+        {"query": "válido", "value": "+20%", "extracted_value": 20},
+    ]}}
+    assert [row["query"] for row in parse_rising_queries(payload)] == ["válido"]
+
+
+def test_fixture_provider_rising_queries_returns_empty_when_no_capture(tmp_path):
+    from demand.ingest.trends_client import FixtureProvider
+
+    provider = FixtureProvider(fixtures_dir=str(tmp_path))
+    assert provider.rising_queries("café", geo="ES-MD", date="today 1-m",
+                                   gprop="froogle") == []
+
+
+def test_fixture_provider_rising_queries_replays_capture(tmp_path):
+    import json
+    from demand.ingest.trends_client import FixtureProvider
+
+    captured = tmp_path / "captured"
+    captured.mkdir()
+    (captured / "related_queries_froogle_café.json").write_text(
+        json.dumps({"related_queries": {"rising": [
+            {"query": "café soluble", "value": "+150%", "extracted_value": 150},
+        ]}}), encoding="utf-8",
+    )
+
+    provider = FixtureProvider(fixtures_dir=str(tmp_path))
+    rows = provider.rising_queries("café", geo="ES-MD", date="today 1-m",
+                                   gprop="froogle")
+    assert rows == [{"query": "café soluble", "growth_pct": 150.0,
+                     "is_breakout": False}]
+
+
+def test_parse_rising_queries_against_the_real_capture():
+    """The two synthetic tests above prove the branches. This one proves the
+    branches match what Google actually sent on 2026-08-10 -- 24 rising rows
+    for `café` in ES-MD, 16 of them Breakout."""
+    import json
+    import os
+
+    from demand.ingest.trends_client import parse_rising_queries
+
+    path = os.path.join(os.path.dirname(__file__), "fixtures", "trends",
+                        "captured", "related_queries_web_café.json")
+    with open(path, encoding="utf-8") as fh:
+        rows = parse_rising_queries(json.load(fh))
+
+    assert len(rows) == 24
+    breakouts = [r for r in rows if r["is_breakout"]]
+    assert len(breakouts) == 16
+    # The honesty rule, asserted against real data: every Breakout row stores
+    # no growth number, even though SerpApi supplied one (89800, 91000, ...).
+    assert all(r["growth_pct"] is None for r in breakouts)
+    assert all(r["growth_pct"] is not None for r in rows if not r["is_breakout"])
