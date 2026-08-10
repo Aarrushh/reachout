@@ -1,7 +1,10 @@
 import json
 import os
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Protocol
+
+from demand.ingest.serpapi_client import build_params, fetch
 
 #: Google's literal answer when growth exceeds roughly 5000%. It is a refusal
 #: to quantify, not a large number, and is stored as one.
@@ -52,6 +55,105 @@ class TrendsProvider(Protocol):
     def rising_queries(self, keyword: str, geo: str, date: str,
                        gprop: str) -> List[Dict[str, Any]]:
         ...
+
+
+#: SerpApi echoes Google's display date ("Jul 6 - Jul 12, 2026"), which is
+#: locale-shaped and ambiguous to parse. The `timestamp` epoch seconds is
+#: not, so the ISO date is derived from it and the display string is ignored.
+def _iso_date(entry: Dict[str, Any]) -> str:
+    ts = entry.get("timestamp")
+    if ts is None:
+        return ""
+    return datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
+
+
+def parse_timeseries(payload: Dict[str, Any],
+                      keywords: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+    """One SerpApi TIMESERIES payload -> the provider's contract.
+
+    Returns an entry for EVERY requested keyword. A keyword Google returned
+    nothing for gets an empty list, never a missing key -- callers downstream
+    index by keyword and a KeyError there would look like a data bug.
+    """
+    result: Dict[str, List[Dict[str, Any]]] = {k: [] for k in keywords}
+    timeline = payload.get("interest_over_time", {}).get("timeline_data", [])
+
+    for entry in timeline:
+        date = _iso_date(entry)
+        if not date:
+            continue
+        values = entry.get("values", [])
+        for slot, value in enumerate(values):
+            # Single-query responses omit `query`; fall back to position.
+            keyword = value.get("query")
+            if keyword is None and slot < len(keywords):
+                keyword = keywords[slot]
+            if keyword not in result:
+                continue
+            extracted = value.get("extracted_value")
+            if extracted is None:
+                continue
+            result[keyword].append({"date": date, "value": float(extracted)})
+
+    return result
+
+
+class SerpApiProvider:
+    """Live provider. Every method call here spends budget -- see BUDGET.md."""
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+
+    def interest_over_time(self, keywords: List[str], geo: str = "ES-MD",
+                            timeframe: str = "today 3-m",
+                            ) -> Dict[str, List[Dict[str, Any]]]:
+        """Fetch the whole universe five terms at a time, anchor-rescaled.
+
+        The batching and rescaling are the EXISTING trendspy-era helpers, reused
+        unchanged. SerpApi is a proxy: Google still re-normalises every request
+        to 0-100 independently, so two batches remain incomparable without a
+        shared anchor. Swapping the transport did not remove that problem.
+        """
+        if not keywords:
+            return {}
+
+        anchor = keywords[0]
+        batches = _batch_keywords(keywords, anchor)
+        result: Dict[str, List[Dict[str, Any]]] = {k: [] for k in keywords}
+        reference_mean = 0.0
+
+        for i, batch in enumerate(batches):
+            payload = fetch(build_params(
+                q=batch, data_type="TIMESERIES", geo=geo,
+                date=timeframe, api_key=self.api_key,
+            ))
+            batch_series = parse_timeseries(payload, batch)
+
+            anchor_points = batch_series.get(anchor, [])
+            if i == 0:
+                reference_mean = (
+                    sum(p["value"] for p in anchor_points) / len(anchor_points)
+                    if anchor_points else 0.0
+                )
+                for kw, points in batch_series.items():
+                    if kw in result:
+                        result[kw] = points
+                continue
+
+            rescaled = _rescale_to_anchor(batch_series, anchor, reference_mean)
+            for kw, points in rescaled.items():
+                if kw in result:
+                    result[kw] = points
+
+        return result
+
+    def interest_by_region(self, keyword: str,
+                            geo: str = "ES-MD") -> List[Dict[str, Any]]:
+        """Deliberately empty. GEO_MAP_0 costs one search per keyword to answer
+        a question the analytics schema already rules out: Google Trends does
+        not resolve below ES-MD, so there is no barrio breakdown to buy."""
+        return []
+
 
 def retry_on_429(max_retries: int = 3, base_delay: int = 1):
     def decorator(func):
