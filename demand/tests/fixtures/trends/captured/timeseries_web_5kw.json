@@ -1,0 +1,2921 @@
+{
+  "search_parameters": {
+    "engine": "google_trends",
+    "q": "abanico,agua mineral,aspirinas,bañador,bebidas energéticas",
+    "hl": "es",
+    "geo": "ES-MD",
+    "date": "today 3-m",
+    "tz": "420",
+    "data_type": "TIMESERIES"
+  },
+  "interest_over_time": {
+    "timeline_data": [
+      {
+        "date": "10 may 2026",
+        "timestamp": "1778371200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "41",
+            "extracted_value": 41
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "11 may 2026",
+        "timestamp": "1778457600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "17",
+            "extracted_value": 17
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "12 may 2026",
+        "timestamp": "1778544000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "17",
+            "extracted_value": 17
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "19",
+            "extracted_value": 19
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "13 may 2026",
+        "timestamp": "1778630400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "18",
+            "extracted_value": 18
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "14 may 2026",
+        "timestamp": "1778716800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "22",
+            "extracted_value": 22
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "15 may 2026",
+        "timestamp": "1778803200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "32",
+            "extracted_value": 32
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "16 may 2026",
+        "timestamp": "1778889600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "41",
+            "extracted_value": 41
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "17 may 2026",
+        "timestamp": "1778976000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "32",
+            "extracted_value": 32
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "18 may 2026",
+        "timestamp": "1779062400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "35",
+            "extracted_value": 35
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "19 may 2026",
+        "timestamp": "1779148800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "29",
+            "extracted_value": 29
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "20 may 2026",
+        "timestamp": "1779235200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "12",
+            "extracted_value": 12
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "30",
+            "extracted_value": 30
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "21 may 2026",
+        "timestamp": "1779321600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "35",
+            "extracted_value": 35
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "22 may 2026",
+        "timestamp": "1779408000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "14",
+            "extracted_value": 14
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "26",
+            "extracted_value": 26
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "23 may 2026",
+        "timestamp": "1779494400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "20",
+            "extracted_value": 20
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "53",
+            "extracted_value": 53
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "24 may 2026",
+        "timestamp": "1779580800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "51",
+            "extracted_value": 51
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "25 may 2026",
+        "timestamp": "1779667200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "42",
+            "extracted_value": 42
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "26 may 2026",
+        "timestamp": "1779753600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "45",
+            "extracted_value": 45
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "27 may 2026",
+        "timestamp": "1779840000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "14",
+            "extracted_value": 14
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "45",
+            "extracted_value": 45
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "28 may 2026",
+        "timestamp": "1779926400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "25",
+            "extracted_value": 25
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "52",
+            "extracted_value": 52
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "29 may 2026",
+        "timestamp": "1780012800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "19",
+            "extracted_value": 19
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "50",
+            "extracted_value": 50
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "30 may 2026",
+        "timestamp": "1780099200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "27",
+            "extracted_value": 27
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "52",
+            "extracted_value": 52
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "31 may 2026",
+        "timestamp": "1780185600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "24",
+            "extracted_value": 24
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "68",
+            "extracted_value": 68
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "1 jun 2026",
+        "timestamp": "1780272000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "24",
+            "extracted_value": 24
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "51",
+            "extracted_value": 51
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "2 jun 2026",
+        "timestamp": "1780358400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "14",
+            "extracted_value": 14
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "49",
+            "extracted_value": 49
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "3 jun 2026",
+        "timestamp": "1780444800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "17",
+            "extracted_value": 17
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "60",
+            "extracted_value": 60
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "4 jun 2026",
+        "timestamp": "1780531200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "14",
+            "extracted_value": 14
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "56",
+            "extracted_value": 56
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "5 jun 2026",
+        "timestamp": "1780617600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "44",
+            "extracted_value": 44
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "6 jun 2026",
+        "timestamp": "1780704000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "24",
+            "extracted_value": 24
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "62",
+            "extracted_value": 62
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "7 jun 2026",
+        "timestamp": "1780790400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "15",
+            "extracted_value": 15
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "68",
+            "extracted_value": 68
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "8 jun 2026",
+        "timestamp": "1780876800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "15",
+            "extracted_value": 15
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "55",
+            "extracted_value": 55
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "9 jun 2026",
+        "timestamp": "1780963200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "51",
+            "extracted_value": 51
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "12",
+            "extracted_value": 12
+          }
+        ]
+      },
+      {
+        "date": "10 jun 2026",
+        "timestamp": "1781049600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "16",
+            "extracted_value": 16
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "55",
+            "extracted_value": 55
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "11 jun 2026",
+        "timestamp": "1781136000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "12",
+            "extracted_value": 12
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "52",
+            "extracted_value": 52
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "12 jun 2026",
+        "timestamp": "1781222400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "60",
+            "extracted_value": 60
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "13 jun 2026",
+        "timestamp": "1781308800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "19",
+            "extracted_value": 19
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "72",
+            "extracted_value": 72
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "14 jun 2026",
+        "timestamp": "1781395200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "18",
+            "extracted_value": 18
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "81",
+            "extracted_value": 81
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "15 jun 2026",
+        "timestamp": "1781481600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "22",
+            "extracted_value": 22
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "52",
+            "extracted_value": 52
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "16 jun 2026",
+        "timestamp": "1781568000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "17",
+            "extracted_value": 17
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "55",
+            "extracted_value": 55
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "17 jun 2026",
+        "timestamp": "1781654400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "15",
+            "extracted_value": 15
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "52",
+            "extracted_value": 52
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "18 jun 2026",
+        "timestamp": "1781740800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "55",
+            "extracted_value": 55
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "19 jun 2026",
+        "timestamp": "1781827200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "23",
+            "extracted_value": 23
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "55",
+            "extracted_value": 55
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "20 jun 2026",
+        "timestamp": "1781913600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "20",
+            "extracted_value": 20
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "88",
+            "extracted_value": 88
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "21 jun 2026",
+        "timestamp": "1782000000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "29",
+            "extracted_value": 29
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "87",
+            "extracted_value": 87
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "22 jun 2026",
+        "timestamp": "1782086400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "22",
+            "extracted_value": 22
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "67",
+            "extracted_value": 67
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "23 jun 2026",
+        "timestamp": "1782172800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "22",
+            "extracted_value": 22
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "51",
+            "extracted_value": 51
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "24 jun 2026",
+        "timestamp": "1782259200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "21",
+            "extracted_value": 21
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "62",
+            "extracted_value": 62
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "25 jun 2026",
+        "timestamp": "1782345600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "27",
+            "extracted_value": 27
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "46",
+            "extracted_value": 46
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "26 jun 2026",
+        "timestamp": "1782432000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "12",
+            "extracted_value": 12
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "54",
+            "extracted_value": 54
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "27 jun 2026",
+        "timestamp": "1782518400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "18",
+            "extracted_value": 18
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "63",
+            "extracted_value": 63
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "28 jun 2026",
+        "timestamp": "1782604800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "27",
+            "extracted_value": 27
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "84",
+            "extracted_value": 84
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "29 jun 2026",
+        "timestamp": "1782691200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "12",
+            "extracted_value": 12
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "66",
+            "extracted_value": 66
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "30 jun 2026",
+        "timestamp": "1782777600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "13",
+            "extracted_value": 13
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "64",
+            "extracted_value": 64
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "1 jul 2026",
+        "timestamp": "1782864000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "13",
+            "extracted_value": 13
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "74",
+            "extracted_value": 74
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "2 jul 2026",
+        "timestamp": "1782950400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "11",
+            "extracted_value": 11
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "54",
+            "extracted_value": 54
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "3 jul 2026",
+        "timestamp": "1783036800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "16",
+            "extracted_value": 16
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "56",
+            "extracted_value": 56
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "4 jul 2026",
+        "timestamp": "1783123200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "15",
+            "extracted_value": 15
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "100",
+            "extracted_value": 100
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "5 jul 2026",
+        "timestamp": "1783209600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "33",
+            "extracted_value": 33
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "93",
+            "extracted_value": 93
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "6 jul 2026",
+        "timestamp": "1783296000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "46",
+            "extracted_value": 46
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "7 jul 2026",
+        "timestamp": "1783382400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "51",
+            "extracted_value": 51
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "8 jul 2026",
+        "timestamp": "1783468800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "13",
+            "extracted_value": 13
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "60",
+            "extracted_value": 60
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "9 jul 2026",
+        "timestamp": "1783555200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "60",
+            "extracted_value": 60
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "10 jul 2026",
+        "timestamp": "1783641600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "13",
+            "extracted_value": 13
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "54",
+            "extracted_value": 54
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "11 jul 2026",
+        "timestamp": "1783728000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "17",
+            "extracted_value": 17
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "50",
+            "extracted_value": 50
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "12 jul 2026",
+        "timestamp": "1783814400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "17",
+            "extracted_value": 17
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "84",
+            "extracted_value": 84
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "13 jul 2026",
+        "timestamp": "1783900800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "55",
+            "extracted_value": 55
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "14 jul 2026",
+        "timestamp": "1783987200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "49",
+            "extracted_value": 49
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "15 jul 2026",
+        "timestamp": "1784073600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "47",
+            "extracted_value": 47
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "16 jul 2026",
+        "timestamp": "1784160000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "58",
+            "extracted_value": 58
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "17 jul 2026",
+        "timestamp": "1784246400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "60",
+            "extracted_value": 60
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "18 jul 2026",
+        "timestamp": "1784332800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "25",
+            "extracted_value": 25
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "82",
+            "extracted_value": 82
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "19 jul 2026",
+        "timestamp": "1784419200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "20 jul 2026",
+        "timestamp": "1784505600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "40",
+            "extracted_value": 40
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "21 jul 2026",
+        "timestamp": "1784592000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "42",
+            "extracted_value": 42
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "22 jul 2026",
+        "timestamp": "1784678400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "14",
+            "extracted_value": 14
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "53",
+            "extracted_value": 53
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "23 jul 2026",
+        "timestamp": "1784764800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "49",
+            "extracted_value": 49
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "24 jul 2026",
+        "timestamp": "1784851200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "15",
+            "extracted_value": 15
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "30",
+            "extracted_value": 30
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "25 jul 2026",
+        "timestamp": "1784937600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "42",
+            "extracted_value": 42
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "26 jul 2026",
+        "timestamp": "1785024000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "agua mineral",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "55",
+            "extracted_value": 55
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "27 jul 2026",
+        "timestamp": "1785110400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "11",
+            "extracted_value": 11
+          },
+          {
+            "query": "agua mineral",
+            "value": "2",
+            "extracted_value": 2
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "41",
+            "extracted_value": 41
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "28 jul 2026",
+        "timestamp": "1785196800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "11",
+            "extracted_value": 11
+          },
+          {
+            "query": "agua mineral",
+            "value": "3",
+            "extracted_value": 3
+          },
+          {
+            "query": "aspirinas",
+            "value": "1",
+            "extracted_value": 1
+          },
+          {
+            "query": "bañador",
+            "value": "46",
+            "extracted_value": 46
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "29 jul 2026",
+        "timestamp": "1785283200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "10",
+            "extracted_value": 10
+          },
+          {
+            "query": "agua mineral",
+            "value": "4",
+            "extracted_value": 4
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "43",
+            "extracted_value": 43
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "1",
+            "extracted_value": 1
+          }
+        ]
+      },
+      {
+        "date": "30 jul 2026",
+        "timestamp": "1785369600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "10",
+            "extracted_value": 10
+          },
+          {
+            "query": "agua mineral",
+            "value": "3",
+            "extracted_value": 3
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "47",
+            "extracted_value": 47
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "31 jul 2026",
+        "timestamp": "1785456000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "10",
+            "extracted_value": 10
+          },
+          {
+            "query": "agua mineral",
+            "value": "3",
+            "extracted_value": 3
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "43",
+            "extracted_value": 43
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "1 ago 2026",
+        "timestamp": "1785542400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "11",
+            "extracted_value": 11
+          },
+          {
+            "query": "agua mineral",
+            "value": "4",
+            "extracted_value": 4
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "49",
+            "extracted_value": 49
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "2 ago 2026",
+        "timestamp": "1785628800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "12",
+            "extracted_value": 12
+          },
+          {
+            "query": "agua mineral",
+            "value": "4",
+            "extracted_value": 4
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "50",
+            "extracted_value": 50
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "3 ago 2026",
+        "timestamp": "1785715200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "10",
+            "extracted_value": 10
+          },
+          {
+            "query": "agua mineral",
+            "value": "4",
+            "extracted_value": 4
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "41",
+            "extracted_value": 41
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "4 ago 2026",
+        "timestamp": "1785801600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "17",
+            "extracted_value": 17
+          },
+          {
+            "query": "agua mineral",
+            "value": "3",
+            "extracted_value": 3
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "49",
+            "extracted_value": 49
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "5 ago 2026",
+        "timestamp": "1785888000",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "11",
+            "extracted_value": 11
+          },
+          {
+            "query": "agua mineral",
+            "value": "4",
+            "extracted_value": 4
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "46",
+            "extracted_value": 46
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "6 ago 2026",
+        "timestamp": "1785974400",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "12",
+            "extracted_value": 12
+          },
+          {
+            "query": "agua mineral",
+            "value": "5",
+            "extracted_value": 5
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "42",
+            "extracted_value": 42
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "7 ago 2026",
+        "timestamp": "1786060800",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "12",
+            "extracted_value": 12
+          },
+          {
+            "query": "agua mineral",
+            "value": "4",
+            "extracted_value": 4
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "43",
+            "extracted_value": 43
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "8 ago 2026",
+        "timestamp": "1786147200",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "15",
+            "extracted_value": 15
+          },
+          {
+            "query": "agua mineral",
+            "value": "3",
+            "extracted_value": 3
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "52",
+            "extracted_value": 52
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "9 ago 2026",
+        "timestamp": "1786233600",
+        "values": [
+          {
+            "query": "abanico",
+            "value": "15",
+            "extracted_value": 15
+          },
+          {
+            "query": "agua mineral",
+            "value": "3",
+            "extracted_value": 3
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "48",
+            "extracted_value": 48
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      },
+      {
+        "date": "10 ago 2026",
+        "timestamp": "1786320000",
+        "partial_data": true,
+        "values": [
+          {
+            "query": "abanico",
+            "value": "9",
+            "extracted_value": 9
+          },
+          {
+            "query": "agua mineral",
+            "value": "4",
+            "extracted_value": 4
+          },
+          {
+            "query": "aspirinas",
+            "value": "0",
+            "extracted_value": 0
+          },
+          {
+            "query": "bañador",
+            "value": "38",
+            "extracted_value": 38
+          },
+          {
+            "query": "bebidas energéticas",
+            "value": "0",
+            "extracted_value": 0
+          }
+        ]
+      }
+    ],
+    "averages": [
+      {
+        "query": "abanico",
+        "value": 11
+      },
+      {
+        "query": "agua mineral",
+        "value": 1
+      },
+      {
+        "query": "aspirinas",
+        "value": 0
+      },
+      {
+        "query": "bañador",
+        "value": 51
+      },
+      {
+        "query": "bebidas energéticas",
+        "value": 0
+      }
+    ]
+  }
+}
