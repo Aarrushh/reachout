@@ -215,6 +215,7 @@ def build_params(
     date: str,
     api_key: str,
     gprop: Optional[str] = None,
+    hl: str = "es",
 ) -> Dict[str, str]:
     """Assemble one SerpApi query string. One call here == one billed search."""
     if not q:
@@ -230,7 +231,7 @@ def build_params(
         "data_type": data_type,
         "geo": geo,
         "date": date,
-        "hl": "es",
+        "hl": hl,
         "api_key": api_key,
     }
     if gprop:
@@ -417,6 +418,37 @@ for in every task that follows.
 
 Record the answers in the Task 2 commit message.
 
+#### GATE ANSWERS — measured 2026-08-10, 8 searches spent (5 probe + 3 gate)
+
+1. **Shape holds.** `interest_over_time.timeline_data`, 93 daily entries, each
+   with a `values[]` array carrying one `{query, value, extracted_value}` per
+   keyword. Task 3's parser needs no change. Note the sibling `date` field is
+   localized ("10 may 2026") — Task 3 already reads `timestamp` instead, which
+   is epoch seconds and locale-proof. Leave it that way.
+2. **0 of 4.** Every `gprop=froogle` probe returned SerpApi's `error` field,
+   "Google Trends hasn't returned any results for this query". Three further
+   searches isolated the cause: the same keyword, geo and window on **web
+   search** returns 25 rising and 25 top at `ES-MD`, and 25/25 at `ES`. So the
+   emptiness is Shopping's, not Madrid's — region scope is fine, the Shopping
+   corpus is not.
+   **Ruling: `DISCOVERY_GPROP = ""` (web search).**
+3. **Breakout present, and `extracted_value` is present with it** — 16 of 24
+   rising rows on the `café` web capture, carrying values like 89800 and 91000.
+   The honesty rule stands unchanged: `is_breakout` wins, `growth_pct` stays
+   NULL. A number Google refuses to publish is not a number we publish for it.
+   **New finding the plan did not anticipate:** the token is localized. At
+   `hl=es` those same rows read "Aumento puntual", so `BREAKOUT_TOKEN =
+   "Breakout"` would have matched nothing and every breakout row would have
+   been silently stored as quantified growth of 89800%.
+   **Ruling: discovery calls pin `hl="en"`.** Measurement keeps `hl="es"`; it
+   reads only `timestamp` and `extracted_value`, both locale-proof.
+
+Captured fixture for Task 2's replay:
+`demand/tests/fixtures/trends/captured/related_queries_web_café.json`
+(24 rising, 16 breakout, 8 quantified). The four froogle captures are kept as
+the evidence for ruling 2 — they are the record of why discovery is not on
+Shopping.
+
 ---
 
 ### Task 2: RELATED_QUERIES parser, Protocol extension, fixture replay
@@ -516,6 +548,29 @@ def test_fixture_provider_rising_queries_replays_capture(tmp_path):
                                    gprop="froogle")
     assert rows == [{"query": "café soluble", "growth_pct": 150.0,
                      "is_breakout": False}]
+
+
+def test_parse_rising_queries_against_the_real_capture():
+    """The two synthetic tests above prove the branches. This one proves the
+    branches match what Google actually sent on 2026-08-10 -- 24 rising rows
+    for `café` in ES-MD, 16 of them Breakout."""
+    import json
+    import os
+
+    from demand.ingest.trends_client import parse_rising_queries
+
+    path = os.path.join(os.path.dirname(__file__), "fixtures", "trends",
+                        "captured", "related_queries_web_café.json")
+    with open(path, encoding="utf-8") as fh:
+        rows = parse_rising_queries(json.load(fh))
+
+    assert len(rows) == 24
+    breakouts = [r for r in rows if r["is_breakout"]]
+    assert len(breakouts) == 16
+    # The honesty rule, asserted against real data: every Breakout row stores
+    # no growth number, even though SerpApi supplied one (89800, 91000, ...).
+    assert all(r["growth_pct"] is None for r in breakouts)
+    assert all(r["growth_pct"] is not None for r in rows if not r["is_breakout"])
 ```
 
 - [ ] **Step 2: Run test, verify it fails**
@@ -531,6 +586,13 @@ Add to `demand/ingest/trends_client.py`:
 ```python
 #: Google's literal answer when growth exceeds roughly 5000%. It is a refusal
 #: to quantify, not a large number, and is stored as one.
+#:
+#: This token is LOCALIZED by the `hl` parameter -- the Task 1 probe measured
+#: `hl=es` returning "Aumento puntual" for the same rows `hl=en` returns
+#: "Breakout" for. Discovery therefore pins `hl="en"` (see Task 4), so this
+#: constant stays one English string instead of tracking Google's translations.
+#: The `query` values are unaffected: those are real user searches and come
+#: back in Spanish either way.
 BREAKOUT_TOKEN = "Breakout"
 
 
@@ -548,6 +610,10 @@ def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
         query = item.get("query")
         if not query:
             continue
+        # `extracted_value` is populated even on Breakout rows -- the probe
+        # measured 89800 and 91000 sitting behind the refusal. That number is
+        # Google's internal scale artifact, not a growth percentage anyone can
+        # defend to a shopkeeper, so `is_breakout` wins over it here.
         is_breakout = str(item.get("value", "")).strip() == BREAKOUT_TOKEN
         extracted = item.get("extracted_value")
         growth = None if (is_breakout or extracted is None) else float(extracted)
@@ -570,7 +636,7 @@ Add to `FixtureProvider`:
 ```python
     def rising_queries(self, keyword: str, geo: str = "ES-MD",
                        date: str = "today 1-m",
-                       gprop: str = "froogle") -> List[Dict[str, Any]]:
+                       gprop: str = "") -> List[Dict[str, Any]]:
         """Replay a captured discovery response. Costs zero searches."""
         slug = keyword.replace(" ", "_")
         prop = gprop or "web"
@@ -588,8 +654,9 @@ Add to `FixtureProvider`:
 
 Run: `cd /Users/rajeshgupta/Desktop/reachout && .venv/bin/python -m pytest demand/tests/test_trends_client.py -v`
 
-Expected: PASS — 7 new tests green (5 parser, 2 fixture replay), plus the
-existing `_batch_keywords` / `_rescale_to_anchor` suite still green.
+Expected: PASS — 8 new tests green (5 parser, 2 fixture replay, 1 real-capture
+replay), plus the existing `_batch_keywords` / `_rescale_to_anchor` suite still
+green.
 
 - [ ] **Step 5: Commit**
 
@@ -880,6 +947,9 @@ def test_rising_queries_sends_exactly_one_query(monkeypatch):
     assert seen["data_type"] == "RELATED_QUERIES"
     assert seen["gprop"] == "froogle"
     assert seen["date"] == "today 1-m"
+    # Pinned to English so BREAKOUT_TOKEN stays one string. At hl=es the same
+    # rows read "Aumento puntual" and every breakout would parse as quantified.
+    assert seen["hl"] == "en"
     assert rows == [{"query": "café soluble", "growth_pct": 150.0,
                      "is_breakout": False}]
 
@@ -919,18 +989,26 @@ Add to `SerpApiProvider` in `demand/ingest/trends_client.py`:
 ```python
     def rising_queries(self, keyword: str, geo: str = "ES-MD",
                        date: str = "today 1-m",
-                       gprop: str = "froogle") -> List[Dict[str, Any]]:
+                       gprop: str = "") -> List[Dict[str, Any]]:
         """One search. RELATED_QUERIES takes exactly one query -- no batching
         is possible here, which is why discovery is capped at the top movers
-        rather than run across the whole universe."""
+        rather than run across the whole universe.
+
+        `hl="en"` is not cosmetic: Google localizes the Breakout label, and
+        `parse_rising_queries` decides `is_breakout` by matching it. At the
+        Spanish locale that match fails and a refusal to quantify is stored as
+        a quantified 89800% instead.
+        """
         try:
             payload = fetch(build_params(
                 q=[keyword], data_type="RELATED_QUERIES", geo=geo,
                 date=date, api_key=self.api_key, gprop=gprop or None,
+                hl="en",
             ))
         except SerpApiError:
-            # Sparse is the expected case on Shopping for a region-scoped
-            # Spanish term. No data is a normal answer, not a failed run.
+            # Google returns its `error` field rather than an empty list when a
+            # term has no rising queries in the window. No data is a normal
+            # answer, not a failed run.
             return []
         return parse_rising_queries(payload)
 ```
@@ -1176,7 +1254,7 @@ curl -s -o /dev/null -w "%{http_code}\n" \
 - Consumes: `SerpApiProvider`, `store_rising_queries`, `build_rows`
 - Produces: `estimate_searches(universe_size: int, discovery_count: int) -> dict`
 - Produces: `get_provider(name)` gains a `"serpapi"` branch
-- Produces: `DISCOVERY_TIMEFRAME = "today 1-m"`, `DISCOVERY_GPROP = "froogle"`,
+- Produces: `DISCOVERY_TIMEFRAME = "today 1-m"`, `DISCOVERY_GPROP = ""`,
   `DISCOVERY_TOP_N = 10`
 
 - [ ] **Step 1: Write failing test**
@@ -1236,10 +1314,12 @@ from demand.ingest.trends_client import KEYWORDS_PER_BATCH
 #: question it answers -- what is rising NOW -- wants recency.
 DISCOVERY_TIMEFRAME = "today 1-m"
 
-#: Google Shopping. Closer to purchase intent than web search, at the cost of
-#: sparsity on region-scoped Spanish terms. Set to "" to fall back to web
-#: search if the Task 1 probe showed froogle empty for Madrid.
-DISCOVERY_GPROP = "froogle"
+#: Web search, not Google Shopping. Shopping is closer to purchase intent and
+#: was the first choice, but the Task 1 probe measured it empty on 4 of 4
+#: region-scoped Spanish terms while web search returned 25 rising queries on
+#: the same keyword, geo and window. An empty panel has no intent to be close
+#: to. See the GATE ANSWERS section for the measurement.
+DISCOVERY_GPROP = ""
 
 #: RELATED_QUERIES cannot batch, so discovery costs one search per keyword.
 #: Ten keeps a full run at 22 searches, ~4 runs a month inside a 250 budget

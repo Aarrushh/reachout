@@ -30,8 +30,18 @@ def build_params(
     date: str,
     api_key: str,
     gprop: Optional[str] = None,
+    hl: str = "es",
 ) -> Dict[str, str]:
-    """Assemble one SerpApi query string. One call here == one billed search."""
+    """Assemble one SerpApi query string. One call here == one billed search.
+
+    `hl` selects the locale of Google's *display* strings, and is load-bearing
+    for exactly one caller. Discovery passes `hl="en"` because Google localizes
+    the "Breakout" label -- at `hl=es` the same rows come back as "Aumento
+    puntual", and the parser that decides `is_breakout` by matching that token
+    would store a refusal to quantify as a quantified 89800% instead.
+    Measurement keeps the Spanish default: it reads only `timestamp` and
+    `extracted_value`, neither of which is translated.
+    """
     if not q:
         raise ValueError("q must hold at least one query")
     if data_type in SINGLE_QUERY_TYPES and len(q) != 1:
@@ -45,7 +55,7 @@ def build_params(
         "data_type": data_type,
         "geo": geo,
         "date": date,
-        "hl": "es",
+        "hl": hl,
         "api_key": api_key,
     }
     if gprop:

@@ -1,0 +1,360 @@
+{
+  "search_parameters": {
+    "engine": "google_trends",
+    "q": "café",
+    "hl": "en",
+    "geo": "ES-MD",
+    "date": "today 1-m",
+    "tz": "420",
+    "data_type": "RELATED_QUERIES"
+  },
+  "related_queries": {
+    "rising": [
+      {
+        "query": "cápsula de café",
+        "value": "Breakout",
+        "extracted_value": 91000,
+        "link": "https://trends.google.com/trends/explore?q=c%C3%A1psula+de+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=c%C3%A1psula+de+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "all day brunch by café & té",
+        "value": "Breakout",
+        "extracted_value": 60750,
+        "link": "https://trends.google.com/trends/explore?q=all+day+brunch+by+caf%C3%A9+%26+t%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=all+day+brunch+by+caf%C3%A9+%26+t%C3%A9&tz=420"
+      },
+      {
+        "query": "mapas",
+        "value": "Breakout",
+        "extracted_value": 46600,
+        "link": "https://trends.google.com/trends/explore?q=mapas&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=mapas&tz=420"
+      },
+      {
+        "query": "escuelas",
+        "value": "Breakout",
+        "extracted_value": 45050,
+        "link": "https://trends.google.com/trends/explore?q=escuelas&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=escuelas&tz=420"
+      },
+      {
+        "query": "viajes",
+        "value": "Breakout",
+        "extracted_value": 38400,
+        "link": "https://trends.google.com/trends/explore?q=viajes&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=viajes&tz=420"
+      },
+      {
+        "query": "hospitales",
+        "value": "Breakout",
+        "extracted_value": 38350,
+        "link": "https://trends.google.com/trends/explore?q=hospitales&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=hospitales&tz=420"
+      },
+      {
+        "query": "gran café santander",
+        "value": "Breakout",
+        "extracted_value": 32600,
+        "link": "https://trends.google.com/trends/explore?q=gran+caf%C3%A9+santander&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=gran+caf%C3%A9+santander&tz=420"
+      },
+      {
+        "query": "bancos",
+        "value": "Breakout",
+        "extracted_value": 32100,
+        "link": "https://trends.google.com/trends/explore?q=bancos&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=bancos&tz=420"
+      },
+      {
+        "query": "estar café",
+        "value": "Breakout",
+        "extracted_value": 31700,
+        "link": "https://trends.google.com/trends/explore?q=estar+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=estar+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "mocca café",
+        "value": "Breakout",
+        "extracted_value": 28100,
+        "link": "https://trends.google.com/trends/explore?q=mocca+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=mocca+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "kawaii cafe",
+        "value": "Breakout",
+        "extracted_value": 27500,
+        "link": "https://trends.google.com/trends/explore?q=kawaii+cafe&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=kawaii+cafe&tz=420"
+      },
+      {
+        "query": "café de la iberia",
+        "value": "Breakout",
+        "extracted_value": 26600,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+de+la+iberia&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+de+la+iberia&tz=420"
+      },
+      {
+        "query": "gran café shanghai",
+        "value": "Breakout",
+        "extracted_value": 23250,
+        "link": "https://trends.google.com/trends/explore?q=gran+caf%C3%A9+shanghai&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=gran+caf%C3%A9+shanghai&tz=420"
+      },
+      {
+        "query": "são medialunas y café",
+        "value": "Breakout",
+        "extracted_value": 19900,
+        "link": "https://trends.google.com/trends/explore?q=s%C3%A3o+medialunas+y+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=s%C3%A3o+medialunas+y+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "cafe quijano",
+        "value": "Breakout",
+        "extracted_value": 19150,
+        "link": "https://trends.google.com/trends/explore?q=cafe+quijano&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=cafe+quijano&tz=420"
+      },
+      {
+        "query": "dot café bar",
+        "value": "Breakout",
+        "extracted_value": 16800,
+        "link": "https://trends.google.com/trends/explore?q=dot+caf%C3%A9+bar&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=dot+caf%C3%A9+bar&tz=420"
+      },
+      {
+        "query": "vuelos",
+        "value": "+450%",
+        "extracted_value": 450,
+        "link": "https://trends.google.com/trends/explore?q=vuelos&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=vuelos&tz=420"
+      },
+      {
+        "query": "playa",
+        "value": "+350%",
+        "extracted_value": 350,
+        "link": "https://trends.google.com/trends/explore?q=playa&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=playa&tz=420"
+      },
+      {
+        "query": "café quijano",
+        "value": "+180%",
+        "extracted_value": 180,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+quijano&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+quijano&tz=420"
+      },
+      {
+        "query": "comment faire du café",
+        "value": "+160%",
+        "extracted_value": 160,
+        "link": "https://trends.google.com/trends/explore?q=comment+faire+du+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=comment+faire+du+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "juegos",
+        "value": "+110%",
+        "extracted_value": 110,
+        "link": "https://trends.google.com/trends/explore?q=juegos&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=juegos&tz=420"
+      },
+      {
+        "query": "café paris",
+        "value": "+70%",
+        "extracted_value": 70,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+paris&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+paris&tz=420"
+      },
+      {
+        "query": "café central",
+        "value": "+70%",
+        "extracted_value": 70,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+central&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+central&tz=420"
+      },
+      {
+        "query": "café soluble",
+        "value": "+50%",
+        "extracted_value": 50,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+soluble&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+soluble&tz=420"
+      }
+    ],
+    "top": [
+      {
+        "query": "café quijano",
+        "value": "100",
+        "extracted_value": 100,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+quijano&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+quijano&tz=420"
+      },
+      {
+        "query": "café mercadona",
+        "value": "78",
+        "extracted_value": 78,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+mercadona&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+mercadona&tz=420"
+      },
+      {
+        "query": "café descafeinado",
+        "value": "75",
+        "extracted_value": 75,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+descafeinado&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+descafeinado&tz=420"
+      },
+      {
+        "query": "café soluble",
+        "value": "56",
+        "extracted_value": 56,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+soluble&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+soluble&tz=420"
+      },
+      {
+        "query": "café paris",
+        "value": "56",
+        "extracted_value": 56,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+paris&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+paris&tz=420"
+      },
+      {
+        "query": "café molido",
+        "value": "53",
+        "extracted_value": 53,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+molido&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+molido&tz=420"
+      },
+      {
+        "query": "café de especialidad",
+        "value": "48",
+        "extracted_value": 48,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+de+especialidad&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+de+especialidad&tz=420"
+      },
+      {
+        "query": "café en grano",
+        "value": "45",
+        "extracted_value": 45,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+en+grano&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+en+grano&tz=420"
+      },
+      {
+        "query": "cápsula de café",
+        "value": "42",
+        "extracted_value": 42,
+        "link": "https://trends.google.com/trends/explore?q=c%C3%A1psula+de+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=c%C3%A1psula+de+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "comment faire du café",
+        "value": "41",
+        "extracted_value": 41,
+        "link": "https://trends.google.com/trends/explore?q=comment+faire+du+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=comment+faire+du+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "café del río",
+        "value": "40",
+        "extracted_value": 40,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+del+r%C3%ADo&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+del+r%C3%ADo&tz=420"
+      },
+      {
+        "query": "playa",
+        "value": "39",
+        "extracted_value": 39,
+        "link": "https://trends.google.com/trends/explore?q=playa&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=playa&tz=420"
+      },
+      {
+        "query": "café central",
+        "value": "39",
+        "extracted_value": 39,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+central&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+central&tz=420"
+      },
+      {
+        "query": "café verde",
+        "value": "39",
+        "extracted_value": 39,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+verde&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+verde&tz=420"
+      },
+      {
+        "query": "café del rey",
+        "value": "36",
+        "extracted_value": 36,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+del+rey&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+del+rey&tz=420"
+      },
+      {
+        "query": "vuelos",
+        "value": "35",
+        "extracted_value": 35,
+        "link": "https://trends.google.com/trends/explore?q=vuelos&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=vuelos&tz=420"
+      },
+      {
+        "query": "máquina café",
+        "value": "34",
+        "extracted_value": 34,
+        "link": "https://trends.google.com/trends/explore?q=m%C3%A1quina+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=m%C3%A1quina+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "kawaii café",
+        "value": "33",
+        "extracted_value": 33,
+        "link": "https://trends.google.com/trends/explore?q=kawaii+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=kawaii+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "café comercial",
+        "value": "32",
+        "extracted_value": 32,
+        "link": "https://trends.google.com/trends/explore?q=caf%C3%A9+comercial&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=caf%C3%A9+comercial&tz=420"
+      },
+      {
+        "query": "taza de café",
+        "value": "31",
+        "extracted_value": 31,
+        "link": "https://trends.google.com/trends/explore?q=taza+de+caf%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=taza+de+caf%C3%A9&tz=420"
+      },
+      {
+        "query": "libros",
+        "value": "30",
+        "extracted_value": 30,
+        "link": "https://trends.google.com/trends/explore?q=libros&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=libros&tz=420"
+      },
+      {
+        "query": "all day brunch by café & té",
+        "value": "28",
+        "extracted_value": 28,
+        "link": "https://trends.google.com/trends/explore?q=all+day+brunch+by+caf%C3%A9+%26+t%C3%A9&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=all+day+brunch+by+caf%C3%A9+%26+t%C3%A9&tz=420"
+      },
+      {
+        "query": "juegos",
+        "value": "28",
+        "extracted_value": 28,
+        "link": "https://trends.google.com/trends/explore?q=juegos&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=juegos&tz=420"
+      },
+      {
+        "query": "mapas",
+        "value": "22",
+        "extracted_value": 22,
+        "link": "https://trends.google.com/trends/explore?q=mapas&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=mapas&tz=420"
+      },
+      {
+        "query": "escuelas",
+        "value": "21",
+        "extracted_value": 21,
+        "link": "https://trends.google.com/trends/explore?q=escuelas&date=today+1-m&geo=ES-MD",
+        "serpapi_link": "https://serpapi.com/search.json?data_type=RELATED_QUERIES&date=today+1-m&engine=google_trends&geo=ES-MD&hl=en&q=escuelas&tz=420"
+      }
+    ]
+  }
+}
