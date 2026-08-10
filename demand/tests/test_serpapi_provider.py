@@ -70,3 +70,56 @@ def test_parse_timeseries_against_real_capture():
         for point in points:
             assert len(point["date"]) == 10
             assert isinstance(point["value"], float)
+
+
+import demand.ingest.trends_client as tc
+from demand.ingest.serpapi_client import SerpApiError
+from demand.ingest.trends_client import SerpApiProvider
+
+
+def test_rising_queries_sends_exactly_one_query(monkeypatch):
+    # RELATED_QUERIES bills one search and accepts one term. Sending two does
+    # not error usefully -- it answers for something you did not ask.
+    seen = {}
+
+    def fake_fetch(params, timeout=60.0):
+        seen.update(params)
+        return {"related_queries": {"rising": [
+            {"query": "café soluble", "value": "+150%", "extracted_value": 150},
+        ]}}
+
+    monkeypatch.setattr(tc, "fetch", fake_fetch)
+    rows = SerpApiProvider(api_key="KEY").rising_queries(
+        "café", geo="ES-MD", date="today 1-m", gprop="froogle")
+
+    assert seen["q"] == "café"
+    assert seen["data_type"] == "RELATED_QUERIES"
+    assert seen["gprop"] == "froogle"
+    assert seen["date"] == "today 1-m"
+    # Pinned to English so BREAKOUT_TOKEN stays one string. At hl=es the same
+    # rows read "Aumento puntual" and every breakout would parse as quantified.
+    assert seen["hl"] == "en"
+    assert rows == [{"query": "café soluble", "growth_pct": 150.0,
+                     "is_breakout": False}]
+
+
+def test_rising_queries_treats_empty_result_as_data_not_failure(monkeypatch):
+    # Sparse is the EXPECTED case for Shopping on a region-scoped Spanish term.
+    # A run must not die because one of ten parents had nothing.
+    def fake_fetch(params, timeout=60.0):
+        raise SerpApiError("Google hasn't returned any results for this query.")
+
+    monkeypatch.setattr(tc, "fetch", fake_fetch)
+    assert SerpApiProvider(api_key="KEY").rising_queries("café") == []
+
+
+def test_rising_queries_omits_gprop_when_falling_back_to_web(monkeypatch):
+    seen = {}
+
+    def fake_fetch(params, timeout=60.0):
+        seen.update(params)
+        return {"related_queries": {}}
+
+    monkeypatch.setattr(tc, "fetch", fake_fetch)
+    SerpApiProvider(api_key="KEY").rising_queries("café", gprop="")
+    assert "gprop" not in seen

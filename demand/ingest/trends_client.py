@@ -4,7 +4,9 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Protocol
 
-from demand.ingest.serpapi_client import build_params, fetch
+from demand.ingest.serpapi_client import (
+    SerpApiError, build_params, fetch,
+)
 
 #: Google's literal answer when growth exceeds roughly 5000%. It is a refusal
 #: to quantify, not a large number, and is stored as one.
@@ -153,6 +155,31 @@ class SerpApiProvider:
         a question the analytics schema already rules out: Google Trends does
         not resolve below ES-MD, so there is no barrio breakdown to buy."""
         return []
+
+    def rising_queries(self, keyword: str, geo: str = "ES-MD",
+                       date: str = "today 1-m",
+                       gprop: str = "") -> List[Dict[str, Any]]:
+        """One search. RELATED_QUERIES takes exactly one query -- no batching
+        is possible here, which is why discovery is capped at the top movers
+        rather than run across the whole universe.
+
+        `hl="en"` is not cosmetic: Google localizes the Breakout label, and
+        `parse_rising_queries` decides `is_breakout` by matching it. At the
+        Spanish locale that match fails and a refusal to quantify is stored as
+        a quantified 89800% instead.
+        """
+        try:
+            payload = fetch(build_params(
+                q=[keyword], data_type="RELATED_QUERIES", geo=geo,
+                date=date, api_key=self.api_key, gprop=gprop or None,
+                hl="en",
+            ))
+        except SerpApiError:
+            # Google returns its `error` field rather than an empty list when a
+            # term has no rising queries in the window. No data is a normal
+            # answer, not a failed run.
+            return []
+        return parse_rising_queries(payload)
 
 
 def retry_on_429(max_retries: int = 3, base_delay: int = 1):
