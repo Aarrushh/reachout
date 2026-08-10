@@ -35,8 +35,9 @@ The frontend shipped a chat slide-over backed by a client-side mock
 Schema-first like everything else: add `chat_request.schema.json` /
 `chat_response.schema.json` under `reachout/shared/schemas/`, then the
 frontend runs `npm run gen-types` and swaps the body of `sendChatMessage`.
-When live, set `PHASE_3_CHAT_READY` in `SHARED_CONTRACT.md`. Full details in
-`docs/frontend_contract_note.md`.
+When live, set `PHASE_3_CHAT_READY` in `SHARED_CONTRACT.md`. (The detail note
+this pointed at was deleted 2026-08-10; the schemas in `reachout/shared/schemas/`
+are the contract, and `docs/CODEBASE_OVERVIEW.md` §6 documents the surface.)
 
 ## Backend v2 (TASKs 53–68)
 * **New Endpoints:** Added `/api/search` (pgvector semantic search + deterministic re-rank), `/api/chat` (AI shopkeeper), `/api/products` (paginated product list), `/api/stores` (store list with rating order), and `/api/neighbourhoods` (Madrid barrios list).

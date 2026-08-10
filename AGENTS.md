@@ -1,10 +1,17 @@
 # AGENTS.md — Parallel build workstreams for the ReachOut Madrid pipeline
 
+> **EXECUTED — W1–W10 all shipped and are on `main`. Not instructions.** This
+> file is retained for one reason: its "Dependency graph — who can run in
+> parallel" section is the precedent `PROJECT_OVERVIEW.md` §4.2 builds on.
+> Every "update `STATUS.md`" instruction below is **dead** — that log was
+> retired on 2026-08-10; its decisions live in `docs/DECISIONS_V2.md` and
+> current state is `docs/TRACKER.md`. Do not action anything below.
+
 This file divides the approved 11-step execution plan into **10 self-contained
 agent workstreams** (tests are TDD inside every workstream, not a separate one).
 Any fresh Claude session can pick up one workstream with zero context from
 other sessions: everything an agent needs is in this file, in the repo docs it
-points to, and in `STATUS.md`.
+points to. (The `STATUS.md` this refers to no longer exists — see banner.)
 
 ## How every agent session must work
 

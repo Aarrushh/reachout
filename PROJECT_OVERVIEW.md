@@ -37,16 +37,16 @@ behind it.
 sub-decisions S1–S6, the M/T/U/V/H task list, data contracts, risks, out of
 scope). **Live board:** `docs/TRACKER.md` — what's done, what's next, who
 owns what; read it before either plan. The v1 `docs/IMPLEMENTATION_PLAN.md`
-and its run-book `docs/EXECUTION_PROMPTS.md` are **superseded for routing** —
-do not follow them as instructions — but v1's §3 remains the source text for
-the demand data contracts and its §3.4 the preserved authentication reversal
-path. The table below is v1's original track shape, historical — for the
+is **superseded for routing** — do not follow it as instructions — and was
+reduced on 2026-08-10 to its §3, which remains the source text for the demand
+data contracts, including §3.4's preserved authentication reversal path. Its
+v1 run-book was deleted the same day. The table below is v1's original track shape, historical — for the
 current M/T/U/V/H lanes in flight, see `docs/IMPLEMENTATION_PLAN_V2.md` §2:
 
 | Track | What | How |
 |---|---|---|
-| **A — Demand Solutions** | New `demand/` service: Google Trends batch ingest → snapshots → signals → per-store recommendations → its own FastAPI app; plus the retailer dashboard UI. Every surfaced number carries a confidence label and an always-visible caveat. | Jules TASK 69–75, 77 (`docs/JULES_DEMAND.md`), Stitch D1–D5 (`docs/STITCH_DASHBOARD.md`) |
-| **B — Consumer UI** | Blinkit/Amazon-style mobile-first shopping surface over the existing Supabase products/stores, plus a deterministic `GET /api/picks`. Installable PWA — "phone" means responsive web, not a native app. | Jules TASK 76, Stitch C1–C8 (`docs/STITCH_CONSUMER.md`) |
+| **A — Demand Solutions** | New `demand/` service: Google Trends batch ingest → snapshots → signals → per-store recommendations → its own FastAPI app; plus the retailer dashboard UI. Every surfaced number carries a confidence label and an always-visible caveat. | Jules TASK 69–75, 77 (`docs/JULES_DEMAND.md`) |
+| **B — Consumer UI** | Blinkit/Amazon-style mobile-first shopping surface over the existing Supabase products/stores, plus a deterministic `GET /api/picks`. Installable PWA — "phone" means responsive web, not a native app. | Jules TASK 76 |
 | **C — Gated** | Two memos, no code: delivery partner-vs-build (Spain/EU rider-classification exposure), and the preconditions that un-gate AI shop-chat. | Written directly |
 
 **Why this order.** The dashboard needs nothing from any shop, so it can ship
@@ -104,9 +104,9 @@ stays changeable; one bolted into an existing tangle does not.
 
 Work is decomposed into a DAG and executed by whatever is unblocked:
 
-- **Nodes** — tasks. Jules TASK 69–77 (`docs/JULES_DEMAND.md`), Stitch prompts
-  D1–D5 and C1–C8, and the manual scaffold / auth / live-verify steps that
-  need keys.
+- **Nodes** — tasks. Jules TASK 69–77 (`docs/JULES_DEMAND.md`), the UI design
+  prompt series (specs since deleted, the UI having shipped), and the manual
+  scaffold / auth / live-verify steps that need keys.
 - **Edges** — data contracts, not prose. A JSON Schema in `shared/schemas/`,
   or a phase flag in `SHARED_CONTRACT.md`
   (`DEMAND_INGEST_READY` → `DEMAND_API_READY` → `PICKS_READY`, the same
@@ -119,7 +119,7 @@ Work is decomposed into a DAG and executed by whatever is unblocked:
   ("Dependency graph — who can run in parallel") is the precedent: the
   original ten workstreams were built this way.
 - **State lives on the edges, not in a conversation** — runner state JSON,
-  `STATUS.md` ticks, contract flags. Any node can fail and be retried without
+  `SHARED_CONTRACT.md` flags, `docs/TRACKER.md` rows. Any node can fail and be retried without
   replaying the graph, which is what makes an unattended overnight run
   restartable.
 - **The runtime is a graph too.** The shipped pipeline is 01→05 with schema
@@ -181,29 +181,21 @@ reachout/  (repo root)
 ├── PROJECT_OVERVIEW.md      ← you are here
 ├── AGENTS.md                the original 10 workstreams + their dependency graph
 ├── SHARED_CONTRACT.md       phase flags between backend and frontend agents
-├── STATUS.md                live build state — ticked by every agent session
 ├── netlify.toml             frontend deploy config (base frontend/, publish dist/)
 ├── render.yaml              backend deploy config (uvicorn on Render, free plan)
 ├── .claude/skills/verify/   how to launch + drive the app for verification
 ├── docs/
+│   ├── CODEBASE_OVERVIEW.md    how the shipped code actually works — every claim
+│   │                            checked against a file; §10 says which docs lie
 │   ├── TRACKER.md               the live board — read first, updated every session
 │   ├── IMPLEMENTATION_PLAN_V2.md the plan in force: decisions D1–D10 + S1–S6,
 │   │                              M/T/U/V/H task list, data contracts, risks
-│   ├── PLAN_V2_PROMPT.md        the prompt that produced Implementation Plan v2
-│   ├── IMPLEMENTATION_PLAN.md   v1 plan — superseded for routing, §3/§3.4 still
-│   │                             source text (see §2 above)
-│   ├── EXECUTION_PROMPTS.md     v1 run-book — superseded (see docs/TRACKER.md)
-│   ├── JULES_DEMAND.md          Jules TASK 69–77 specs
-│   ├── STITCH_DASHBOARD.md      dashboard prompt series D1–D5
-│   ├── STITCH_CONSUMER.md       consumer prompt series C1–C8
-│   ├── FINAL_SUMMARY.md         compiled summary of the 52-task backend run +
-│   │                             12-prompt Stitch frontend redesign (history)
-│   ├── frontend_contract_note.md  fields added to the schemas for the frontend
-│   │                             (history)
-│   ├── archive/                 finished, never load as input (H1, 2026-08-04):
-│   │                             JULES_BACKEND.md + _V2.md (TASKs 01–68) and
-│   │                             STITCH_FRONTEND.md (the v1 UI design record)
-│   └── superpowers/             UI design spec + implementation plan (history)
+│   ├── IMPLEMENTATION_PLAN.md   v1 plan, reduced to §3 — demand data contracts,
+│   │                             and §3.4's deferred auth (the D2 reversal path)
+│   ├── DECISIONS_V2.md          nine decisions taken against probed reality
+│   │                             (extracted from the retired STATUS.md)
+│   └── JULES_DEMAND.md          Jules TASK 69–77 specs — EXECUTED, retained
+│                                 only because jules_runner.py parses it
 ├── tools/jules_runner.py    submits task files to Jules, patches + merges
 ├── frontend/                React SPA (see frontend/README.md)
 │   ├── CLAUDE.md            Layer 0: workspace identity + rules
@@ -351,9 +343,9 @@ cd frontend && npm run build && npm test       # typecheck+build, 14 tests
 the backend suite. `grep -rc "def test_" reachout/tests/ demand/tests/` currently counts 228 test
 functions (approximate: it undercounts parametrized cases pytest expands at
 collection time and misses any Jules-added suites not yet merged).
-`STATUS.md`'s PHASE 2 entry separately records 240 passing at that point in
-the build; the two numbers come from different methods and different
-moments, both trustworthy for "many more than 93," neither exact right now.
+`docs/CODEBASE_OVERVIEW.md` §9.5 records the authoritative counts, taken by
+running each suite: 273 shopper, 158 demand, 79 frontend. Prefer those; the
+grep above undercounts and is kept only as a cheap sanity check.
 
 ## 10. Debugging guide (symptom → where to look)
 
@@ -395,16 +387,17 @@ moments, both trustworthy for "many more than 93," neither exact right now.
 - `docs/IMPLEMENTATION_PLAN_V2.md` — the plan in force: §0 decision table
   D1–D10 + sub-decisions S1–S6 (each reversible), §2 M/T/U/V/H task list,
   §5 data contracts, §6 risk/mitigation, §7 out of scope
-- `docs/PLAN_V2_PROMPT.md` — the prompt that produced Implementation Plan v2
-- `docs/IMPLEMENTATION_PLAN.md` — the v1 plan: superseded for routing, but
-  its §3 remains the source text for the demand data contracts and its §3.4
-  the preserved authentication reversal path (see §2 above)
-- `docs/EXECUTION_PROMPTS.md` — the v1 run-book: superseded, see
-  `docs/TRACKER.md`'s "SKIP THIS"
-- `docs/JULES_DEMAND.md` — Jules TASK 69–77 specs (fed to
-  `tools/jules_runner.py`; every task offline-testable, Jules VMs hold no keys)
-- `docs/STITCH_DASHBOARD.md` — retailer dashboard prompt series D1–D5
-- `docs/STITCH_CONSUMER.md` — consumer PWA prompt series C1–C8
+- `docs/CODEBASE_OVERVIEW.md` — how the shipped code actually works: inputs,
+  outputs, what halts, and why odd-looking parts are shaped that way. Every
+  claim checked against a file. §9 is what is NOT done; §10 says which docs lie
+- `docs/IMPLEMENTATION_PLAN.md` — the v1 plan, reduced on 2026-08-10 to its
+  §3: the demand data contracts, including §3.4's preserved authentication
+  reversal path (see §2 above)
+- `docs/DECISIONS_V2.md` — nine decisions taken against probed reality
+  (extracted from the retired `STATUS.md`); cited by `reachout/api/chat.py`
+  and `reachout/data/seed_inventory.py`
+- `docs/JULES_DEMAND.md` — Jules TASK 69–77 specs. **Executed, not
+  instructions**; retained only because `tools/jules_runner.py` parses it
 
 **The shipped system:**
 
@@ -413,9 +406,8 @@ moments, both trustworthy for "many more than 93," neither exact right now.
 - `reachout/_config/` — product.md, constraints.md, tech_stack.md
 - `frontend/README.md` — frontend architecture + commands; `frontend/CLAUDE.md` /
   `CONTEXT.md` — the frontend's own ICM L0/L1, same convention as `reachout/`
-- `docs/superpowers/specs/2026-07-07-reachout-ui-design.md` — approved UI design spec
-- `docs/superpowers/plans/2026-07-07-reachout-ui.md` — the executed implementation plan
 - `.claude/skills/verify/SKILL.md` — end-to-end verification recipe
 - `AGENTS.md` — the original 10 parallel workstreams and their dependency graph
   (§"Dependency graph"); the precedent for §4.2
-- `SHARED_CONTRACT.md` — phase flags; `STATUS.md` — live build state
+- `SHARED_CONTRACT.md` — the seven phase flags (authoritative); the API
+  contract itself is `*/shared/schemas/`, not this file

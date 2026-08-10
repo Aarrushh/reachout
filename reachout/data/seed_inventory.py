@@ -2,7 +2,7 @@
 
 Usage:  python data/seed_inventory.py [--reset] [--min-per-store 70] [--max-per-store 80]
 
-Design (see STATUS.md "AGENT IMPROVEMENTS"):
+Design (see docs/DECISIONS_V2.md):
 - Embeddings are computed once per UNIQUE catalog item (name/description/category
   is what gets embedded; per-store rows only vary price/stock) and reused across
   stores, requested via batchEmbedContents in chunks of 100 — a handful of API

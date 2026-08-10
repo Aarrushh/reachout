@@ -1,7 +1,7 @@
 """POST /api/chat — AI shopkeeper for one store.
 
-Stateless: the client passes the whole conversation history (see STATUS.md
-AGENT IMPROVEMENTS #4 — no server-side sessions/Redis). Each call fetches the
+Stateless: the client passes the whole conversation history (no server-side
+sessions/Redis — see docs/DECISIONS_V2.md #4). Each call fetches the
 store + its live inventory from Supabase, builds the shopkeeper persona
 prompt, and answers with Gemini Flash Lite. suggested_items are the inventory
 rows the reply actually mentions (fallback: best keyword matches for the

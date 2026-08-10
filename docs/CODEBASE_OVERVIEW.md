@@ -990,7 +990,7 @@ order.
   before any Trends data existed, and it is what makes a blocked scrape a
   *content* problem rather than a *build* problem.
 - **State lives on the edges, not in a conversation** — the runner's state
-  JSON, the contract flags, `STATUS.md`, commit messages. Any node can fail and
+  JSON, the contract flags, `docs/TRACKER.md`, commit messages. Any node can fail and
   be retried without replaying the graph, which is what makes an unattended run
   restartable.
 - **The runtime is a graph too**, with the same discipline: 01→05 with schema
@@ -1210,35 +1210,31 @@ repeatedly checked — and treat the *absence* of a comment as unexamined.
 
 | File | The lie |
 |---|---|
-| `SHARED_CONTRACT.md` | Its endpoint list (`POST /api/search`, `GET /api/products`, …) is not what the frontend consumes. It carries its own reality-check banner at the top admitting this. **The seven flags at the bottom are correct; the body is not.** |
+| `SHARED_CONTRACT.md` | **Fixed 2026-08-10.** The endpoint list that did not match the frontend was deleted; the file is now the seven phase flags plus a pointer to `*/shared/schemas/` as the real contract. The flags were always correct and are unchanged. |
 | `demand/shared/validation.py` (docstring), `compute_signals.py:104`, `demand/api/app.py:24` | All three say `format: date-time` is unenforced. It **is** enforced — `rfc3339-validator` is installed and declared. Stale in the safe direction (§6.4). |
 | `docs/TRACKER.md` | Correct *now*, but has drifted before (five tasks behind, fixed in `30def57`). Verify against code. |
 
 **Superseded run-books — carry a banner, do not execute:**
 
-- `docs/EXECUTION_PROMPTS.md` — blocks its own preflight on `STITCH_API_KEY`, a
-  key that cannot exist, and describes lanes that no longer exist. Superseded
-  banner present.
-- `docs/IMPLEMENTATION_PLAN.md` — the v1 plan. Its D1–D8 pattern carried
-  forward; its task routing and its magic-link auth design did not. **Keep it**:
-  §3.4 holds the full auth design that D2 deferred, and that is the reversal
-  path.
-
-**Design specs whose route names predate the one-shell decision:**
-
-- `docs/STITCH_CONSUMER.md`, `docs/STITCH_DASHBOARD.md`,
-  `docs/archive/STITCH_FRONTEND.md` — good UI specs, mislabelled as API call
-  series. They name `/shop` and `/dashboard` routes that do not exist and will
-  not; the shipped architecture is one shell with `?mode=retail`.
+- `docs/IMPLEMENTATION_PLAN.md` — the v1 plan, reduced on 2026-08-10 to its
+  §3. Its D1–D8 pattern carried forward; its task routing and its magic-link
+  auth design did not. **What was kept is §3.4**, the full auth design that D2
+  deferred — that is the reversal path.
 
 **Finished task fuel that reads like instructions:**
 
-- `docs/archive/JULES_BACKEND.md` (34K), `docs/archive/JULES_BACKEND_V2.md`,
-  `docs/JULES_DEMAND.md` — these are *prompts that were already executed*. They
-  describe work in the imperative present tense and it is all done. Archived by
-  H1 (`d8f48bd`); `JULES_DEMAND.md` stayed in `docs/` because the runner still
-  parses it.
-- Root `plan.md` was deleted by H1. Recoverable from git history.
+- `docs/JULES_DEMAND.md` (TASKs 69–77) and `AGENTS.md` (W1–W10) are *prompts
+  that were already executed*. They describe work in the imperative present
+  tense and it is all done. Both now carry an EXECUTED banner at the top.
+  `JULES_DEMAND.md` survives only because `tools/jules_runner.py` parses it;
+  `AGENTS.md` survives for its dependency-graph section.
+- Deleted 2026-08-10, all recoverable from git history: `STATUS.md`,
+  `docs/EXECUTION_PROMPTS.md`, `docs/PLAN_V2_PROMPT.md`, `docs/FINAL_SUMMARY.md`,
+  `docs/frontend_contract_note.md`, both Stitch design specs, `docs/superpowers/`,
+  `frontend/AGENT_NOTES.md`, `frontend/DONE.md`. The Stitch specs named `/shop`
+  and `/dashboard` routes that do not exist; the shipped architecture is one
+  shell with `?mode=retail`.
+- Root `plan.md` and `docs/archive/` were deleted earlier by H1.
 
 ### Authoritative sources, in order
 

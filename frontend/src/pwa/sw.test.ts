@@ -143,7 +143,7 @@ describe("manifest", () => {
   );
 
   it("starts in consumer mode and scopes the whole app", () => {
-    // The plan's rewrite of STITCH_CONSUMER C7: start_url is "/", never
+    // start_url is "/", never
     // "/shop?source=pwa" and never a retail URL. An installed app that opened
     // into the dashboard would be an offline-capable shell around exactly the
     // surface U5 exists to keep out of the cache.

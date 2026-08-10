@@ -1,4 +1,8 @@
-> **Current (2026-08-02)** — TASK 74's auth section has been amended (no-auth POC decision) and TASK 77 added, both by M7; this file is current fuel for the runner. See docs/PLAN_V2_PROMPT.md §B.
+> **EXECUTED — 2026-08-04. Not instructions.** TASKs 69–77 all shipped and are
+> on `main`. This file is retained solely because `tools/jules_runner.py`
+> parses it as a task-fuel input. **Do not action anything below.** For current
+> state read `docs/TRACKER.md`; for how the shipped code actually works read
+> `docs/CODEBASE_OVERVIEW.md`.
 
 # JULES_DEMAND.md — Demand dashboard + picks series (TASKs 69–77)
 
@@ -6,9 +10,11 @@
 
 *Task series for Jules covering Track A (demand service, TASKs 69–75, 77) and
 Track B's one backend task (picks endpoint, TASK 76) from
-`docs/IMPLEMENTATION_PLAN.md` §2. Continues the numbering from
-`docs/archive/JULES_BACKEND.md` (01–52) and `docs/archive/JULES_BACKEND_V2.md` (53–68) so
-state files and commit history never collide. Submitted by
+the v1 plan's §2 task list (that section was retired on 2026-08-10; see
+`docs/IMPLEMENTATION_PLAN_V2.md` §2 for the plan in force). Continues the
+numbering from the retired backend series (TASKs 01–52 and 53–68, deleted
+2026-08-04, recoverable from git) so state files and commit history never
+collide. Submitted by
 `python tools/jules_runner.py --tasks docs/JULES_DEMAND.md
 --state tools/.jules_runner_state_demand.json --branch
 jules-demand-integration`. Every task is atomic, offline-testable, and

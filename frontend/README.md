@@ -3,7 +3,8 @@
 The full UI for ReachOut's Madrid MVP: an entry screen (barrio autocomplete +
 geolocation + bilingual search) and a split-view results screen (ranked shop
 cards left, MapLibre dark map right with a live "ping" animation). Design
-spec: `../docs/superpowers/specs/2026-07-07-reachout-ui-design.md`.
+spec: executed and deleted 2026-08-10; the shipped UI is documented in
+`../docs/CODEBASE_OVERVIEW.md` §7.
 
 ## Framework
 

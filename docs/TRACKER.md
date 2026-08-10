@@ -99,7 +99,7 @@ are no lanes any more. **All work happens on `main`.**
 
 **Merged without a whole-branch review** — the reviewer was killed mid-run by
 a spend limit. A deliberate tradeoff to hold one branch instead of three;
-recorded in `STATUS.md` and not to be re-litigated. Per-task reviews and five
+recorded and not to be re-litigated. Per-task reviews and five
 controller fix rounds (W1-FIX-D…H) did run.
 
 Landed: T69 `76e751e`, T70 `10ffc7d`, T71 `bef4254`, T72 `35fa1d4`, T73
@@ -226,7 +226,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 |---|---|---|---|---|---|
 | **V1a** | **Live ingest.** Founder does three things first, and only the first is in the SQL file: (a) paste all of `demand/data/schema.sql` into the Supabase SQL editor and run it; (b) Settings → API → Data API → **Exposed schemas** → add `demand` — the client sends `Accept-Profile: demand` and PostgREST refuses any schema not on that list, so skipping this 404s every call with the tables sitting right there; (c) back in the SQL editor, `grant usage on schema demand to service_role;` + `grant all on all tables in schema demand to service_role;` + `alter default privileges in schema demand grant all on tables to service_role;` — a new schema carries zero privileges, so skipping this is 42501 on every call. `service_role` only, **never `anon`**: RLS is off and the service has no auth, so granting `anon` would put write access on the public internet. Then Claude runs the dry-run, the live `--provider trendspy` run, checks rows landed, re-runs and confirms the counts stay **flat** (that is the dedupe indexes and the uuid5 natural keys working — doubling counts is a finding), and curls the API. | **You (founder)** → Claude | M3, T75 | V1b | `[!] blocked: Google IP-throttled (CAPTCHA); no usable fallback dataset` |
 | **V1b** | **Live dashboard.** With V1a's real rows in the database and U7 passing, open retail mode and confirm the three charts render the **ingested** numbers, each with its confidence label and its caveat visible without hovering. If the scrape was blocked and the data came from fixtures, the dashboard must **say so** — practice data is never presented as live. | Claude | V1a, U7 | H1 | `[ ]` |
-| **H1** | Archive the three finished task documents to `docs/archive/` with `git mv` (see BLOAT below). **The six scratch deletions are already done** (`901b444`, pulled forward on 2026-08-03): `reachout/test_tick_debug.py` was putting `reachout/` on `sys.path` as a pytest rootdir, which shadowed the `reachout` package and broke collection for the entire repo — it could not wait for close-out. | Claude | U7 | — | `[x] 2026-08-04` |
+| **H1** | Archive the three finished task documents to `docs/archive/` with `git mv` (see BLOAT below). **The six scratch deletions are already done** (`901b444`, pulled forward on 2026-08-03): `reachout/test_tick_debug.py` was putting `reachout/` on `sys.path` as a pytest rootdir, which shadowed the `reachout` package and broke collection for the entire repo — it could not wait for close-out. | Claude | U7 | — | `[x] 2026-08-04` | *(Those archives were themselves deleted on 2026-08-10; recoverable from git history.)*
 
 ---
 
@@ -235,7 +235,7 @@ reachout/requirements.txt -r demand/requirements.txt`.
 If a path is listed here and it is not your task, **do not open it for
 writing.** Record the conflict as a new row instead of editing around it.
 An entry whose `Since` date is stale is an abandoned lock — clear it and say so
-in `STATUS.md`.
+in a new row here.
 
 | File or folder | Held by | Since |
 |---|---|---|
@@ -271,9 +271,9 @@ Reserved in advance, so two tasks never collide on them:
 | `test_tick_debug.py` (repo root) | DELETE | same | `[x] 2026-08-03 (901b444)` |
 | `reachout/test_tick_debug.py` | DELETE | same — and it sits at the workspace root instead of `tests/`, which breaks the layer rule. Missed by the original register; found in the Phase-1 audit. | `[x] 2026-08-03 (901b444)` |
 | `plan.md` (repo root) | DELETE | 29-line tick-scheduler micro-plan; the work already shipped (its own banner says so) | `[x] 2026-08-04` |
-| `docs/JULES_BACKEND.md` | ARCHIVE → `docs/archive/` | finished task fuel (TASKs 01–52); keep as history, never load as input | `[x] 2026-08-04` |
-| `docs/JULES_BACKEND_V2.md` | ARCHIVE → `docs/archive/` | finished task fuel (TASKs 53–68); same | `[x] 2026-08-04` |
-| `docs/STITCH_FRONTEND.md` | ARCHIVE → `docs/archive/` | v1 UI spec, executed and merged; keep as the design record | `[x] 2026-08-04` |
+| `docs/JULES_BACKEND.md` | ARCHIVE → then DELETED | finished task fuel (TASKs 01–52) | `[x] archived 2026-08-04 (d8f48bd); deleted 2026-08-10` |
+| `docs/JULES_BACKEND_V2.md` | ARCHIVE → then DELETED | finished task fuel (TASKs 53–68) | `[x] archived 2026-08-04 (d8f48bd); deleted 2026-08-10` |
+| `docs/STITCH_FRONTEND.md` | ARCHIVE → then DELETED | v1 UI spec, executed and merged | `[x] archived 2026-08-04 (d8f48bd); deleted 2026-08-10` |
 
 ---
 
@@ -293,14 +293,11 @@ Nothing else. That is the point.
 
 | File | Why not |
 |---|---|
-| `AGENTS.md` | v1's ten workstreams, all finished. Its Batch 1→5 graph is the precedent this plan cites — read it for that, never as instructions. |
-| `docs/EXECUTION_PROMPTS.md` | Superseded run-book. Blocks on a Stitch API key that cannot exist, and tells two terminals to share one runner branch. |
-| `docs/IMPLEMENTATION_PLAN.md` | Superseded for routing — **except §3, which is still the source text for the demand data contracts, and §3.4, which is the preserved reversal path for authentication.** Do not delete it. |
-| `docs/archive/JULES_BACKEND.md`, `docs/archive/JULES_BACKEND_V2.md` | TASKs 01–68, done and merged. Task-shaped, so easy to mistake for fuel — they are not. |
-| `docs/STITCH_DASHBOARD.md`, `docs/STITCH_CONSUMER.md`, `docs/archive/STITCH_FRONTEND.md` | Design specifications, not API call series. There is no Stitch API. Open only if you are building that exact screen, and expect the route names to be wrong (they predate the one-shell decision). |
+| `AGENTS.md` | v1's ten workstreams, all finished; now carries an EXECUTED banner. Its Batch 1→5 dependency graph is the precedent this plan cites — read that section only. |
+| `docs/IMPLEMENTATION_PLAN.md` | Superseded for routing. Reduced 2026-08-10 to §3, the demand data contracts, including §3.4's deferred auth. Read §3 when you need a contract's origin; nothing else remains. |
+| `docs/JULES_DEMAND.md` | TASKs 69–77, all shipped. Carries an EXECUTED banner. Retained only because `tools/jules_runner.py` parses it. |
+| **Deleted 2026-08-10** — all recoverable from git history | `STATUS.md`, `docs/EXECUTION_PROMPTS.md`, `docs/PLAN_V2_PROMPT.md`, `docs/FINAL_SUMMARY.md`, `docs/frontend_contract_note.md`, the two Stitch design specs, `docs/superpowers/`, `frontend/AGENT_NOTES.md`, `frontend/DONE.md`, and `docs/archive/`. `STATUS.md`'s nine probed decisions survive as `docs/DECISIONS_V2.md`. |
 | `plan.md` | Deleted by H1 on 2026-08-04. Recoverable from git history. |
-| `docs/FINAL_SUMMARY.md`, `docs/frontend_contract_note.md`, `docs/superpowers/` | v1 records. |
-| `STATUS.md` | History, 623 lines of it. Read it to answer "why was this done this way", never "what should I do next" — that is this file's job. |
 
 ---
 
