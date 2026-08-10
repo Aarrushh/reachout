@@ -123,3 +123,28 @@ create index if not exists recommendations_signal_id_idx on demand.recommendatio
 alter table demand.trend_snapshots disable row level security;
 alter table demand.demand_signals  disable row level security;
 alter table demand.recommendations disable row level security;
+
+-- ---------------------------------------------------------------------------
+-- demand.rising_queries: discovery pass. Products Madrid started searching for
+-- that are NOT in the seed keyword universe. Distinct grain from
+-- trend_snapshots: one row per DISCOVERED query per parent keyword per day,
+-- not per tracked keyword.
+-- ---------------------------------------------------------------------------
+create table if not exists demand.rising_queries (
+    id             uuid primary key,
+    parent_keyword text        not null,
+    query          text        not null,
+    -- NULL when Google answered "Breakout" and refused to quantify growth.
+    -- A number here is always a number Google gave; never one we chose.
+    growth_pct     numeric,
+    is_breakout    boolean     not null default false,
+    geo            text        not null,
+    -- Stored, not constant: a Shopping-derived row and a Web-derived row mean
+    -- different things and must never merge silently.
+    gprop          text        not null,
+    captured_at    timestamptz not null,
+    captured_date  date        not null
+);
+
+create index if not exists rising_queries_captured_date_idx
+    on demand.rising_queries (captured_date desc);
