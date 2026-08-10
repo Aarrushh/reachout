@@ -148,3 +148,5 @@ create table if not exists demand.rising_queries (
 
 create index if not exists rising_queries_captured_date_idx
     on demand.rising_queries (captured_date desc);
+
+alter table demand.rising_queries disable row level security;

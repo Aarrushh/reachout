@@ -40,8 +40,16 @@ def build_rows(parent_keyword: str, rows: List[Dict[str, Any]], geo: str,
 
 
 def store_rising_queries(supa_client: Any, rows: List[Dict[str, Any]]) -> int:
-    """Upsert on the primary key. Returns the number of rows sent."""
+    """Upsert on the primary key. Returns the number of rows sent.
+
+    `on_conflict="id"` is explicit, mirroring `snapshot_store.store_snapshots`,
+    rather than relying on an implicit "upsert defaults to the primary key"
+    assumption. `id` IS the primary key (`demand/data/schema.sql`) and IS the
+    uuid5 of the natural key (`rising_query_id`), so conflict-on-`id` is
+    conflict-on-natural-key: re-running the same day's discovery pass updates
+    the row it already wrote instead of minting a duplicate.
+    """
     if not rows:
         return 0
-    supa_client.table("rising_queries").upsert(rows).execute()
+    supa_client.table("rising_queries").upsert(rows, on_conflict="id").execute()
     return len(rows)
