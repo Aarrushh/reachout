@@ -79,8 +79,49 @@ def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
     return rows
 
 
+def pick_anchor(signals: List[Dict[str, Any]], keywords: List[str]) -> str:
+    """Choose the batch anchor by MEASURED volume, not by alphabet.
+
+    Every batch carries the anchor so the batches can be rescaled onto a
+    common level, which makes the anchor the one slot the entire cross-batch
+    comparability depends on. Taking `keywords[0]` made that an alphabetical
+    accident: `build_universe` sorts, so the anchor was `abanico` -- measured
+    mean 11.16 in ES-MD over 3 months. Google renormalises every request so
+    its own peak term is 100 and rounds to integers, so batching `abanico`
+    against `cafe`, `cerveza` or `pan` rounds `abanico` to 0 across the whole
+    window, `anchor_mean` is 0, and `_rescale_to_anchor` correctly refuses to
+    scale -- dropping that batch's four keywords for one paid search.
+
+    A high-volume anchor is far less likely to round to zero next to anything
+    else. `signals` is the PREVIOUS run's `demand_signals`; the newest window
+    wins, `interest_avg` ranks, and `keyword` breaks ties so two runs over the
+    same signals pick the same anchor.
+
+    Cold start (no signals, or none of them still in the universe) falls back
+    to `keywords[0]`, which is the old alphabetical behaviour.
+    """
+    if not keywords:
+        return ""
+
+    universe = set(keywords)
+    usable = [s for s in signals or []
+              if s.get("keyword") in universe
+              and s.get("interest_avg") is not None]
+    if not usable:
+        return keywords[0]
+
+    latest = max(s.get("window_start", "") for s in usable)
+    newest = [s for s in usable if s.get("window_start", "") == latest]
+    best = sorted(newest,
+                  key=lambda s: (-float(s["interest_avg"]), s["keyword"]))[0]
+    return best["keyword"]
+
+
 class TrendsProvider(Protocol):
-    def interest_over_time(self, keywords: List[str], geo: str, timeframe: str) -> Dict[str, List[Dict[str, Any]]]:
+    def interest_over_time(self, keywords: List[str], geo: str,
+                           timeframe: str,
+                           anchor: str = "",
+                           ) -> Dict[str, List[Dict[str, Any]]]:
         ...
 
     def interest_by_region(self, keyword: str, geo: str) -> List[Dict[str, Any]]:
@@ -140,6 +181,7 @@ class SerpApiProvider:
 
     def interest_over_time(self, keywords: List[str], geo: str = "ES-MD",
                             timeframe: str = "today 3-m",
+                            anchor: str = "",
                             ) -> Dict[str, List[Dict[str, Any]]]:
         """Fetch the whole universe five terms at a time, anchor-rescaled.
 
@@ -151,7 +193,11 @@ class SerpApiProvider:
         if not keywords:
             return {}
 
-        anchor = keywords[0]
+        # `anchor` is chosen by measured volume upstream (see `pick_anchor`).
+        # Falling back to `keywords[0]` keeps the old alphabetical behaviour
+        # for callers that pass nothing.
+        if anchor not in keywords:
+            anchor = keywords[0]
         batches = _batch_keywords(keywords, anchor)
         result: Dict[str, List[Dict[str, Any]]] = {k: [] for k in keywords}
         reference_mean = 0.0
@@ -175,6 +221,17 @@ class SerpApiProvider:
                 continue
 
             rescaled = _rescale_to_anchor(batch_series, anchor, reference_mean)
+            if not rescaled:
+                # `_rescale_to_anchor` returns {} when the anchor reads zero in
+                # this batch -- correct, per the honesty rule, but silent: these
+                # keywords keep the [] they were initialised with and get stored
+                # as snapshots with an empty series. One paid search, no data.
+                # Say so, or it is indistinguishable from Google having nothing.
+                dropped = [k for k in batch if k != anchor]
+                print(f"[Ingest] batch {i} dropped -- anchor {anchor!r} read "
+                      f"zero here; {len(dropped)} keywords have no series this "
+                      f"run: {', '.join(dropped)}")
+                continue
             for kw, points in rescaled.items():
                 if kw in result:
                     result[kw] = points
@@ -288,7 +345,10 @@ class FixtureProvider:
             fixtures_dir = os.path.join(base_dir, "tests", "fixtures", "trends")
         self.fixtures_dir = fixtures_dir
 
-    def interest_over_time(self, keywords: List[str], geo: str, timeframe: str) -> Dict[str, List[Dict[str, Any]]]:
+    def interest_over_time(self, keywords: List[str], geo: str,
+                            timeframe: str,
+                            anchor: str = "",
+                            ) -> Dict[str, List[Dict[str, Any]]]:
         file_path = os.path.join(self.fixtures_dir, "interest_over_time.json")
         try:
             with open(file_path, "r", encoding="utf-8") as f:

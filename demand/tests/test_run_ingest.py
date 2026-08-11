@@ -68,11 +68,13 @@ class EchoProvider:
         self.requested_keywords = None
         self.requested_timeframe = None
         self.requested_geo = None
+        self.requested_anchor = None
 
-    def interest_over_time(self, keywords, geo, timeframe):
+    def interest_over_time(self, keywords, geo, timeframe, anchor=""):
         self.requested_keywords = list(keywords)
         self.requested_timeframe = timeframe
         self.requested_geo = geo
+        self.requested_anchor = anchor
         return {kw: [dict(pt) for pt in self.series] for kw in keywords}
 
     def interest_by_region(self, keyword, geo):
@@ -108,7 +110,7 @@ class DiscoveryProvider:
         self.rising_calls = []
         self.requested_keywords = None
 
-    def interest_over_time(self, keywords, geo, timeframe):
+    def interest_over_time(self, keywords, geo, timeframe, anchor=""):
         self.requested_keywords = list(keywords)
         return {kw: [dict(pt) for pt in self.series_by_keyword.get(kw, [])]
                 for kw in keywords}
@@ -572,3 +574,52 @@ def test_discovery_survives_a_run_where_every_parent_is_empty(tmp_path, monkeypa
     run_chain(provider_name="stub", dry_run=False)
     assert provider.rising_calls != []
     assert client.table('rising_queries')._data == []
+
+
+def test_the_batch_anchor_comes_from_the_previous_runs_signals(
+        fake_client, monkeypatch):
+    """The anchor decides whether the batches are comparable at all.
+
+    `keywords[0]` made it an alphabetical accident. `build_universe` sorts, so
+    the universe here is ["coffee", "sneakers"] and the old code would anchor
+    on "coffee". The previous run measured "sneakers" at 90.0 against
+    "coffee" at 2.0, so a volume-chosen anchor is "sneakers" -- the opposite
+    of the sort order, which is what makes this test able to tell them apart.
+    """
+    client, seed_file = fake_client
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+
+    client.table("demand_signals").insert([
+        {"keyword": "coffee", "interest_avg": 2.0,
+         "window_start": "2026-08-03"},
+        {"keyword": "sneakers", "interest_avg": 90.0,
+         "window_start": "2026-08-03"},
+    ]).execute()
+
+    provider = EchoProvider(weekly_series([50] * 12))
+    monkeypatch.setattr(demand.scripts.run_ingest, "get_provider",
+                        lambda name: provider)
+
+    run_chain(provider_name="fixture", dry_run=True)
+
+    assert provider.requested_keywords == ["coffee", "sneakers"]
+    assert provider.requested_anchor == "sneakers"
+
+
+def test_a_cold_start_still_picks_an_anchor(fake_client, monkeypatch):
+    # Empty demand_signals is the first-ever run. It must not crash, and it
+    # must fall back to the alphabetical choice.
+    client, seed_file = fake_client
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+
+    provider = EchoProvider(weekly_series([50] * 12))
+    monkeypatch.setattr(demand.scripts.run_ingest, "get_provider",
+                        lambda name: provider)
+
+    run_chain(provider_name="fixture", dry_run=True)
+
+    assert provider.requested_anchor == "coffee"

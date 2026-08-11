@@ -268,3 +268,143 @@ def test_a_quantified_label_with_no_extracted_value_stores_no_number():
     assert parse_rising_queries(payload) == [
         {"query": "q", "growth_pct": None, "is_breakout": False},
     ]
+
+
+# ---------------------------------------------------------------------------
+# The anchor is the one slot cross-batch comparability depends on.
+#
+# Every batch carries the anchor so the batches can be rescaled onto a common
+# level. `anchor = keywords[0]` made that an alphabetical accident:
+# `build_universe` sorts, so the anchor was `abanico` -- measured mean 11.16 in
+# ES-MD over 3 months, with probe companions at 0.57, 0.011 and 0.14. Google
+# renormalises every request so its own peak term is 100 and rounds to
+# integers, so batching `abanico` against `café`, `cerveza` or `pan` rounds
+# `abanico` to 0 across the window. `_rescale_to_anchor` then correctly refuses
+# to scale -- and the caller used to swallow that silently, storing four
+# keywords with an empty series for one paid search.
+# ---------------------------------------------------------------------------
+
+from demand.ingest.trends_client import pick_anchor  # noqa: E402
+
+
+def test_pick_anchor_prefers_measured_volume_over_the_alphabet():
+    signals = [
+        {"keyword": "abanico", "interest_avg": 11.16,
+         "window_start": "2026-08-03"},
+        {"keyword": "café", "interest_avg": 78.0,
+         "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["abanico", "café", "pan"]) == "café"
+
+
+def test_pick_anchor_falls_back_to_alphabetical_on_a_cold_start():
+    # No previous run. This is the old behaviour, and it is the right
+    # fallback: it is what the run would have done anyway.
+    assert pick_anchor([], ["abanico", "café"]) == "abanico"
+
+
+def test_pick_anchor_ignores_signals_no_longer_in_the_universe():
+    # A keyword can leave the universe between runs. Anchoring on a term that
+    # is not being requested would put nothing in the batches at all.
+    signals = [{"keyword": "descatalogado", "interest_avg": 99.0,
+                "window_start": "2026-08-03"}]
+    assert pick_anchor(signals, ["abanico", "café"]) == "abanico"
+
+
+def test_pick_anchor_reads_the_newest_window():
+    signals = [
+        {"keyword": "café", "interest_avg": 90.0,
+         "window_start": "2026-07-27"},
+        {"keyword": "pan", "interest_avg": 20.0,
+         "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["café", "pan"]) == "pan"
+
+
+def test_pick_anchor_breaks_ties_deterministically():
+    # Two runs over the same signals must pick the same anchor, or the two
+    # runs are not comparable to each other either.
+    signals = [
+        {"keyword": "pan", "interest_avg": 50.0, "window_start": "2026-08-03"},
+        {"keyword": "café", "interest_avg": 50.0, "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["pan", "café"]) == "café"
+    assert pick_anchor(list(reversed(signals)), ["pan", "café"]) == "café"
+
+
+def test_pick_anchor_tolerates_a_signal_with_no_measurement():
+    signals = [
+        {"keyword": "café", "interest_avg": None, "window_start": "2026-08-03"},
+        {"keyword": "pan", "interest_avg": 20.0, "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["café", "pan"]) == "pan"
+
+
+def test_pick_anchor_handles_an_empty_universe():
+    assert pick_anchor([], []) == ""
+
+
+def _stub_transport(monkeypatch, anchor_reads_zero_in_second_batch=True):
+    """Two batches of a 9-keyword universe, driven through the real provider."""
+    import demand.ingest.trends_client as tc
+
+    monkeypatch.setattr(tc, "build_params", lambda **kw: kw["q"])
+
+    def fake_fetch(batch):
+        first_batch = batch[1] == "kw1"
+        if first_batch or not anchor_reads_zero_in_second_batch:
+            anchor_value = 50
+        else:
+            anchor_value = 0
+        values = [{"query": kw,
+                   "extracted_value": anchor_value if kw == "ancla" else 70}
+                  for kw in batch]
+        return {"interest_over_time": {"timeline_data": [
+            {"timestamp": "1783296000", "values": values},
+        ]}}
+
+    monkeypatch.setattr(tc, "fetch", fake_fetch)
+    return tc
+
+
+def test_a_dropped_batch_is_announced(monkeypatch, capsys):
+    tc = _stub_transport(monkeypatch)
+    keywords = ["ancla"] + [f"kw{i}" for i in range(1, 9)]
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        keywords, anchor="ancla")
+
+    out = capsys.readouterr().out
+    assert "dropped" in out
+    assert "ancla" in out
+    # The four keywords in the dropped batch are named, so the operator can
+    # tell "no data" apart from "we paid for this and got nothing".
+    for kw in ("kw5", "kw6", "kw7", "kw8"):
+        assert kw in out
+        assert result[kw] == []
+    # The healthy batch is untouched.
+    assert result["kw1"] != []
+
+
+def test_a_healthy_batch_is_not_announced(monkeypatch, capsys):
+    tc = _stub_transport(monkeypatch, anchor_reads_zero_in_second_batch=False)
+    keywords = ["ancla"] + [f"kw{i}" for i in range(1, 9)]
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        keywords, anchor="ancla")
+
+    assert "dropped" not in capsys.readouterr().out
+    assert result["kw5"] != []
+
+
+def test_an_anchor_outside_the_universe_falls_back_to_the_first_keyword(
+        monkeypatch):
+    tc = _stub_transport(monkeypatch, anchor_reads_zero_in_second_batch=False)
+    keywords = ["ancla"] + [f"kw{i}" for i in range(1, 9)]
+
+    # "no-such-term" cannot anchor anything; the provider must not build
+    # batches around a keyword it is not requesting.
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        keywords, anchor="no-such-term")
+
+    assert result["kw1"] != []

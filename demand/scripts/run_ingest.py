@@ -21,7 +21,11 @@ if _REPO_ROOT not in sys.path:
 from demand.api.app import get_client
 from demand.ingest.keywords import build_universe, normalize_keyword
 from demand.ingest.rising_store import build_rows, store_rising_queries
-from demand.ingest.trends_client import KEYWORDS_PER_BATCH, get_provider
+from demand.ingest.trends_client import (
+    KEYWORDS_PER_BATCH,
+    get_provider,
+    pick_anchor,
+)
 from demand.ingest.snapshot_store import store_snapshots
 from demand.scripts.compute_signals import (
     DEMAND_ID_NAMESPACE,
@@ -187,6 +191,24 @@ def snapshot_id(keyword: str, geo: str, timeframe: str, captured_date: str) -> s
     return str(uuid.uuid5(DEMAND_ID_NAMESPACE, natural_key))
 
 
+def _load_prior_signals(client) -> list:
+    """The previous run's `demand_signals`, for anchor selection only.
+
+    Best-effort by design. A missing table, an empty table or a transport
+    error must not stop a capture: `pick_anchor` treats an empty list as a
+    cold start and falls back to alphabetical, which is what this run would
+    have done anyway.
+    """
+    try:
+        return (client.table("demand_signals")
+                .select("keyword, interest_avg, window_start")
+                .execute().data) or []
+    except Exception as exc:  # noqa: BLE001 - anchor choice is not worth a run
+        print(f"[Ingest] Could not read prior signals for anchor ({exc}); "
+              f"falling back to alphabetical")
+        return []
+
+
 def run_chain(provider_name: str, dry_run: bool = False):
     print(f"[Ingest] Starting run (provider={provider_name}, dry_run={dry_run})")
     client = get_client()
@@ -201,8 +223,19 @@ def run_chain(provider_name: str, dry_run: bool = False):
     snapshots = []
     
 
+    # Every batch carries the anchor, so the anchor decides whether the
+    # batches can be compared at all. Pick it by measured volume: a low-volume
+    # anchor rounds to 0 next to a high-volume term and `_rescale_to_anchor`
+    # then drops that batch's four keywords for one paid search. This run's
+    # signals do not exist yet, so the previous run's are what we have; a cold
+    # start falls back to alphabetical inside `pick_anchor`. Reading
+    # `demand_signals` is a Supabase read and spends no SerpApi budget.
+    anchor = pick_anchor(_load_prior_signals(client), universe)
+    print(f"[Ingest] Batch anchor: {anchor!r}")
+
     print(f"[Ingest] Fetching interest_over_time ({INGEST_TIMEFRAME})...")
-    time_series = provider.interest_over_time(universe, geo=INGEST_GEO, timeframe=INGEST_TIMEFRAME)
+    time_series = provider.interest_over_time(
+        universe, geo=INGEST_GEO, timeframe=INGEST_TIMEFRAME, anchor=anchor)
 
     # No id-preserving round-trip: snapshot ids are uuid5 over the same
     # (keyword, geo, timeframe, captured_date) tuple the dedupe index uses,
