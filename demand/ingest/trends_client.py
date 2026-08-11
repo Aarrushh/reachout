@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Protocol
 
@@ -17,6 +18,32 @@ from demand.ingest.serpapi_client import (
 #: The `query` values are unaffected: those are real user searches and come
 #: back in Spanish either way.
 BREAKOUT_TOKEN = "Breakout"
+
+#: What a QUANTIFIED growth label looks like, in any locale: an optional
+#: sign, digits with any mix of `.` `,` and spacing separators, a `%`.
+#: Matches "+150%", "+4,200%" (en), "+4.200 %" (es), "+1 500 %" (fr,
+#: non-breaking spaces).
+#:
+#: At least one DIGIT is required. Without that, a stray label like " %"
+#: parses as quantified and the `extracted_value` beside it gets published
+#: as growth -- the exact fabrication this guard exists to stop.
+#:
+#: This is the guard, and it is deliberately inverted: a row is treated as a
+#: refusal UNLESS its label parses as a percentage. Matching the English word
+#: "Breakout" instead -- which is what this replaced -- is correct only while
+#: `hl="en"` reaches the parser, and nothing structural guarantees that.
+#: `SerpApiProvider.rising_queries` pins `hl="en"` and a test pins the pin,
+#: but `parse_rising_queries` is public: `FixtureProvider` runs it over
+#: whatever JSON is on disk, `serpapi_client.build_params` still defaults to
+#: `hl="es"`, and a re-capture or a Google label change routes around the pin
+#: entirely. At `hl="es"` the same rows read "Aumento puntual", the equality
+#: check misses, and the `extracted_value` sitting next to it -- 91000 in the
+#: committed capture -- is published as a growth percentage Google explicitly
+#: refused to give.
+#:
+#: Failing towards "refusal" is the safe direction. An unrecognised label
+#: costs a growth number on the dashboard; a mis-read one fabricates it.
+QUANTIFIED_GROWTH = re.compile(r"^[+-]?[\d.,\s\xa0\u202f]*\d[\d.,\s\xa0\u202f]*%$")
 
 
 def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -37,7 +64,13 @@ def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
         # measured 89800 and 91000 sitting behind the refusal. That number is
         # Google's internal scale artifact, not a growth percentage anyone can
         # defend to a shopkeeper, so `is_breakout` wins over it here.
-        is_breakout = str(item.get("value", "")).strip() == BREAKOUT_TOKEN
+        #
+        # Inverted on purpose: a row counts as a refusal unless its label
+        # parses as a quantified percentage, in whatever language it arrives.
+        # See QUANTIFIED_GROWTH for why equality on one English word was not
+        # safe enough.
+        label = str(item.get("value", "")).strip()
+        is_breakout = QUANTIFIED_GROWTH.match(label) is None
         extracted = item.get("extracted_value")
         growth = None if (is_breakout or extracted is None) else float(extracted)
         rows.append({"query": query, "growth_pct": growth,

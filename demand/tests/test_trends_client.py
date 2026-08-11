@@ -195,3 +195,76 @@ def test_parse_rising_queries_against_the_real_capture():
     # no growth number, even though SerpApi supplied one (89800, 91000, ...).
     assert all(r["growth_pct"] is None for r in breakouts)
     assert all(r["growth_pct"] is not None for r in rows if not r["is_breakout"])
+
+
+# ---------------------------------------------------------------------------
+# The no-fabrication rule must not depend on one English string.
+#
+# `is_breakout` used to be `value == "Breakout"`. That is correct only while
+# `hl="en"` reaches the parser. At `hl="es"` the identical rows read "Aumento
+# puntual", the match fails, and `extracted_value` -- 91000 in the committed
+# capture -- gets stored as `growth_pct = 91000.0`: a number Google explicitly
+# refused to give, published on a shopkeeper's dashboard.
+#
+# `SerpApiProvider.rising_queries` pins `hl="en"` and a test pins that. But
+# `parse_rising_queries` is a public function: `FixtureProvider` calls it on
+# whatever JSON is on disk, `serpapi_client.build_params` defaults to
+# `hl="es"`, and a re-capture or a Google label change routes around the pin.
+# So the parser defends itself: a growth number is stored only when the label
+# is a QUANTIFIED PERCENTAGE. Anything else is a refusal.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("label", [
+    "Breakout",          # en
+    "Aumento puntual",   # es -- what hl=es actually returns
+    "Ausbruch",          # de
+    "Percée",            # fr
+    "急上昇",              # ja
+    "",                  # label dropped entirely
+    " %",                # digitless junk -- a % sign alone is not a number
+    ",%",                # separators without digits, likewise
+])
+def test_breakout_is_detected_in_any_locale(label):
+    payload = {"related_queries": {"rising": [
+        {"query": "leche de avena", "value": label, "extracted_value": 91000},
+    ]}}
+    assert parse_rising_queries(payload) == [
+        {"query": "leche de avena", "growth_pct": None, "is_breakout": True},
+    ]
+
+
+def test_an_absent_value_is_a_refusal_not_a_number():
+    # No label at all. `extracted_value` alone is not permission to quantify.
+    payload = {"related_queries": {"rising": [
+        {"query": "leche de avena", "extracted_value": 91000},
+    ]}}
+    assert parse_rising_queries(payload) == [
+        {"query": "leche de avena", "growth_pct": None, "is_breakout": True},
+    ]
+
+
+@pytest.mark.parametrize("label,expected", [
+    ("+150%", 150.0),
+    ("+4,200%", 4200.0),      # en thousands separator
+    ("+4.200 %", 4200.0),     # es thousands separator, spaced sign
+    ("+1 500 %", 1500.0),   # fr, non-breaking spaces
+    ("150%", 150.0),
+])
+def test_a_quantified_percentage_is_still_read_in_any_locale(label, expected):
+    payload = {"related_queries": {"rising": [
+        {"query": "q", "value": label, "extracted_value": expected},
+    ]}}
+    rows = parse_rising_queries(payload)
+    assert rows[0]["is_breakout"] is False
+    assert rows[0]["growth_pct"] == expected
+
+
+def test_a_quantified_label_with_no_extracted_value_stores_no_number():
+    # The label says quantified, the payload supplies nothing to quantify
+    # with. Inventing one from the string is the fabrication this avoids.
+    payload = {"related_queries": {"rising": [
+        {"query": "q", "value": "+150%"},
+    ]}}
+    assert parse_rising_queries(payload) == [
+        {"query": "q", "growth_pct": None, "is_breakout": False},
+    ]
