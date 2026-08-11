@@ -49,16 +49,11 @@ python-dotenv>=1.0
 # pattern as the v1 pipeline's simulator.
 apscheduler>=3.10
 
-# Live-provider only: imported inside TrendspyProvider in
-# demand/ingest/trends_client.py, which is reached solely by
-# `run_ingest.py --provider trendspy` (the argparse default). Nothing else needs
-# them — `--provider fixture` reads committed JSON, and the whole test suite runs
-# on fixtures, so a VM without these still goes green. They are declared here
-# because the code imports them: previously neither appeared in any requirements
-# file, so the one command V1 actually runs died on ImportError after it had
-# already read the database.
-trendspy>=0.1
-pandas>=2.0
+# Live provider: SerpApi's Google Trends engine, called over httpx (declared
+# above for the API). The previous trendspy scraper was removed on 2026-08-10 --
+# it was IP-throttled to a CAPTCHA and had no path back. No new dependency: the
+# provider is an HTTP call, and the key lives in reachout/.env as
+# SERPAPI_API_KEY.
 
 # Dev/test only. Run from the REPO ROOT, never from inside a tests/ directory:
 # the suites import demand.* / reachout.*, which resolve only with the repo
