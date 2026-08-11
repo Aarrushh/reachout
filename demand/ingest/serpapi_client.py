@@ -20,7 +20,34 @@ SINGLE_QUERY_TYPES = frozenset({"RELATED_QUERIES", "RELATED_TOPICS", "GEO_MAP_0"
 
 
 class SerpApiError(Exception):
-    """SerpApi answered, but with a refusal rather than data."""
+    """SerpApi answered, but with a refusal rather than data.
+
+    HTTP 200 with an `error` field. Callers treat this as *data*: an empty
+    Shopping result for a region-scoped Spanish term is the expected case,
+    not a failure (`SerpApiProvider.rising_queries`).
+    """
+
+
+class SerpApiHTTPError(Exception):
+    """A non-2xx response, or no response at all.
+
+    Deliberately NOT a subclass of `SerpApiError`. The callers that swallow
+    `SerpApiError` mean "Google had nothing for this term"; a 429 means "the
+    250/month budget is gone". Folding the second into the first would write
+    "no rising queries" into the database and log nothing.
+
+    Carries a status code and NOTHING ELSE. `httpx`'s own exceptions embed
+    the request URL in their message, and SerpApi takes the API key as a
+    query parameter -- so `raise_for_status()` printed the live key verbatim
+    on every 401, 429 and 5xx. Constructing the message by hand, and raising
+    `from None`, is what keeps the key out of the message, out of the
+    `__cause__` chain, and out of the traceback.
+    """
+
+    def __init__(self, status_code: Optional[int] = None):
+        self.status_code = status_code
+        detail = f"HTTP {status_code}" if status_code is not None else "no response"
+        super().__init__(f"SerpApi request failed ({detail})")
 
 
 def build_params(
@@ -70,9 +97,35 @@ def raise_for_api_error(payload: Dict[str, Any]) -> None:
 
 
 def fetch(params: Dict[str, str], timeout: float = 60.0) -> Dict[str, Any]:
-    """One live search. Costs exactly one unit of the monthly budget."""
-    response = httpx.get(SERPAPI_ENDPOINT, params=params, timeout=timeout)
-    response.raise_for_status()
+    """One live search. Costs exactly one unit of the monthly budget.
+
+    No `httpx` exception is allowed to escape this function. Every one of
+    them carries the `Request`, the `Request` carries the full URL, and the
+    URL carries `api_key=` -- so letting one propagate prints the live key
+    into stdout, CI logs, and the APScheduler server log.
+
+    Note the shape: the replacement is raised AFTER the `except` block has
+    exited, never inside it. `raise ... from None` only sets
+    `__suppress_context__`, which stops the *default* traceback printer from
+    rendering the original -- the original object, URL and key included, is
+    still hanging off `__context__` for any log formatter, error reporter or
+    test harness that walks the chain itself. Raising with no exception in
+    flight leaves `__context__` genuinely empty.
+    """
+    status: Optional[int] = None
+    reached = False
+    try:
+        response = httpx.get(SERPAPI_ENDPOINT, params=params, timeout=timeout)
+        reached = True
+        status = response.status_code
+    except httpx.HTTPError:
+        pass
+
+    if not reached:
+        raise SerpApiHTTPError(None)
+    if status is not None and status >= 400:
+        raise SerpApiHTTPError(status)
+
     payload = response.json()
     raise_for_api_error(payload)
     return payload

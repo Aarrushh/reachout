@@ -32,6 +32,7 @@ def make_client(products):
             'trend_snapshots': [],
             'demand_signals': [],
             'recommendations': [],
+            'rising_queries': [],
         },
         schemas={"public": {"products": products}},
     )
@@ -88,6 +89,38 @@ def weekly_series(values, first_monday="2023-10-02"):
         {"date": (start + timedelta(weeks=i)).isoformat(), "value": float(v)}
         for i, v in enumerate(values)
     ]
+
+
+class DiscoveryProvider:
+    """A provider whose discovery half actually answers.
+
+    `EchoProvider.rising_queries` returns `[]` unconditionally, so the entire
+    discovery pass in `run_chain` -- parent selection, `build_rows`,
+    `store_rising_queries`, the counters -- never ran its body in any test.
+    That is precisely how the parent-selection defect survived to the end of
+    the branch: the newest code, and the only code that spends money, was the
+    only code with no integration test.
+    """
+
+    def __init__(self, series_by_keyword, rising_by_keyword=None):
+        self.series_by_keyword = series_by_keyword
+        self.rising_by_keyword = rising_by_keyword or {}
+        self.rising_calls = []
+        self.requested_keywords = None
+
+    def interest_over_time(self, keywords, geo, timeframe):
+        self.requested_keywords = list(keywords)
+        return {kw: [dict(pt) for pt in self.series_by_keyword.get(kw, [])]
+                for kw in keywords}
+
+    def interest_by_region(self, keyword, geo):
+        return []
+
+    def rising_queries(self, keyword, geo, date, gprop):
+        # Recorded, not counted: one search per entry, and a duplicate entry
+        # is a duplicate charge.
+        self.rising_calls.append((keyword, geo, date, gprop))
+        return [dict(r) for r in self.rising_by_keyword.get(keyword, [])]
 
 def test_full_chain_upserts(fake_client, monkeypatch):
     client, seed_file = fake_client
@@ -398,3 +431,144 @@ def test_lifespan_ignores_a_non_1_env_value(monkeypatch, recording_scheduler):
             assert recording_scheduler.instances == []
 
     asyncio.run(run_with_zero())
+
+
+# ---------------------------------------------------------------------------
+# The discovery pass, end to end through `run_chain`.
+#
+# Ten RELATED_QUERIES searches per run is 4% of the monthly budget and cannot
+# be batched, so every assertion below is really an assertion about money.
+# ---------------------------------------------------------------------------
+
+#: Last window per keyword, and what it makes each keyword worth:
+#:   alfa      30.0, delta +200  -> best mover, selected first
+#:   beta      20.0, delta +100  -> selected, and answers with nothing
+#:   delta_kw  12.0, delta  +20  -> selected last
+#:   gamma      0.14, delta +100 -> noise: same delta as `beta` off one day
+#:                                  rounded to 1. Must NOT buy a search.
+DISCOVERY_KEYWORDS = ["alfa", "beta", "delta_kw", "gamma"]
+
+
+def _discovery_setup(tmp_path, monkeypatch, rising=None):
+    client = make_client([{"category": "alfa",
+                           "store_id": "aaaaaaaa-0000-4000-8000-000000000001",
+                           "stock_qty": 5}])
+    seed_file = tmp_path / "seed_keywords.json"
+    seed_file.write_text(json.dumps(DISCOVERY_KEYWORDS))
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+
+    flat = [10] * 7
+    provider = DiscoveryProvider(
+        series_by_keyword={
+            "alfa": weekly_series(flat + [30]),
+            "beta": weekly_series(flat + [20]),
+            "delta_kw": weekly_series(flat + [12]),
+            "gamma": weekly_series([0] * 7 + [0.14]),
+        },
+        rising_by_keyword=rising or {},
+    )
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: provider)
+    return client, provider
+
+
+def test_discovery_spends_one_search_per_distinct_eligible_parent(tmp_path, monkeypatch):
+    client, provider = _discovery_setup(tmp_path, monkeypatch)
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    parents = [call[0] for call in provider.rising_calls]
+    # (a) No keyword pays twice. Signals carry one row per keyword per WEEKLY
+    # WINDOW, so ranking them raw let a single keyword take five of ten slots
+    # -- and a repeat search upserts over the rows the first one wrote.
+    assert len(parents) == len(set(parents))
+    # (b) Exactly the eligible movers, best first, and the noise term excluded.
+    assert parents == ["alfa", "beta", "delta_kw"]
+    assert "gamma" not in parents
+    # (c) A quiet week under-spends instead of padding back up to ten.
+    assert len(parents) < demand.scripts.run_ingest.DISCOVERY_TOP_N
+
+
+def test_discovery_asks_with_the_configured_window_and_property(tmp_path, monkeypatch):
+    _, provider = _discovery_setup(tmp_path, monkeypatch)
+    run_chain(provider_name="stub", dry_run=False)
+
+    for _, geo, date, gprop in provider.rising_calls:
+        assert geo == "ES-MD"
+        assert date == demand.scripts.run_ingest.DISCOVERY_TIMEFRAME
+        assert gprop == demand.scripts.run_ingest.DISCOVERY_GPROP
+
+
+def test_discovery_rows_reach_the_database(tmp_path, monkeypatch):
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": [
+            {"query": "alfa barata", "growth_pct": 150.0, "is_breakout": False},
+            {"query": "alfa premium", "growth_pct": None, "is_breakout": True},
+        ],
+        # `beta` answers with nothing. Sparse is the expected case for a
+        # region-scoped Spanish term, not a failure.
+        "delta_kw": [
+            {"query": "delta grande", "growth_pct": 42.0, "is_breakout": False},
+        ],
+    })
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    rows = client.table('rising_queries')._data
+    assert len(rows) == 3
+    assert {r["query"] for r in rows} == {
+        "alfa barata", "alfa premium", "delta grande"}
+    assert {r["parent_keyword"] for r in rows} == {"alfa", "delta_kw"}
+    assert all(r["geo"] == "ES-MD" for r in rows)
+    assert all(r["gprop"] == demand.scripts.run_ingest.DISCOVERY_GPROP
+               for r in rows)
+    assert all(uuid.UUID(r["id"]).version == 5 for r in rows)
+
+    # The refusal survives the round trip. Google said "Breakout" and gave no
+    # number, so no number is stored -- `extracted_value` is not promoted.
+    breakout = next(r for r in rows if r["query"] == "alfa premium")
+    assert breakout["is_breakout"] is True
+    assert breakout["growth_pct"] is None
+
+    # Both passes of the run share one timestamp.
+    snapshot_at = client.table('trend_snapshots')._data[0]["captured_at"]
+    assert all(r["captured_at"] == snapshot_at for r in rows)
+    assert all(r["captured_date"] == snapshot_at[:10] for r in rows)
+
+
+def test_discovery_is_idempotent_across_a_re_run(tmp_path, monkeypatch):
+    """Re-running the same day upserts over the same ids, it does not double."""
+    client, _ = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": [{"query": "alfa barata", "growth_pct": 150.0,
+                  "is_breakout": False}],
+    })
+
+    run_chain(provider_name="stub", dry_run=False)
+    first = sorted(r["id"] for r in client.table('rising_queries')._data)
+    run_chain(provider_name="stub", dry_run=False)
+
+    assert sorted(r["id"] for r in client.table('rising_queries')._data) == first
+    assert len(client.table('rising_queries')._data) == 1
+
+
+def test_discovery_writes_nothing_in_dry_run(tmp_path, monkeypatch):
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": [{"query": "alfa barata", "growth_pct": 150.0,
+                  "is_breakout": False}],
+    })
+
+    run_chain(provider_name="stub", dry_run=True)
+
+    assert client.table('rising_queries')._data == []
+    # ...but the searches still happened. `--dry-run` skips DATABASE writes,
+    # it does not make the run free. See the `--spend` guard in `main()`.
+    assert provider.rising_calls != []
+
+
+def test_discovery_survives_a_run_where_every_parent_is_empty(tmp_path, monkeypatch):
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={})
+    run_chain(provider_name="stub", dry_run=False)
+    assert provider.rising_calls != []
+    assert client.table('rising_queries')._data == []

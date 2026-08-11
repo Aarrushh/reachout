@@ -48,6 +48,91 @@ DISCOVERY_GPROP = ""
 #: with room left over.
 DISCOVERY_TOP_N = 10
 
+#: Floor on `interest_avg` before a keyword is worth a paid search.
+#:
+#: Measured, not guessed. `compute_signals` emits a flat `delta_pct = 100.0`
+#: whenever the previous window averaged 0 and the current one did not, so a
+#: keyword with a SINGLE day rounded up to 1 on Google's integer 0-100 scale
+#: scores exactly the same delta as a genuine doubling. In the captured probe
+#: (`tests/fixtures/trends/captured/timeseries_web_5kw.json`, 5 keywords, 75
+#: signals) three of the naive top ten were this artifact: `aspirinas` and
+#: `bebidas energéticas` at `interest_avg = 0.14`, which is one day at 1 over
+#: a seven-day window.
+#:
+#: 1.0 is where the data has a cliff, not a round number chosen for looks: of
+#: those 75 signals, 33 sit at or above 1.0 and the next one down is at 0.14 --
+#: nothing at all lies between. It reads as "the window has to average at
+#: least one point on Google's scale", i.e. more than single-day rounding.
+#:
+#: Under-spending is the correct failure mode. If only three keywords clear
+#: this floor, the run makes three discovery searches, not ten.
+DISCOVERY_MIN_INTEREST = 1.0
+
+
+def select_discovery_parents(
+    signals: list,
+    as_of_date: str,
+    top_n: int = DISCOVERY_TOP_N,
+    min_interest: float = DISCOVERY_MIN_INTEREST,
+) -> list:
+    """Pick the keywords worth one RELATED_QUERIES search each.
+
+    Pure function of the signals, no I/O, no provider -- this decides how
+    real money is spent, so it is testable in isolation and an AI never
+    touches it (`demand/CLAUDE.md`).
+
+    `signals` holds ONE ROW PER KEYWORD PER WEEKLY WINDOW: a `today 3-m`
+    capture produces ~13 rows per keyword. Ranking that list directly by
+    `delta_pct` and slicing the top ten -- which is what this replaced --
+    fails three separate ways at once, all three reproduced against the real
+    captured probe in `tests/test_discovery_selection.py`:
+
+    * **Duplicates.** One keyword's thirteen windows compete for all ten
+      slots. `abanico` alone took five. Every repeat is a wasted search:
+      `rising_query_id` hashes (parent, query, geo, gprop, captured_date), so
+      the second search for a keyword upserts over the rows the first one
+      just wrote.
+    * **Staleness.** Four of the ten winning windows were from May and June
+      while `DISCOVERY_TIMEFRAME` asks Google what is rising in the last
+      month. A keyword that spiked three months ago is not an answer.
+    * **Noise.** See `DISCOVERY_MIN_INTEREST`.
+
+    The last window of a capture is a PARTIAL week -- `today 3-m` ends on the
+    day of capture, and the cron fires Monday 00:00 UTC, so the newest window
+    is minutes old and its delta compares one Monday against a full week.
+    Selection therefore uses the newest window that has actually closed. If
+    no window has closed yet (cold start on a very short history), the newest
+    window is used rather than discovering nothing.
+    """
+    if not signals:
+        return []
+
+    closed = [s for s in signals if s.get("window_end", "") < as_of_date]
+    eligible = closed or signals
+
+    latest = max(s["window_start"] for s in eligible)
+
+    # Deterministic total order: `delta_pct` decides, `keyword` breaks ties,
+    # so two runs over the same signals spend on the same keywords.
+    ranked = sorted(
+        (s for s in eligible
+         if s["window_start"] == latest
+         and s.get("interest_avg", 0.0) >= min_interest),
+        key=lambda s: (-s.get("delta_pct", 0.0), s["keyword"]),
+    )
+
+    parents = []
+    seen = set()
+    for signal in ranked:
+        keyword = signal["keyword"]
+        if keyword in seen:
+            continue
+        seen.add(keyword)
+        parents.append(keyword)
+        if len(parents) == top_n:
+            break
+    return parents
+
 
 def estimate_searches(universe_size: int, discovery_count: int) -> dict:
     """What a run will cost BEFORE it is allowed to spend anything.
@@ -213,13 +298,15 @@ def run_chain(provider_name: str, dry_run: bool = False):
     # Discovery pass. Runs on the top movers rather than the whole universe
     # because RELATED_QUERIES cannot batch: the universe would cost one search
     # per keyword and blow the monthly budget in two runs.
-    top_keywords = [
-        s["keyword"] for s in sorted(
-            signals, key=lambda s: s.get("delta_pct", 0.0), reverse=True
-        )[:DISCOVERY_TOP_N]
-    ]
-    print(f"[Ingest] Discovery on {len(top_keywords)} top movers "
-          f"({DISCOVERY_GPROP or 'web'}, {DISCOVERY_TIMEFRAME})")
+    #
+    # `select_discovery_parents` carries the whole selection rule and its
+    # reasoning. It may legitimately return FEWER than DISCOVERY_TOP_N
+    # keywords -- a quiet week buys fewer searches rather than padding the
+    # list back up with noise.
+    top_keywords = select_discovery_parents(signals, as_of_date=now_utc[:10])
+    print(f"[Ingest] Discovery on {len(top_keywords)}/{DISCOVERY_TOP_N} "
+          f"eligible movers ({DISCOVERY_GPROP or 'web'}, "
+          f"{DISCOVERY_TIMEFRAME}, interest_avg >= {DISCOVERY_MIN_INTEREST})")
 
     discovered = 0
     empty = 0
