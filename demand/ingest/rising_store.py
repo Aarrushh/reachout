@@ -9,12 +9,19 @@ from typing import Any, Dict, List
 RISING_NAMESPACE = uuid.UUID("6f1c9b02-6b1d-5a4e-9d4b-2f0f2c9a7e31")
 
 
-def rising_query_id(parent_keyword: str, query: str, geo: str,
+def rising_query_id(parent_keyword: str, query: str, geo: str, gprop: str,
                     captured_date: str) -> str:
-    """The natural key: which seed term surfaced which query, where, when."""
+    """The natural key: which seed term surfaced which query, where, how, when.
+
+    `gprop` is part of the key because `schema.sql:142-144` says a
+    Shopping-derived row and a Web-derived row "mean different things and
+    must never merge silently". `store_rising_queries` upserts on `id`, so
+    leaving `gprop` out of the hash is exactly that silent merge: the two
+    rows collapse to one id and the second write overwrites the first.
+    """
     return str(uuid.uuid5(
         RISING_NAMESPACE,
-        f"{parent_keyword}|{query}|{geo}|{captured_date}",
+        f"{parent_keyword}|{query}|{geo}|{gprop}|{captured_date}",
     ))
 
 
@@ -24,7 +31,7 @@ def build_rows(parent_keyword: str, rows: List[Dict[str, Any]], geo: str,
     captured_date = captured_at[:10]
     return [
         {
-            "id": rising_query_id(parent_keyword, row["query"], geo,
+            "id": rising_query_id(parent_keyword, row["query"], geo, gprop,
                                   captured_date),
             "parent_keyword": parent_keyword,
             "query": row["query"],

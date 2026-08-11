@@ -3,20 +3,30 @@ from demand.tests.fake_supa import FakeSupabase
 
 
 def test_rising_query_id_is_stable_for_same_natural_key():
-    a = rising_query_id("café", "café soluble", "ES-MD", "2026-08-10")
-    b = rising_query_id("café", "café soluble", "ES-MD", "2026-08-10")
+    a = rising_query_id("café", "café soluble", "ES-MD", "froogle", "2026-08-10")
+    b = rising_query_id("café", "café soluble", "ES-MD", "froogle", "2026-08-10")
     assert a == b
 
 
 def test_rising_query_id_differs_per_day():
-    a = rising_query_id("café", "café soluble", "ES-MD", "2026-08-10")
-    b = rising_query_id("café", "café soluble", "ES-MD", "2026-08-11")
+    a = rising_query_id("café", "café soluble", "ES-MD", "froogle", "2026-08-10")
+    b = rising_query_id("café", "café soluble", "ES-MD", "froogle", "2026-08-11")
     assert a != b
 
 
 def test_rising_query_id_differs_per_parent():
-    a = rising_query_id("café", "soluble", "ES-MD", "2026-08-10")
-    b = rising_query_id("té", "soluble", "ES-MD", "2026-08-10")
+    a = rising_query_id("café", "soluble", "ES-MD", "froogle", "2026-08-10")
+    b = rising_query_id("té", "soluble", "ES-MD", "froogle", "2026-08-10")
+    assert a != b
+
+
+def test_rising_query_id_differs_per_gprop():
+    # schema.sql:142-144 -- "a Shopping-derived row and a Web-derived row mean
+    # different things and must never merge silently". The upsert is on `id`,
+    # so if `gprop` is outside the hash the two collapse to one id and
+    # whichever is written second overwrites the first with no error.
+    a = rising_query_id("café", "soluble", "ES-MD", "froogle", "2026-08-10")
+    b = rising_query_id("café", "soluble", "ES-MD", "", "2026-08-10")
     assert a != b
 
 
@@ -38,7 +48,7 @@ def test_build_rows_maps_every_field():
     assert row["gprop"] == "froogle"
     assert row["captured_date"] == "2026-08-10"
     assert row["id"] == rising_query_id("café", "café soluble", "ES-MD",
-                                        "2026-08-10")
+                                        "froogle", "2026-08-10")
 
 
 def test_build_rows_keeps_breakout_growth_null():
@@ -104,5 +114,5 @@ def test_store_rising_queries_is_idempotent_on_rerun():
     stored = client.table("rising_queries").select().execute().data
     assert len(stored) == 1
     assert stored[0]["id"] == rows[0]["id"] == rising_query_id(
-        "café", "café soluble", "ES-MD", "2026-08-10"
+        "café", "café soluble", "ES-MD", "froogle", "2026-08-10"
     )
