@@ -2,7 +2,7 @@ import os
 import json
 import pytest
 import jsonschema
-from ingest.trends_client import get_provider, FixtureProvider
+from demand.ingest.trends_client import get_provider, FixtureProvider
 
 def load_schema(name):
     schema_path = os.path.join(os.path.dirname(__file__), "..", "shared", "schemas", name)
@@ -40,7 +40,7 @@ def test_get_provider_factory():
 # provider must split the request AND put the pieces back on one scale.
 # ---------------------------------------------------------------------------
 
-from ingest.trends_client import (  # noqa: E402
+from demand.ingest.trends_client import (  # noqa: E402
     _batch_keywords,
     _rescale_to_anchor,
 )

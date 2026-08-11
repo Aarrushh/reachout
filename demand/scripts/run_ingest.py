@@ -5,8 +5,18 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-# Add parent directory to path so we can run directly
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Running this file directly (`python demand/scripts/run_ingest.py`) puts
+# demand/scripts on sys.path, not the repo root, so the `demand.` imports below
+# would not resolve. Add the repo root -- and ONLY the repo root. The previous
+# version added demand/ instead, which both failed to satisfy these imports and
+# re-opened the double-import hole for the whole process: with demand/ on the
+# path, `ingest.trends_client` and `demand.ingest.trends_client` load as two
+# separate modules and monkeypatching one leaves the other billing real money.
+# See demand/tests/test_import_hygiene.py.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 from demand.api.app import get_client
 from demand.ingest.keywords import build_universe, normalize_keyword

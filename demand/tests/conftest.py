@@ -5,35 +5,23 @@ import httpx
 import pytest
 import requests
 
-# demand/tests/ carries an __init__.py (unlike reachout/tests/), so pytest's
-# default "prepend" import mode puts demand/ (the first parent dir without an
-# __init__.py) on sys.path, not tests/ itself. Insert tests/ explicitly,
-# before anything below tries to import a sibling module by bare name.
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-if TESTS_DIR not in sys.path:
-    sys.path.insert(0, TESTS_DIR)
-
-from fake_supa import FakeSupabase
-
-DEMAND_DIR = os.path.abspath(os.path.join(TESTS_DIR, ".."))
-if DEMAND_DIR not in sys.path:
-    sys.path.insert(0, DEMAND_DIR)
-
-INGEST_DIR = os.path.abspath(os.path.join(TESTS_DIR, "..", "ingest"))
-if INGEST_DIR not in sys.path:
-    sys.path.insert(0, INGEST_DIR)
-
-SCRIPTS_DIR = os.path.abspath(os.path.join(TESTS_DIR, "..", "scripts"))
-if SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, SCRIPTS_DIR)
-
-API_DIR = os.path.abspath(os.path.join(TESTS_DIR, "..", "api"))
-if API_DIR not in sys.path:
-    sys.path.insert(0, API_DIR)
-
-REPO_ROOT = os.path.abspath(os.path.join(TESTS_DIR, "..", ".."))
+# The repo root is the ONLY entry this suite adds to sys.path, so every module
+# in the workspace has exactly one importable name: its `demand.` package path.
+#
+# demand/, demand/ingest, demand/scripts, demand/api and demand/tests are
+# deliberately absent. When they were present the same file could be imported
+# twice under two names -- `ingest.trends_client` and
+# `demand.ingest.trends_client` -- which load as two distinct module objects
+# carrying two distinct SerpApiProvider classes. A test that monkeypatched
+# `fetch` on one copy left the other holding the real one: a live billed
+# SerpApi call wearing the costume of a mocked test. See demand/__init__.py,
+# which stops pytest from re-adding demand/ on its own.
+REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
+
+from demand.tests.fake_supa import FakeSupabase  # noqa: E402
 
 
 @pytest.fixture

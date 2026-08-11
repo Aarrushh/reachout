@@ -27,7 +27,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from demand.api import app as api_app
-from tests.fake_supa import FakeSupabase
+from demand.tests.fake_supa import FakeSupabase
 
 STORE_A = "11111111-1111-1111-1111-111111111111"
 STORE_B = "22222222-2222-2222-2222-222222222222"
