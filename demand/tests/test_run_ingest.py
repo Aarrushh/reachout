@@ -77,6 +77,9 @@ class EchoProvider:
     def interest_by_region(self, keyword, geo):
         return []
 
+    def rising_queries(self, keyword, geo, date, gprop):
+        return []
+
 
 def weekly_series(values, first_monday="2023-10-02"):
     from datetime import date, timedelta

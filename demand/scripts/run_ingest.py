@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import sys
 import uuid
@@ -9,7 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from demand.api.app import get_client
 from demand.ingest.keywords import build_universe, normalize_keyword
-from demand.ingest.trends_client import get_provider
+from demand.ingest.rising_store import build_rows, store_rising_queries
+from demand.ingest.trends_client import KEYWORDS_PER_BATCH, get_provider
 from demand.ingest.snapshot_store import store_snapshots
 from demand.scripts.compute_signals import (
     DEMAND_ID_NAMESPACE,
@@ -28,6 +30,41 @@ from demand.scripts.recommend import PRODUCTS_SCHEMA, build_recommendations
 INGEST_TIMEFRAME = "today 3-m"
 
 INGEST_GEO = "ES-MD"
+
+#: Discovery runs on a SHORTER window than measurement on purpose. It never
+#: enters compute_signals, so HIGH_MIN_WINDOWS does not constrain it, and the
+#: question it answers -- what is rising NOW -- wants recency.
+DISCOVERY_TIMEFRAME = "today 1-m"
+
+#: Web search, not Google Shopping. Shopping is closer to purchase intent and
+#: was the first choice, but the Task 1 probe measured it empty on 4 of 4
+#: region-scoped Spanish terms while web search returned 25 rising queries on
+#: the same keyword, geo and window. An empty panel has no intent to be close
+#: to. See the GATE ANSWERS section for the measurement.
+DISCOVERY_GPROP = ""
+
+#: RELATED_QUERIES cannot batch, so discovery costs one search per keyword.
+#: Ten keeps a full run at 22 searches, ~4 runs a month inside a 250 budget
+#: with room left over.
+DISCOVERY_TOP_N = 10
+
+
+def estimate_searches(universe_size: int, discovery_count: int) -> dict:
+    """What a run will cost BEFORE it is allowed to spend anything.
+
+    TIMESERIES carries a shared anchor term in every request, so only
+    KEYWORDS_PER_BATCH (4) of the 5 allowed slots hold real keywords.
+    """
+    if universe_size <= 0:
+        timeseries = 0
+    else:
+        real = max(universe_size - 1, 0)
+        timeseries = max(math.ceil(real / KEYWORDS_PER_BATCH), 1)
+    return {
+        "timeseries": timeseries,
+        "discovery": discovery_count,
+        "total": timeseries + discovery_count,
+    }
 
 
 def snapshot_id(keyword: str, geo: str, timeframe: str, captured_date: str) -> str:
@@ -173,14 +210,75 @@ def run_chain(provider_name: str, dry_run: bool = False):
         ).execute()
         print("[Ingest] Upserted recommendations in DB")
 
+    # Discovery pass. Runs on the top movers rather than the whole universe
+    # because RELATED_QUERIES cannot batch: the universe would cost one search
+    # per keyword and blow the monthly budget in two runs.
+    top_keywords = [
+        s["keyword"] for s in sorted(
+            signals, key=lambda s: s.get("delta_pct", 0.0), reverse=True
+        )[:DISCOVERY_TOP_N]
+    ]
+    print(f"[Ingest] Discovery on {len(top_keywords)} top movers "
+          f"({DISCOVERY_GPROP or 'web'}, {DISCOVERY_TIMEFRAME})")
+
+    discovered = 0
+    empty = 0
+    for keyword in top_keywords:
+        rows = provider.rising_queries(
+            keyword, geo=INGEST_GEO, date=DISCOVERY_TIMEFRAME,
+            gprop=DISCOVERY_GPROP,
+        )
+        if not rows:
+            empty += 1
+            continue
+        # `now_utc` and `client` are the existing run_chain locals -- the same
+        # timestamp the trend_snapshots rows carry, so a run's two passes share
+        # one captured_at rather than drifting by however long the fetch took.
+        built = build_rows(keyword, rows, INGEST_GEO, DISCOVERY_GPROP,
+                           now_utc)
+        if not dry_run:
+            store_rising_queries(client, built)
+        discovered += len(built)
+
+    # Coverage is reported, not hidden. Shopping is sparse for region-scoped
+    # Spanish terms, and a run where 8 of 10 parents came back empty is a very
+    # different result from one where all 10 answered.
+    print(f"[Ingest] Discovery: {discovered} rising queries, "
+          f"{empty}/{len(top_keywords)} parents empty")
+
     print("[Ingest] Finished.")
 
 def main():
     parser = argparse.ArgumentParser(description="Demand Ingest Chain")
-    parser.add_argument("--dry-run", action="store_true", help="Print counts, write nothing")
-    parser.add_argument("--provider", type=str, default=os.environ.get("DEMAND_TRENDS_PROVIDER", "trendspy"), help="Trends provider (trendspy or fixture)")
-    
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Print counts, write nothing")
+    parser.add_argument("--provider", type=str,
+                        default=os.environ.get("DEMAND_TRENDS_PROVIDER",
+                                               "serpapi"),
+                        help="Trends provider (serpapi or fixture)")
+    parser.add_argument("--spend", action="store_true",
+                        help="Required for a live provider. Without it the run "
+                             "prints its cost and exits without calling out.")
     args = parser.parse_args()
+
+    # The guard exists because the budget is finite and an accidental
+    # `--provider serpapi` in a loop is unrecoverable spend. Defaulting to dry
+    # means the expensive path is always an explicit choice.
+    if args.provider == "serpapi" and not args.spend:
+        # `get_client` and `build_universe` are already imported at module
+        # scope by run_ingest.py -- `run_chain` calls both. Reading the universe
+        # costs a database query, not a search.
+        universe = build_universe(get_client())
+        est = estimate_searches(len(universe), DISCOVERY_TOP_N)
+        print("[Ingest] provider=serpapi  PRE-FLIGHT")
+        print(f"         {est['timeseries']} TIMESERIES "
+              f"({len(universe)} kw, {INGEST_TIMEFRAME}, web)")
+        print(f"       + {est['discovery']} RELATED_QUERIES "
+              f"({DISCOVERY_TIMEFRAME}, {DISCOVERY_GPROP or 'web'})")
+        print(f"         = {est['total']} searches of a 250/month budget.")
+        print("         Re-run with --spend to proceed.")
+        return
+
     run_chain(provider_name=args.provider, dry_run=args.dry_run)
 
 if __name__ == "__main__":

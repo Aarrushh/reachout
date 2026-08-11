@@ -289,7 +289,16 @@ class FixtureProvider:
         return parse_rising_queries(payload)
 
 def get_provider(name: str) -> TrendsProvider:
+    if name == "serpapi":
+        import os
+
+        api_key = os.environ.get("SERPAPI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "SERPAPI_API_KEY is not set. Add it to reachout/.env. "
+                "Run with `--provider fixture` to work offline."
+            )
+        return SerpApiProvider(api_key=api_key)
     if name == "fixture":
         return FixtureProvider()
-    else:
-        raise ValueError(f"Unknown provider: {name}")
+    raise ValueError(f"Unknown provider: {name}")
