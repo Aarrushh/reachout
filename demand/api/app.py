@@ -168,20 +168,23 @@ async def lifespan(app: FastAPI):
     if os.environ.get("DEMAND_INGEST_CRON") == "1":
         from demand.scripts.run_ingest import run_chain
         scheduler = AsyncIOScheduler()
-        # Run daily
+        # Weekly, not daily: compute_signals aggregates into Monday-to-Sunday
+        # windows, so a mid-week ingest produces a partial window (worse than
+        # no data). Monday matches that windowing, not a budget choice -- if
+        # the SerpApi plan is ever raised, that does not make daily correct.
 
         async def run_chain_async():
-            await asyncio.to_thread(run_chain, provider_name="trendspy", dry_run=False)
+            await asyncio.to_thread(run_chain, provider_name="serpapi", dry_run=False)
 
-        scheduler.add_job(run_chain_async, 'cron', hour=0, minute=0)
+        scheduler.add_job(run_chain_async, 'cron', day_of_week='mon', hour=0, minute=0)
         scheduler.start()
-        print("Started DEMAND_INGEST_CRON daily job")
+        print("Started DEMAND_INGEST_CRON weekly job")
 
     yield
 
     if scheduler:
         scheduler.shutdown()
-        print("Stopped DEMAND_INGEST_CRON daily job")
+        print("Stopped DEMAND_INGEST_CRON weekly job")
 
 
 app = FastAPI(title="Demand API", lifespan=lifespan)

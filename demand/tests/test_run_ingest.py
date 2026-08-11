@@ -370,7 +370,7 @@ def test_lifespan_starts_no_scheduler_without_the_env_gate(monkeypatch, recordin
     assert recording_scheduler.instances == []
 
 
-def test_lifespan_starts_the_daily_job_with_the_env_gate(monkeypatch, recording_scheduler):
+def test_lifespan_starts_the_weekly_job_with_the_env_gate(monkeypatch, recording_scheduler):
     monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
 
     async def run_with_cron():
@@ -381,7 +381,7 @@ def test_lifespan_starts_the_daily_job_with_the_env_gate(monkeypatch, recording_
             assert len(scheduler.jobs) == 1
             job = scheduler.jobs[0]
             assert job["trigger"] == "cron"
-            assert job["kwargs"] == {"hour": 0, "minute": 0}
+            assert job["kwargs"] == {"day_of_week": "mon", "hour": 0, "minute": 0}
             assert scheduler.stopped is False
 
     asyncio.run(run_with_cron())
