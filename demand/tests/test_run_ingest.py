@@ -619,6 +619,46 @@ def test_discovery_spends_one_search_per_distinct_eligible_parent(tmp_path, monk
     assert len(parents) < demand.scripts.run_ingest.DISCOVERY_TOP_N
 
 
+def test_discovery_never_spends_more_than_the_budgeted_count(tmp_path,
+                                                             monkeypatch):
+    """The cap, asserted where the money leaves rather than in the selector.
+
+    A wide universe is where C2 actually bit: `demand_signals` carries one row
+    per keyword per WEEKLY WINDOW, so 15 keywords over 9 windows is 135 rows,
+    and ranking those raw let one keyword take five of the ten paid slots.
+    `test_selection_is_capped_at_the_budgeted_count` pins the selector; this
+    pins `run_chain`, which is the thing that calls SerpApi.
+    """
+    universe = [f"kw{i:02d}" for i in range(15)]
+    client = make_client([])
+    seed_file = tmp_path / "seed_keywords.json"
+    seed_file.write_text(json.dumps(universe))
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+
+    # Every keyword rises, by a different amount, over a nine-window history.
+    provider = DiscoveryProvider(series_by_keyword={
+        kw: weekly_series([10] * 8 + [20 + i]) for i, kw in enumerate(universe)
+    })
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: provider)
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    # The fixture really does offer the shape that used to duplicate: 135
+    # signal rows, nine per keyword, competing for ten paid slots. Without
+    # this the assertions below could pass on a universe too small to be
+    # capable of the defect.
+    assert len(client.table('demand_signals')._data) == 135
+
+    parents = [call[0] for call in provider.rising_calls]
+    assert len(parents) == demand.scripts.run_ingest.DISCOVERY_TOP_N
+    assert len(set(parents)) == len(parents)
+    # Best mover first, and the ten selected are the ten largest risers.
+    assert parents == [f"kw{i:02d}" for i in range(14, 4, -1)]
+
+
 def test_discovery_asks_with_the_configured_window_and_property(tmp_path, monkeypatch):
     _, provider = _discovery_setup(tmp_path, monkeypatch)
     run_chain(provider_name="stub", dry_run=False)
