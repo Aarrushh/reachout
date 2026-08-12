@@ -50,6 +50,40 @@ class SerpApiHTTPError(Exception):
         super().__init__(f"SerpApi request failed ({detail})")
 
 
+class SerpApiMalformedResponseError(SerpApiHTTPError):
+    """A 2xx whose body is not JSON at all.
+
+    A SerpApi maintenance page, a corporate proxy interstitial, a captive
+    portal login form: all answer 200 with HTML. `httpx.Response.json()` is
+    `json.loads(self.content)`, so those raise `json.JSONDecodeError` -- a
+    `ValueError`, which is a class nothing in the ingest chain caught. It threw
+    out of `_fetch_batch` (which named two SerpApi types), out of
+    `interest_over_time`, and out of `run_chain` before `store_snapshots`: the
+    same "9 billed searches produce zero rows" failure the batch loop exists to
+    prevent, arriving through a door the batch loop did not cover.
+
+    A subclass of `SerpApiHTTPError`, deliberately NOT of `SerpApiError`. The
+    callers that swallow `SerpApiError` mean "Google had nothing for this
+    term"; an HTML error page is not an empty result, and recording it as one
+    writes a wrong answer to the database with no error anywhere. Being a
+    `SerpApiHTTPError` also means the guards that already exist -- the batch
+    loop's and `run_chain`'s discovery guard -- handle it without being taught
+    a new name.
+
+    Carries the status code and NOTHING ELSE, on the same reasoning as its
+    parent. `json.JSONDecodeError` puts a slice of the response body in its
+    message; that slice cannot leak the API key (it is the body, not the
+    request URL), but it is unbounded text off the network heading for stdout
+    and it says nothing an operator can act on that "not JSON" does not.
+    """
+
+    def __init__(self, status_code: Optional[int] = None):
+        self.status_code = status_code
+        detail = f"HTTP {status_code}" if status_code is not None else "no status"
+        Exception.__init__(
+            self, f"SerpApi returned a body that is not JSON ({detail})")
+
+
 def build_params(
     q: List[str],
     data_type: str,
@@ -111,6 +145,12 @@ def fetch(params: Dict[str, str], timeout: float = 60.0) -> Dict[str, Any]:
     still hanging off `__context__` for any log formatter, error reporter or
     test harness that walks the chain itself. Raising with no exception in
     flight leaves `__context__` genuinely empty.
+
+    The body is decoded in the same shape and for a second reason: a 200
+    carrying HTML raises `ValueError` out of `.json()`, which no caller in the
+    chain catches (see `SerpApiMalformedResponseError`). The status check runs
+    first, so a 502 that happens to be an HTML gateway page stays a plain
+    `SerpApiHTTPError(502)` and keeps its retry.
     """
     status: Optional[int] = None
     reached = False
@@ -126,6 +166,16 @@ def fetch(params: Dict[str, str], timeout: float = 60.0) -> Dict[str, Any]:
     if status is not None and status >= 400:
         raise SerpApiHTTPError(status)
 
-    payload = response.json()
+    payload: Dict[str, Any] = {}
+    decoded = False
+    try:
+        payload = response.json()
+        decoded = True
+    except ValueError:
+        pass
+
+    if not decoded:
+        raise SerpApiMalformedResponseError(status)
+
     raise_for_api_error(payload)
     return payload

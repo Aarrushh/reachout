@@ -159,3 +159,77 @@ def test_fetch_returns_the_payload_on_success(monkeypatch):
         lambda *a, **k: httpx.Response(200, request=request,
                                        json={"interest_over_time": {}}))
     assert fetch(params) == {"interest_over_time": {}}
+
+
+# ---------------------------------------------------------------------------
+# HTTP 200 carrying something that is not JSON.
+#
+# A SerpApi maintenance page, a corporate proxy interstitial, a captive-portal
+# login form: all of them answer 200 with HTML. `httpx.Response.json()` is
+# `json.loads(self.content)`, so that raises `json.JSONDecodeError`, a
+# `ValueError` -- a class nothing in the ingest chain catches. It threw out of
+# `_fetch_batch` (which named two SerpApi types), out of `interest_over_time`,
+# and out of `run_chain` before `store_snapshots` was ever reached: the same
+# "9 billed searches produce zero rows" failure the batch loop exists to
+# prevent, arriving through a door the batch loop did not cover.
+# ---------------------------------------------------------------------------
+
+
+def _html_response(params: dict, status: int = 200) -> httpx.Response:
+    request = httpx.Request("GET", sc.SERPAPI_ENDPOINT, params=params)
+    return httpx.Response(status, request=request,
+                          text="<html><body>We are down for maintenance"
+                               "</body></html>")
+
+
+def test_a_200_with_a_non_json_body_raises_a_serpapi_error_not_a_value_error(
+        monkeypatch):
+    params = _params()
+    monkeypatch.setattr(sc.httpx, "get", lambda *a, **k: _html_response(params))
+
+    with pytest.raises(SerpApiHTTPError) as excinfo:
+        fetch(params)
+
+    assert excinfo.value.status_code == 200
+    assert FAKE_KEY not in str(excinfo.value)
+    assert FAKE_KEY not in repr(excinfo.value)
+    # Same discipline as every other exit from `fetch`: raised with no
+    # exception in flight, so nothing is hanging off the chain.
+    assert excinfo.value.__cause__ is None
+    assert excinfo.value.__context__ is None
+    # `json.JSONDecodeError` puts a slice of the response body in its message.
+    # That slice cannot leak the key (it is the body, not the request URL) but
+    # it is unbounded text from the network and it tells the operator nothing
+    # that "not JSON" does not already say.
+    assert "maintenance" not in str(excinfo.value)
+    assert "html" not in str(excinfo.value).lower()
+
+
+def test_a_non_json_body_is_not_mistaken_for_an_empty_result():
+    """It must not be a `SerpApiError`.
+
+    `SerpApiProvider.rising_queries` catches `SerpApiError` and returns `[]`
+    because a sparse Shopping panel is data. An HTML error page is not an
+    empty result, and writing it down as one is a wrong answer with no error
+    anywhere. Being a `SerpApiHTTPError` instead also means `run_chain`'s
+    discovery guard already handles it: one parent lost, run continues.
+    """
+    assert issubclass(sc.SerpApiMalformedResponseError, SerpApiHTTPError)
+    assert not issubclass(sc.SerpApiMalformedResponseError, SerpApiError)
+
+
+def test_a_non_2xx_html_body_still_reports_its_real_status(monkeypatch):
+    """A 502 from a gateway is usually an HTML page too.
+
+    The status check runs first, so this stays a plain `SerpApiHTTPError(502)`
+    and keeps its place in `RETRYABLE_STATUS` -- it must not be reclassified
+    as a malformed body and lose its retry.
+    """
+    params = _params()
+    monkeypatch.setattr(sc.httpx, "get",
+                        lambda *a, **k: _html_response(params, status=502))
+
+    with pytest.raises(SerpApiHTTPError) as excinfo:
+        fetch(params)
+    assert excinfo.value.status_code == 502
+    assert not isinstance(excinfo.value, sc.SerpApiMalformedResponseError)

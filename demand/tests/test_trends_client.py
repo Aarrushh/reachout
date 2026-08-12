@@ -569,3 +569,167 @@ def test_a_fully_healthy_run_says_nothing_about_failures(monkeypatch, capsys):
     tc.SerpApiProvider(api_key="KEY").interest_over_time(
         UNIVERSE, anchor="ancla")
     assert "failed" not in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# The reference scale itself.
+#
+# "The anchor came back" and "the anchor was measured" are different facts.
+# Google renormalises every request so its own peak term is 100 and rounds to
+# integers, so a low-volume anchor next to a high-volume staple comes back as a
+# full series of ZEROS -- `parse_timeseries` keeps every one of them, because
+# `extracted_value` is `0`, not `None`. A non-empty `anchor_points` whose mean
+# is 0.0 is therefore a routine answer, not a freak one.
+#
+# Accepting that batch as the reference is the worst of the three possible
+# outcomes: it publishes that batch's keywords raw, leaves `reference_mean` at
+# 0.0 so the NEXT batch becomes a second reference on its own normalisation,
+# and never prints the drop announcement. Two incomparable scales then get
+# ranked against each other by `compute_signals` with nothing saying so.
+# ---------------------------------------------------------------------------
+
+
+def _anchor_transport(monkeypatch, anchor_by_batch):
+    """`anchor_by_batch` maps batch index -> the anchor's value in that batch.
+
+    Non-anchor keywords always read 70, so a batch that gets published raw is
+    trivially distinguishable from one that got rescaled.
+    """
+    import demand.ingest.trends_client as tc
+
+    monkeypatch.setattr(tc, "build_params", lambda **kw: kw["q"])
+
+    def fake_fetch(batch):
+        index = (int(batch[1][2:]) - 1) // tc.KEYWORDS_PER_BATCH
+        anchor_value = anchor_by_batch.get(index, 50)
+        values = [{"query": kw,
+                   "extracted_value": anchor_value if kw == "ancla" else 70}
+                  for kw in batch]
+        return {"interest_over_time": {"timeline_data": [
+            {"timestamp": "1783296000", "values": values},
+        ]}}
+
+    monkeypatch.setattr(tc, "fetch", fake_fetch)
+    return tc
+
+
+def test_a_zero_reading_anchor_never_becomes_the_reference_scale(
+        monkeypatch, capsys):
+    """Batch 0 measured the anchor at 0 for every point in the window.
+
+    It has no scale to offer, so it must take the existing drop-and-announce
+    path -- not set `reference_mean = 0.0` and publish its four keywords on
+    Google's per-request normalisation as though they were comparable.
+    """
+    tc = _anchor_transport(monkeypatch, {0: 0})
+    keywords = ["ancla"] + [f"kw{i}" for i in range(1, 9)]
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        keywords, anchor="ancla")
+
+    for kw in ("kw1", "kw2", "kw3", "kw4"):
+        assert result[kw] == []
+    out = capsys.readouterr().out
+    assert "dropped" in out
+    assert "kw1" in out
+    # Batch 1 did measure the anchor, so it sets the reference and survives.
+    assert result["kw5"] != []
+
+
+def test_a_run_whose_anchor_never_reads_publishes_nothing_rather_than_raw(
+        monkeypatch, capsys):
+    """Every batch reads the anchor at 0: there is no common scale anywhere.
+
+    Honest-but-empty is the correct outcome. Publishing both batches raw --
+    each on its own request's normalisation -- hands `compute_signals` two
+    universes to rank against each other and calls the result a rank.
+    """
+    tc = _anchor_transport(monkeypatch, {0: 0, 1: 0})
+    keywords = ["ancla"] + [f"kw{i}" for i in range(1, 9)]
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        keywords, anchor="ancla")
+
+    assert all(result[kw] == [] for kw in keywords if kw != "ancla")
+    # Both losses are announced. Silence here is indistinguishable from
+    # Google simply having had no data.
+    assert capsys.readouterr().out.count("dropped") == 2
+
+
+def test_the_reference_scale_survives_a_zero_reading_first_batch(monkeypatch):
+    """The reference is the first batch that MEASURED the anchor, still.
+
+    Skipping batch 0 for reading zero must not also skip batch 1 for it, which
+    is what pinning the reference back to `i == 0` would do.
+    """
+    tc = _anchor_transport(monkeypatch, {0: 0, 1: 50, 2: 25})
+    universe = ["ancla"] + [f"kw{i}" for i in range(1, 13)]
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        universe, anchor="ancla")
+
+    assert result["kw1"] == []
+    # Batch 1 is the reference: published on its own scale, 70 as measured.
+    assert [p["value"] for p in result["kw5"]] == [70.0]
+    # Batch 2 read the anchor at half batch 1's level, so its values double.
+    assert [p["value"] for p in result["kw9"]] == [140.0]
+
+
+# ---------------------------------------------------------------------------
+# Exception tolerance, by category rather than by name.
+#
+# `_fetch_batch` named exactly two exception types. `fetch` can fail as
+# neither: an HTTP 200 carrying an HTML maintenance page raises
+# `json.JSONDecodeError` out of `response.json()`, straight through the batch
+# loop and out of `run_chain` before `store_snapshots`, forfeiting every search
+# the earlier batches already paid for. Naming types is a denylist, and a
+# denylist here goes stale in the direction that costs money.
+# ---------------------------------------------------------------------------
+
+
+def test_a_non_json_response_body_only_costs_the_batch_that_hit_it(
+        monkeypatch, capsys):
+    import demand.ingest.serpapi_client as sc
+
+    tc, calls = _failing_transport(
+        monkeypatch, {1: sc.SerpApiMalformedResponseError(200)})
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert set(calls) == {0, 1, 2}
+    assert result["kw1"] != []
+    assert result["kw12"] != []
+    assert result["kw5"] == []
+    out = capsys.readouterr().out
+    assert "1 of 3 batches failed" in out
+
+
+def test_an_unnamed_exception_still_only_costs_one_batch(monkeypatch, capsys):
+    """The catch-all clause. Whatever it is, it is one batch, not the run."""
+    tc, calls = _failing_transport(monkeypatch, {1: RuntimeError("boom")})
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert set(calls) == {0, 1, 2}
+    assert result["kw1"] != []
+    assert result["kw12"] != []
+    assert result["kw5"] == []
+    out = capsys.readouterr().out
+    # The TYPE is reported, never `str(exc)`. An arbitrary exception's message
+    # is arbitrary text of unknown provenance going to stdout, and the one
+    # thing this codebase will not put there is anything derived from the
+    # request -- SerpApi takes the API key as a query parameter.
+    assert "RuntimeError" in out
+    assert "boom" not in out
+
+
+def test_an_unnamed_exception_is_not_retried_at_full_price(monkeypatch):
+    """One unexplained failure, one search. Not three."""
+    tc, calls = _failing_transport(monkeypatch, {1: RuntimeError("boom")})
+
+    tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert calls.count(1) == 1

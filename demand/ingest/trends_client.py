@@ -6,7 +6,8 @@ from time import sleep
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 from demand.ingest.serpapi_client import (
-    SerpApiError, SerpApiHTTPError, build_params, fetch,
+    SerpApiError, SerpApiHTTPError, SerpApiMalformedResponseError,
+    build_params, fetch,
 )
 
 #: Extra attempts after the first for a batch that failed at the transport
@@ -251,16 +252,31 @@ class SerpApiProvider:
             batch_series = parse_timeseries(payload, batch)
             anchor_points = batch_series.get(anchor, [])
 
-            # The FIRST batch that actually measured the anchor sets the
+            # The FIRST batch that actually MEASURED the anchor sets the
             # reference scale -- not batch 0 by index. Pinning it to index 0
             # meant one failed first batch left `reference_mean` at 0.0, and
             # `_rescale_to_anchor` then correctly refused to scale every
             # later batch against nothing: one lost search silently voided
             # all eleven others.
+            #
+            # "Measured" means a POSITIVE mean, not merely a non-empty list.
+            # Google renormalises every request so its own peak term is 100
+            # and rounds to integers, so a low-volume anchor next to a
+            # high-volume staple comes back as a full series of zeros --
+            # `parse_timeseries` keeps every one of them, because
+            # `extracted_value` is `0`, not `None`. Taking that batch as the
+            # reference was the worst of the three available outcomes: it
+            # published these four keywords raw on Google's per-request
+            # normalisation, left `reference_mean` at 0.0 so the NEXT batch
+            # became a second reference on ITS own normalisation, and never
+            # printed the drop announcement. `compute_signals` then ranked two
+            # incomparable universes against each other and nothing said so.
+            # A missing keyword is honest; a mis-scaled one is invented.
             if reference_mean <= 0:
-                if anchor_points:
-                    reference_mean = (sum(p["value"] for p in anchor_points)
-                                      / len(anchor_points))
+                candidate = (sum(p["value"] for p in anchor_points)
+                             / len(anchor_points)) if anchor_points else 0.0
+                if candidate > 0:
+                    reference_mean = candidate
                     for kw, points in batch_series.items():
                         if kw in result:
                             result[kw] = points
@@ -303,6 +319,16 @@ class SerpApiProvider:
         a query parameter, so a message built from the request would print it.
         `SerpApiHTTPError` is constructed from a status code alone for that
         reason; this keeps to the same discipline.
+
+        The final clause catches `Exception`, not a list of names. Naming
+        types here is a denylist, and this one had already gone stale: a 200
+        carrying an HTML maintenance page raised `json.JSONDecodeError` out of
+        `fetch`, straight past both named types, out of this method and out of
+        `run_chain` before `store_snapshots` -- forfeiting every search the
+        earlier batches had already paid for. That specific hole is closed at
+        source now (`SerpApiMalformedResponseError`), but the shape of the bug
+        is "something new escaped", and the whole point of this loop is that no
+        single batch can cost the run more than itself.
         """
         delay = BATCH_RETRY_BACKOFF
         for attempt in range(BATCH_RETRIES + 1):
@@ -312,6 +338,13 @@ class SerpApiProvider:
                     date=timeframe, api_key=self.api_key,
                 ))
                 return payload, None, False
+            except SerpApiMalformedResponseError:
+                # SerpApi answered -- the search is billed -- but with a
+                # maintenance page or a proxy interstitial rather than data.
+                # Not retried: nobody knows whether the retry is billed too,
+                # and this failure is not per-batch in any way a second
+                # request would fix.
+                return None, "non-JSON response body", False
             except SerpApiError as exc:
                 # HTTP 200 with an `error` field: Google had nothing for these
                 # terms. That is data, not a fault -- retrying buys the same
@@ -330,6 +363,12 @@ class SerpApiProvider:
                     return None, f"{detail} after {attempt + 1} attempts", False
                 sleep(delay)
                 delay *= 2
+            except Exception as exc:  # noqa: BLE001 - one batch, not the run
+                # The TYPE only, never `str(exc)`. An unrecognised exception's
+                # message is text of unknown provenance heading for stdout,
+                # and the one thing that must never land there is anything
+                # built from the request.
+                return None, type(exc).__name__, False
         return None, "unreachable", False  # pragma: no cover
 
     def interest_by_region(self, keyword: str,
@@ -433,7 +472,7 @@ def _rescale_to_anchor(
 
 
 class FixtureProvider:
-    def __init__(self, fixtures_dir: str = None):
+    def __init__(self, fixtures_dir: Optional[str] = None):
         if fixtures_dir is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             fixtures_dir = os.path.join(base_dir, "tests", "fixtures", "trends")
