@@ -21,6 +21,7 @@ if _REPO_ROOT not in sys.path:
 from demand.api.app import get_client
 from demand.ingest.keywords import build_universe, normalize_keyword
 from demand.ingest.rising_store import build_rows, store_rising_queries
+from demand.ingest.serpapi_client import SerpApiHTTPError
 from demand.ingest.trends_client import (
     KEYWORDS_PER_BATCH,
     PAID_PROVIDERS,
@@ -386,11 +387,30 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
 
     discovered = 0
     empty = 0
+    failed = 0
     for keyword in top_keywords:
-        rows = provider.rising_queries(
-            keyword, geo=INGEST_GEO, date=DISCOVERY_TIMEFRAME,
-            gprop=DISCOVERY_GPROP,
-        )
+        # One billed search per parent, and the rows for each are stored as
+        # soon as they arrive. So a failure here loses ONE search, not the
+        # nine others: the loop keeps going and whatever already landed
+        # stays landed. Same rule as the measurement batch loop.
+        try:
+            rows = provider.rising_queries(
+                keyword, geo=INGEST_GEO, date=DISCOVERY_TIMEFRAME,
+                gprop=DISCOVERY_GPROP,
+            )
+        except SerpApiHTTPError as exc:
+            failed += 1
+            if exc.status_code in (429, 401, 403):
+                # Not a per-keyword problem: the budget is gone or the key is
+                # rejected, and every remaining parent would answer the same.
+                print(f"[Ingest] Discovery stopped at {keyword!r}: {exc}. "
+                      f"{len(top_keywords) - top_keywords.index(keyword) - 1} "
+                      f"parents not attempted "
+                      f"({'budget exhausted' if exc.status_code == 429 else 'key rejected'}).")
+                break
+            print(f"[Ingest] Discovery: {keyword!r} failed ({exc}); "
+                  f"one search lost, continuing.")
+            continue
         if not rows:
             empty += 1
             continue
@@ -407,7 +427,8 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
     # Spanish terms, and a run where 8 of 10 parents came back empty is a very
     # different result from one where all 10 answered.
     print(f"[Ingest] Discovery: {discovered} rising queries, "
-          f"{empty}/{len(top_keywords)} parents empty")
+          f"{empty}/{len(top_keywords)} parents empty, "
+          f"{failed} failed")
 
     print("[Ingest] Finished.")
 

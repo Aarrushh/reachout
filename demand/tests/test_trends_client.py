@@ -2,6 +2,7 @@ import os
 import json
 import pytest
 import jsonschema
+from demand.ingest.serpapi_client import SerpApiError, SerpApiHTTPError
 from demand.ingest.trends_client import get_provider, FixtureProvider
 
 def load_schema(name):
@@ -408,3 +409,163 @@ def test_an_anchor_outside_the_universe_falls_back_to_the_first_keyword(
         keywords, anchor="no-such-term")
 
     assert result["kw1"] != []
+
+
+# ---------------------------------------------------------------------------
+# Error tolerance in the batch loop.
+#
+# The universe is 12 batches. An unguarded loop means a 502 on batch 9 throws
+# out of `interest_over_time` before `store_snapshots` is ever reached, so 9
+# already-billed searches -- 4% of the month -- produce zero rows and there is
+# no way to resume. The codebase learned this exact lesson once already, in
+# `run_ingest.py`'s `interest_by_region` guard, and wrote the reasoning down.
+# ---------------------------------------------------------------------------
+
+
+def _failing_transport(monkeypatch, failures):
+    """`failures` maps batch index -> exception to raise (once per attempt).
+
+    Values may be a single exception or a list consumed one per attempt, which
+    is how a retry that succeeds on the second try gets expressed.
+    """
+    import demand.ingest.trends_client as tc
+
+    monkeypatch.setattr(tc, "build_params", lambda **kw: kw["q"])
+    monkeypatch.setattr(tc, "sleep", lambda seconds: None)
+
+    calls = []
+
+    def fake_fetch(batch):
+        index = (int(batch[1][2:]) - 1) // tc.KEYWORDS_PER_BATCH
+        calls.append(index)
+        planned = failures.get(index)
+        if isinstance(planned, list):
+            if planned:
+                raise planned.pop(0)
+        elif planned is not None:
+            raise planned
+        values = [{"query": kw,
+                   "extracted_value": 50 if kw == "ancla" else 70}
+                  for kw in batch]
+        return {"interest_over_time": {"timeline_data": [
+            {"timestamp": "1783296000", "values": values},
+        ]}}
+
+    monkeypatch.setattr(tc, "fetch", fake_fetch)
+    return tc, calls
+
+
+UNIVERSE = ["ancla"] + [f"kw{i}" for i in range(1, 13)]  # anchor + 12 = 3 batches
+
+
+def test_one_failed_batch_does_not_forfeit_the_searches_already_spent(
+        monkeypatch, capsys):
+    tc, calls = _failing_transport(
+        monkeypatch, {1: SerpApiHTTPError(502)})
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    # Every batch was attempted -- the loop did not unwind on the first error.
+    assert set(calls) == {0, 1, 2}
+    # The batches that answered still carry their data all the way out.
+    assert result["kw1"] != []
+    assert result["kw12"] != []
+    # ...and only the failed batch's keywords are empty.
+    assert result["kw5"] == []
+    out = capsys.readouterr().out
+    assert "1 of 3 batches failed" in out
+    assert "502" in out
+
+
+def test_a_failed_first_batch_does_not_take_the_reference_scale_with_it(
+        monkeypatch):
+    """Batch 0 sets `reference_mean`. Losing it must not void the whole run.
+
+    With the reference pinned to batch 0 by index, a 502 there left
+    `reference_mean` at 0.0, `_rescale_to_anchor` correctly refused to scale
+    against nothing, and all 11 remaining paid searches were discarded on top
+    of the one that failed.
+    """
+    tc, calls = _failing_transport(monkeypatch, {0: SerpApiHTTPError(503)})
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert set(calls) == {0, 1, 2}
+    assert result["kw5"] != []
+    assert result["kw12"] != []
+
+
+def test_a_transient_failure_is_retried_before_the_batch_is_given_up(
+        monkeypatch):
+    tc, calls = _failing_transport(
+        monkeypatch, {1: [SerpApiHTTPError(502)]})
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    # Batch 1 was attempted twice and answered on the retry.
+    assert calls.count(1) == 2
+    assert result["kw5"] != []
+
+
+def test_a_batch_is_not_retried_forever(monkeypatch):
+    tc, calls = _failing_transport(monkeypatch, {1: SerpApiHTTPError(502)})
+
+    tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert calls.count(1) == 1 + tc.BATCH_RETRIES
+
+
+def test_a_429_stops_the_run_instead_of_retrying_into_an_empty_budget(
+        monkeypatch, capsys):
+    """429 is "the 250/month budget is gone", not "try again in a second".
+
+    Retrying it -- which is what a generic transient-error backoff would do --
+    hammers an account that has already said no, and every remaining batch
+    would answer the same way. Stop, and say why, keeping whatever the
+    earlier batches paid for.
+    """
+    tc, calls = _failing_transport(monkeypatch, {1: SerpApiHTTPError(429)})
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert calls.count(1) == 1          # not retried
+    assert 2 not in calls               # and batch 2 never attempted
+    assert result["kw1"] != []          # batch 0's search is still banked
+    assert "budget" in capsys.readouterr().out.lower()
+
+
+def test_a_401_stops_the_run_too(monkeypatch):
+    """A rejected key is not transient and is not per-batch."""
+    tc, calls = _failing_transport(monkeypatch, {1: SerpApiHTTPError(401)})
+
+    tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert calls.count(1) == 1
+    assert 2 not in calls
+
+
+def test_an_empty_answer_for_a_batch_is_data_not_a_failure(monkeypatch):
+    """HTTP 200 with an `error` field means Google had nothing. Keep going."""
+    tc, calls = _failing_transport(
+        monkeypatch, {1: SerpApiError("Google hasn't returned any results")})
+
+    result = tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+
+    assert calls.count(1) == 1          # a refusal is not retried
+    assert set(calls) == {0, 1, 2}
+    assert result["kw5"] == []
+    assert result["kw12"] != []
+
+
+def test_a_fully_healthy_run_says_nothing_about_failures(monkeypatch, capsys):
+    tc, _ = _failing_transport(monkeypatch, {})
+    tc.SerpApiProvider(api_key="KEY").interest_over_time(
+        UNIVERSE, anchor="ancla")
+    assert "failed" not in capsys.readouterr().out

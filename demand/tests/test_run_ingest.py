@@ -11,6 +11,7 @@ os.environ["DEMAND_TRENDS_PROVIDER"] = "fixture"
 
 from demand.tests.fake_supa import FakeSupabase
 from demand.api import app
+from demand.ingest.serpapi_client import SerpApiHTTPError
 from demand.ingest.trends_client import SerpApiProvider, get_provider
 from demand.scripts.run_ingest import INGEST_TIMEFRAME, run_chain, snapshot_id
 import demand.scripts.run_ingest
@@ -123,7 +124,10 @@ class DiscoveryProvider:
         # Recorded, not counted: one search per entry, and a duplicate entry
         # is a duplicate charge.
         self.rising_calls.append((keyword, geo, date, gprop))
-        return [dict(r) for r in self.rising_by_keyword.get(keyword, [])]
+        planned = self.rising_by_keyword.get(keyword, [])
+        if isinstance(planned, Exception):
+            raise planned
+        return [dict(r) for r in planned]
 
 def test_full_chain_upserts(fake_client, monkeypatch):
     client, seed_file = fake_client
@@ -696,6 +700,49 @@ def test_discovery_survives_a_run_where_every_parent_is_empty(tmp_path, monkeypa
     run_chain(provider_name="stub", dry_run=False)
     assert provider.rising_calls != []
     assert client.table('rising_queries')._data == []
+
+
+def test_one_failed_parent_does_not_end_the_discovery_pass(tmp_path, monkeypatch,
+                                                           capsys):
+    """A 502 on parent 2 must not throw away parents 1 and 3.
+
+    Each parent is a separate billed search, so the loop tolerates a failure
+    the same way the measurement batch loop does.
+    """
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": SerpApiHTTPError(502),
+        "beta": [{"query": "beta barata", "growth_pct": 10.0,
+                  "is_breakout": False}],
+        "delta_kw": [{"query": "delta grande", "growth_pct": 42.0,
+                      "is_breakout": False}],
+    })
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    assert [c[0] for c in provider.rising_calls] == ["alfa", "beta", "delta_kw"]
+    assert {r["query"] for r in client.table('rising_queries')._data} == {
+        "beta barata", "delta grande"}
+    assert "1 failed" in capsys.readouterr().out
+
+
+def test_discovery_stops_asking_once_the_budget_is_gone(tmp_path, monkeypatch,
+                                                        capsys):
+    """429 means the month is spent. Asking the next parent costs the same
+    nothing and answers the same way, so stop -- and keep what landed."""
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": [{"query": "alfa barata", "growth_pct": 150.0,
+                  "is_breakout": False}],
+        "beta": SerpApiHTTPError(429),
+        "delta_kw": [{"query": "delta grande", "growth_pct": 42.0,
+                      "is_breakout": False}],
+    })
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    assert [c[0] for c in provider.rising_calls] == ["alfa", "beta"]
+    assert {r["query"] for r in client.table('rising_queries')._data} == {
+        "alfa barata"}
+    assert "budget" in capsys.readouterr().out.lower()
 
 
 def test_the_batch_anchor_comes_from_the_previous_runs_signals(

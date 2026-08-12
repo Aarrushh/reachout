@@ -2,11 +2,33 @@ import json
 import os
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Protocol
+from time import sleep
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 from demand.ingest.serpapi_client import (
-    SerpApiError, build_params, fetch,
+    SerpApiError, SerpApiHTTPError, build_params, fetch,
 )
+
+#: Extra attempts after the first for a batch that failed at the transport
+#: level. Two, not ten: a batch that has failed three times in a row is not
+#: having a bad second, and the remaining batches still need their turn.
+BATCH_RETRIES = 2
+
+#: Seconds before the first retry. Doubles each time (2s, then 4s).
+BATCH_RETRY_BACKOFF = 2.0
+
+#: Status codes worth trying again. Server-side and gateway faults only, plus
+#: `None`, which `SerpApiHTTPError` uses for "no response reached us at all"
+#: (timeout, dropped connection).
+#:
+#: 429 is deliberately ABSENT, and that is a departure from the obvious
+#: "retry on 429 and 5xx" rule. On this plan 429 means the 250/month budget
+#: is gone, not "you are going too fast" -- the run issues a dozen sequential
+#: requests over several minutes, which no rate limiter objects to. Retrying
+#: it waits two seconds to be told no again, and every remaining batch would
+#: be told the same. 401/403 are absent for the same reason in the other
+#: direction: a rejected key is not per-batch and will not fix itself.
+RETRYABLE_STATUS = frozenset({500, 502, 503, 504, 408, 520, 522, 524})
 
 #: Google's literal answer when growth exceeds roughly 5000%. It is a refusal
 #: to quantify, not a large number, and is stored as one.
@@ -201,24 +223,51 @@ class SerpApiProvider:
         batches = _batch_keywords(keywords, anchor)
         result: Dict[str, List[Dict[str, Any]]] = {k: [] for k in keywords}
         reference_mean = 0.0
+        failures: List[str] = []
 
         for i, batch in enumerate(batches):
-            payload = fetch(build_params(
-                q=batch, data_type="TIMESERIES", geo=geo,
-                date=timeframe, api_key=self.api_key,
-            ))
-            batch_series = parse_timeseries(payload, batch)
-
-            anchor_points = batch_series.get(anchor, [])
-            if i == 0:
-                reference_mean = (
-                    sum(p["value"] for p in anchor_points) / len(anchor_points)
-                    if anchor_points else 0.0
-                )
-                for kw, points in batch_series.items():
-                    if kw in result:
-                        result[kw] = points
+            # One search, already billed by the time this returns either way.
+            # A failure here loses THIS batch and nothing else: the loop
+            # continues so the searches the earlier batches already paid for
+            # still reach `store_snapshots`. Before this, an unguarded `fetch`
+            # threw out of the whole method, and a 502 on batch 9 of 12 meant
+            # 9 billed searches -- 4% of the month -- produced zero rows with
+            # no way to resume. That lesson was already learned once, in
+            # `run_ingest.py`'s `interest_by_region` guard; it just had not
+            # been carried across to the path that costs money.
+            payload, error, fatal = self._fetch_batch(batch, geo, timeframe)
+            if error is not None:
+                failures.append(f"batch {i} ({error})")
+                if fatal:
+                    # 429 (budget gone) or 401/403 (key rejected). Neither is
+                    # per-batch, so the remaining batches would only repeat
+                    # the same failure at the same price. Stop, keep what the
+                    # earlier batches bought.
+                    print(f"[Ingest] stopping after batch {i}: {error}. "
+                          f"{len(batches) - i - 1} batches not attempted.")
+                    break
                 continue
+
+            batch_series = parse_timeseries(payload, batch)
+            anchor_points = batch_series.get(anchor, [])
+
+            # The FIRST batch that actually measured the anchor sets the
+            # reference scale -- not batch 0 by index. Pinning it to index 0
+            # meant one failed first batch left `reference_mean` at 0.0, and
+            # `_rescale_to_anchor` then correctly refused to scale every
+            # later batch against nothing: one lost search silently voided
+            # all eleven others.
+            if reference_mean <= 0:
+                if anchor_points:
+                    reference_mean = (sum(p["value"] for p in anchor_points)
+                                      / len(anchor_points))
+                    for kw, points in batch_series.items():
+                        if kw in result:
+                            result[kw] = points
+                    continue
+                # No reference yet and this batch cannot provide one: its
+                # keywords are on an unknown scale, so fall through to the
+                # drop announcement below rather than emitting them raw.
 
             rescaled = _rescale_to_anchor(batch_series, anchor, reference_mean)
             if not rescaled:
@@ -236,7 +285,52 @@ class SerpApiProvider:
                 if kw in result:
                     result[kw] = points
 
+        if failures:
+            # Reported, never raised. The caller's job is to store what did
+            # arrive; a partial run is a real result and the operator has to
+            # be able to see which part is missing and what it cost.
+            print(f"[Ingest] {len(failures)} of {len(batches)} batches failed: "
+                  + "; ".join(failures))
+
         return result
+
+    def _fetch_batch(self, batch: List[str], geo: str, timeframe: str,
+                     ) -> Tuple[Optional[Dict[str, Any]], Optional[str], bool]:
+        """One batch, with retries. Returns (payload, error, fatal).
+
+        `error` is a short human string, never an exception object and never
+        anything derived from the request URL -- SerpApi takes the API key as
+        a query parameter, so a message built from the request would print it.
+        `SerpApiHTTPError` is constructed from a status code alone for that
+        reason; this keeps to the same discipline.
+        """
+        delay = BATCH_RETRY_BACKOFF
+        for attempt in range(BATCH_RETRIES + 1):
+            try:
+                payload = fetch(build_params(
+                    q=batch, data_type="TIMESERIES", geo=geo,
+                    date=timeframe, api_key=self.api_key,
+                ))
+                return payload, None, False
+            except SerpApiError as exc:
+                # HTTP 200 with an `error` field: Google had nothing for these
+                # terms. That is data, not a fault -- retrying buys the same
+                # answer at full price.
+                return None, f"no results: {exc}", False
+            except SerpApiHTTPError as exc:
+                status = exc.status_code
+                if status == 429:
+                    return None, "HTTP 429 -- SerpApi budget exhausted", True
+                if status in (401, 403):
+                    return None, f"HTTP {status} -- API key rejected", True
+                if status not in RETRYABLE_STATUS and status is not None:
+                    return None, f"HTTP {status}", False
+                if attempt == BATCH_RETRIES:
+                    detail = f"HTTP {status}" if status else "no response"
+                    return None, f"{detail} after {attempt + 1} attempts", False
+                sleep(delay)
+                delay *= 2
+        return None, "unreachable", False  # pragma: no cover
 
     def interest_by_region(self, keyword: str,
                             geo: str = "ES-MD") -> List[Dict[str, Any]]:
