@@ -381,10 +381,27 @@ class FixtureProvider:
             return []
         return parse_rising_queries(payload)
 
-def get_provider(name: str) -> TrendsProvider:
-    if name == "serpapi":
-        import os
 
+#: The provider names, as one definition rather than as string literals
+#: scattered across `run_ingest.main()`, `run_chain` and the cron.
+SERPAPI_PROVIDER = "serpapi"
+FIXTURE_PROVIDER = "fixture"
+
+#: Which providers cost money. `run_chain` refuses to run any of these without
+#: an explicit `spend=True`, and it reads THIS set rather than comparing
+#: against a literal.
+#:
+#: The distinction is not cosmetic. The guard used to be spelled
+#: `args.provider == "serpapi"` inside `main()`: a denylist of one string, in
+#: one of the two callers. `demand/api/app.py`'s cron called `run_chain`
+#: directly and never saw it. A second paid provider, or a rename, would have
+#: gone stale the same way -- and stale in the direction of spending, which is
+#: the direction that costs something.
+PAID_PROVIDERS = frozenset({SERPAPI_PROVIDER})
+
+
+def get_provider(name: str) -> TrendsProvider:
+    if name == SERPAPI_PROVIDER:
         api_key = os.environ.get("SERPAPI_API_KEY")
         if not api_key:
             raise RuntimeError(
@@ -392,6 +409,6 @@ def get_provider(name: str) -> TrendsProvider:
                 "Run with `--provider fixture` to work offline."
             )
         return SerpApiProvider(api_key=api_key)
-    if name == "fixture":
+    if name == FIXTURE_PROVIDER:
         return FixtureProvider()
     raise ValueError(f"Unknown provider: {name}")

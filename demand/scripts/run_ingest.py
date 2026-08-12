@@ -23,6 +23,8 @@ from demand.ingest.keywords import build_universe, normalize_keyword
 from demand.ingest.rising_store import build_rows, store_rising_queries
 from demand.ingest.trends_client import (
     KEYWORDS_PER_BATCH,
+    PAID_PROVIDERS,
+    SERPAPI_PROVIDER,
     get_provider,
     pick_anchor,
 )
@@ -209,7 +211,38 @@ def _load_prior_signals(client) -> list:
         return []
 
 
-def run_chain(provider_name: str, dry_run: bool = False):
+class SpendNotAuthorised(RuntimeError):
+    """A paid provider was asked to run without `spend=True`.
+
+    Raised, not printed-and-returned: a caller that forgot to ask for spend
+    has a bug, and a silent no-op run would look like a successful ingest that
+    happened to find nothing.
+    """
+
+
+def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
+    """Run the whole demand chain once.
+
+    `spend` is the budget gate and it lives HERE, at the one place every
+    caller passes through, not in `main()`. The previous guard was
+    `args.provider == "serpapi" and not args.spend` inside `main()`: it
+    protected the CLI and nothing else, and `demand/api/app.py`'s cron called
+    `run_chain(provider_name="serpapi", dry_run=False)` directly -- 22 live
+    searches every Monday behind a single env var, with no pre-flight and
+    nobody reading the output. A guard one caller can walk past is not a
+    guard; it is a habit the CLI happens to have.
+
+    Default `False` on purpose: spending is opt-in per call, so a new caller
+    added later inherits refusal rather than permission. `--dry-run` is NOT
+    this gate -- it skips database writes and still makes every search.
+    """
+    if provider_name in PAID_PROVIDERS and not spend:
+        raise SpendNotAuthorised(
+            f"provider {provider_name!r} spends real SerpApi searches out of a "
+            f"250/month budget. Pass spend=True, or run the CLI with --spend "
+            f"to see the pre-flight estimate first."
+        )
+
     print(f"[Ingest] Starting run (provider={provider_name}, dry_run={dry_run})")
     client = get_client()
 
@@ -384,23 +417,25 @@ def main():
                         help="Print counts, write nothing")
     parser.add_argument("--provider", type=str,
                         default=os.environ.get("DEMAND_TRENDS_PROVIDER",
-                                               "serpapi"),
+                                               SERPAPI_PROVIDER),
                         help="Trends provider (serpapi or fixture)")
     parser.add_argument("--spend", action="store_true",
                         help="Required for a live provider. Without it the run "
                              "prints its cost and exits without calling out.")
     args = parser.parse_args()
 
-    # The guard exists because the budget is finite and an accidental
-    # `--provider serpapi` in a loop is unrecoverable spend. Defaulting to dry
-    # means the expensive path is always an explicit choice.
-    if args.provider == "serpapi" and not args.spend:
+    # The pre-flight, not the guard. The guard is `spend=` inside `run_chain`,
+    # which every caller passes through; this block exists only to turn the
+    # CLI's refusal into a useful answer -- what the run would cost -- instead
+    # of a traceback. Reading PAID_PROVIDERS rather than comparing to
+    # "serpapi" keeps it from disagreeing with the guard it stands in front of.
+    if args.provider in PAID_PROVIDERS and not args.spend:
         # `get_client` and `build_universe` are already imported at module
         # scope by run_ingest.py -- `run_chain` calls both. Reading the universe
         # costs a database query, not a search.
         universe = build_universe(get_client())
         est = estimate_searches(len(universe), DISCOVERY_TOP_N)
-        print("[Ingest] provider=serpapi  PRE-FLIGHT")
+        print(f"[Ingest] provider={args.provider}  PRE-FLIGHT")
         print(f"         {est['timeseries']} TIMESERIES "
               f"({len(universe)} kw, {INGEST_TIMEFRAME}, web)")
         print(f"       + {est['discovery']} RELATED_QUERIES "
@@ -409,7 +444,8 @@ def main():
         print("         Re-run with --spend to proceed.")
         return
 
-    run_chain(provider_name=args.provider, dry_run=args.dry_run)
+    run_chain(provider_name=args.provider, dry_run=args.dry_run,
+              spend=args.spend)
 
 if __name__ == "__main__":
     main()

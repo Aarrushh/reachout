@@ -11,6 +11,7 @@ os.environ["DEMAND_TRENDS_PROVIDER"] = "fixture"
 
 from demand.tests.fake_supa import FakeSupabase
 from demand.api import app
+from demand.ingest.trends_client import SerpApiProvider, get_provider
 from demand.scripts.run_ingest import INGEST_TIMEFRAME, run_chain, snapshot_id
 import demand.scripts.run_ingest
 
@@ -387,6 +388,12 @@ class RecordingScheduler:
 def recording_scheduler(monkeypatch):
     RecordingScheduler.instances = []
     monkeypatch.setattr(app, "AsyncIOScheduler", RecordingScheduler)
+    # Every one of the three switches the cron reads is cleared here, so a
+    # developer who happens to have one exported does not silently change what
+    # these tests assert. Each test sets back exactly what it is testing.
+    for var in ("DEMAND_INGEST_CRON", "DEMAND_INGEST_CRON_SPEND",
+                "WEB_CONCURRENCY"):
+        monkeypatch.delenv(var, raising=False)
     return RecordingScheduler
 
 
@@ -407,6 +414,7 @@ def test_lifespan_starts_no_scheduler_without_the_env_gate(monkeypatch, recordin
 
 def test_lifespan_starts_the_weekly_job_with_the_env_gate(monkeypatch, recording_scheduler):
     monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
 
     async def run_with_cron():
         async with app.lifespan(app.app):
@@ -416,7 +424,8 @@ def test_lifespan_starts_the_weekly_job_with_the_env_gate(monkeypatch, recording
             assert len(scheduler.jobs) == 1
             job = scheduler.jobs[0]
             assert job["trigger"] == "cron"
-            assert job["kwargs"] == {"day_of_week": "mon", "hour": 0, "minute": 0}
+            assert job["kwargs"] == {"day_of_week": "mon", "hour": 0,
+                                     "minute": 0}
             assert scheduler.stopped is False
 
     asyncio.run(run_with_cron())
@@ -427,12 +436,125 @@ def test_lifespan_starts_the_weekly_job_with_the_env_gate(monkeypatch, recording
 
 def test_lifespan_ignores_a_non_1_env_value(monkeypatch, recording_scheduler):
     monkeypatch.setenv("DEMAND_INGEST_CRON", "0")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
 
     async def run_with_zero():
         async with app.lifespan(app.app):
             assert recording_scheduler.instances == []
 
     asyncio.run(run_with_zero())
+
+
+def test_the_cron_does_not_schedule_without_its_own_spend_gate(
+        monkeypatch, recording_scheduler):
+    """`DEMAND_INGEST_CRON=1` alone must not be able to bill.
+
+    Turning the scheduler on and authorising 22 live searches every Monday
+    were the same switch. One env var on a deploy dashboard, no pre-flight,
+    no confirmation -- and unlike the CLI there is nobody watching the output.
+    """
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.delenv("DEMAND_INGEST_CRON_SPEND", raising=False)
+
+    async def run_with_cron_but_no_spend():
+        async with app.lifespan(app.app):
+            assert recording_scheduler.instances == []
+
+    asyncio.run(run_with_cron_but_no_spend())
+
+
+def test_the_cron_job_calls_run_chain_with_the_live_provider_and_spend(
+        monkeypatch, recording_scheduler):
+    """Invoke the scheduled job itself, do not just look at its trigger.
+
+    The previous version of this test asserted `day_of_week`/`hour`/`minute`
+    and nothing else, so `provider_name="trendspy"` sat in the cron for the
+    whole life of `TrendspyProvider`'s deletion: green suite, and a job that
+    raised `ValueError: Unknown provider` every Monday at midnight inside a
+    scheduler thread where nobody reads the traceback.
+    """
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
+
+    calls = []
+    # `app.lifespan` imports `run_chain` from the module when it runs, so
+    # patching the module attribute first is what the job will pick up.
+    monkeypatch.setattr(demand.scripts.run_ingest, "run_chain",
+                        lambda **kw: calls.append(kw))
+
+    async def run_the_job():
+        async with app.lifespan(app.app):
+            job = recording_scheduler.instances[0].jobs[0]
+            await job["func"]()
+
+    asyncio.run(run_the_job())
+
+    assert calls == [{"provider_name": "serpapi", "dry_run": False,
+                      "spend": True}]
+
+
+def test_the_crons_provider_name_is_one_get_provider_actually_dispatches_on(
+        monkeypatch, recording_scheduler):
+    """The rename-proofing half of the same defect.
+
+    Asserting the literal `"serpapi"` pins the cron to a *string*. What has to
+    hold is that the string still resolves: `get_provider` is the only place
+    that decides, so ask it.
+    """
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
+    # A fake key, set locally. `conftest.block_network` deletes the real one
+    # for the whole session and blocks the transport, so constructing a live
+    # provider object here cannot reach SerpApi or spend anything.
+    monkeypatch.setenv("SERPAPI_API_KEY", "not-a-real-key")
+
+    calls = []
+    monkeypatch.setattr(demand.scripts.run_ingest, "run_chain",
+                        lambda **kw: calls.append(kw))
+
+    async def run_the_job():
+        async with app.lifespan(app.app):
+            await recording_scheduler.instances[0].jobs[0]["func"]()
+
+    asyncio.run(run_the_job())
+
+    name = calls[0]["provider_name"]
+    assert isinstance(get_provider(name), SerpApiProvider)
+    # ...and it is a name `run_chain`'s own gate treats as costing money, so
+    # the cron cannot be pointed at a paid provider the gate does not know.
+    assert name in demand.scripts.run_ingest.PAID_PROVIDERS
+
+
+def test_the_cron_refuses_to_schedule_under_multiple_web_workers(
+        monkeypatch, recording_scheduler):
+    """`AsyncIOScheduler` is per-process, so N workers fire N jobs.
+
+    22 searches becomes N x 22 out of a 250/month budget, and the rows are
+    uuid5-keyed so they upsert over each other -- the extra spend buys
+    literally nothing, and nothing in the output says it happened.
+    """
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
+    monkeypatch.setenv("WEB_CONCURRENCY", "4")
+
+    async def run_with_workers():
+        async with app.lifespan(app.app):
+            assert recording_scheduler.instances == []
+
+    asyncio.run(run_with_workers())
+
+
+def test_the_cron_still_schedules_on_a_single_worker(
+        monkeypatch, recording_scheduler):
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
+    monkeypatch.setenv("WEB_CONCURRENCY", "1")
+
+    async def run_single():
+        async with app.lifespan(app.app):
+            assert len(recording_scheduler.instances) == 1
+
+    asyncio.run(run_single())
 
 
 # ---------------------------------------------------------------------------
@@ -623,3 +745,93 @@ def test_a_cold_start_still_picks_an_anchor(fake_client, monkeypatch):
     run_chain(provider_name="fixture", dry_run=True)
 
     assert provider.requested_anchor == "coffee"
+
+
+# ---------------------------------------------------------------------------
+# The spend gate.
+#
+# It lives in `run_chain`, not in `main()`. A guard in `main()` only protects
+# the one caller that goes through argparse; `demand/api/app.py`'s cron calls
+# `run_chain` directly and walked straight past it. Every assertion below is
+# an assertion about money leaving the account.
+# ---------------------------------------------------------------------------
+
+
+def _gate_setup(fake_client, monkeypatch):
+    client, seed_file = fake_client
+    monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
+    monkeypatch.setattr(app, 'get_client', lambda: client)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
+    return client
+
+
+def test_run_chain_refuses_a_paid_provider_without_the_spend_flag(
+        fake_client, monkeypatch):
+    _gate_setup(fake_client, monkeypatch)
+
+    built = []
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: built.append(name))
+
+    with pytest.raises(demand.scripts.run_ingest.SpendNotAuthorised):
+        run_chain(provider_name="serpapi")
+
+    # It refuses BEFORE anything is constructed, so there is no window in
+    # which a search could be issued.
+    assert built == []
+
+
+def test_run_chain_refuses_every_paid_provider_not_just_the_literal_serpapi(
+        fake_client, monkeypatch):
+    """The gate reads the same list `get_provider` dispatches on.
+
+    A denylist spelled `provider_name == "serpapi"` in one file goes stale the
+    moment a second paid provider is added or the first is renamed -- and it
+    goes stale silently, in the direction of spending.
+    """
+    _gate_setup(fake_client, monkeypatch)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: pytest.fail("built a paid provider"))
+
+    assert demand.scripts.run_ingest.PAID_PROVIDERS
+    for name in demand.scripts.run_ingest.PAID_PROVIDERS:
+        with pytest.raises(demand.scripts.run_ingest.SpendNotAuthorised):
+            run_chain(provider_name=name)
+
+
+def test_run_chain_proceeds_on_a_paid_provider_once_spend_is_granted(
+        fake_client, monkeypatch):
+    client = _gate_setup(fake_client, monkeypatch)
+    provider = EchoProvider(weekly_series([50] * 12))
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: provider)
+
+    run_chain(provider_name="serpapi", dry_run=False, spend=True)
+
+    assert provider.requested_keywords == ["coffee", "sneakers"]
+    assert client.table('trend_snapshots')._data != []
+
+
+def test_a_free_provider_never_needs_the_flag(fake_client, monkeypatch):
+    """`--spend` gates money, not the chain. Fixture runs stay one word long."""
+    client = _gate_setup(fake_client, monkeypatch)
+    provider = EchoProvider(weekly_series([50] * 12))
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: provider)
+
+    run_chain(provider_name="fixture")
+
+    assert client.table('trend_snapshots')._data != []
+
+
+def test_the_spend_flag_reaches_run_chain_from_the_command_line(monkeypatch):
+    calls = []
+    monkeypatch.setattr(demand.scripts.run_ingest, 'run_chain',
+                        lambda **kw: calls.append(kw))
+    monkeypatch.setattr(sys, 'argv',
+                        ['run_ingest', '--provider', 'serpapi', '--spend'])
+
+    demand.scripts.run_ingest.main()
+
+    assert calls == [{"provider_name": "serpapi", "dry_run": False,
+                      "spend": True}]

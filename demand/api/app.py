@@ -34,6 +34,7 @@ import datetime
 import json
 import logging
 import os
+import sys
 from collections import Counter
 from contextlib import asynccontextmanager
 from functools import lru_cache
@@ -47,6 +48,7 @@ import jsonschema
 from supabase import Client, create_client
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from demand.ingest.trends_client import SERPAPI_PROVIDER
 from demand.shared.validation import validate_with_formats
 
 
@@ -162,23 +164,99 @@ def get_client() -> Client:
     return create_client(url, key, options=ClientOptions(schema="demand"))
 
 
+#: The provider the weekly job runs on. Imported from the same module
+#: `get_provider` dispatches from, so a rename cannot leave the cron pointing
+#: at a name that no longer resolves -- which is exactly what happened when
+#: `TrendspyProvider` was deleted and `provider_name="trendspy"` stayed here,
+#: raising `ValueError: Unknown provider` every Monday inside a scheduler
+#: thread where nobody reads the traceback.
+CRON_PROVIDER = SERPAPI_PROVIDER
+
+
+def _cron_would_duplicate_across_workers() -> bool:
+    """True when this process is probably one of several identical workers.
+
+    `AsyncIOScheduler` is per-process. Under `uvicorn --workers 4` each worker
+    runs its own copy of this lifespan, starts its own scheduler, and fires
+    its own Monday job: 4 x 22 searches out of 250/month. The rows are
+    uuid5-keyed, so the three extra runs upsert over the first one's rows and
+    buy nothing at all -- the spend is pure loss and nothing in the output
+    says it happened.
+
+    Best-effort by construction: a worker cannot ask the parent how many
+    siblings it has. `WEB_CONCURRENCY` is what uvicorn and gunicorn both read
+    for their default worker count, and `--workers` survives into the child's
+    argv, so between them they catch the realistic deployments. The contract
+    the operator has to hold is still the plain one: run the ingest cron on a
+    single-worker process (or, better, as an external scheduled job invoking
+    `run_ingest --spend`).
+    """
+    try:
+        if int(os.environ.get("WEB_CONCURRENCY", "1")) > 1:
+            return True
+    except ValueError:
+        pass
+    for i, arg in enumerate(sys.argv):
+        if arg == "--workers" and i + 1 < len(sys.argv):
+            try:
+                if int(sys.argv[i + 1]) > 1:
+                    return True
+            except ValueError:
+                pass
+        elif arg.startswith("--workers="):
+            try:
+                if int(arg.split("=", 1)[1]) > 1:
+                    return True
+            except ValueError:
+                pass
+    return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = None
     if os.environ.get("DEMAND_INGEST_CRON") == "1":
         from demand.scripts.run_ingest import run_chain
-        scheduler = AsyncIOScheduler()
-        # Weekly, not daily: compute_signals aggregates into Monday-to-Sunday
-        # windows, so a mid-week ingest produces a partial window (worse than
-        # no data). Monday matches that windowing, not a budget choice -- if
-        # the SerpApi plan is ever raised, that does not make daily correct.
 
-        async def run_chain_async():
-            await asyncio.to_thread(run_chain, provider_name="serpapi", dry_run=False)
+        # Two switches, not one. `DEMAND_INGEST_CRON=1` used to both start the
+        # scheduler AND authorise 22 live searches a week -- one checkbox on a
+        # deploy dashboard, no pre-flight, no confirmation, and no operator
+        # watching stdout at midnight on a Monday. Turning the job on and
+        # agreeing to pay for it are separate decisions, so they are separate
+        # variables, and the job is not scheduled at all unless both are set.
+        # Scheduling a job that would only raise is noise, not safety.
+        if os.environ.get("DEMAND_INGEST_CRON_SPEND") != "1":
+            print("DEMAND_INGEST_CRON=1 but DEMAND_INGEST_CRON_SPEND is not "
+                  "'1' -- the weekly job spends real SerpApi searches, so it "
+                  "was NOT scheduled. Set DEMAND_INGEST_CRON_SPEND=1 to "
+                  "authorise it.")
+        elif _cron_would_duplicate_across_workers():
+            print("DEMAND_INGEST_CRON=1 but this process looks like one of "
+                  "several web workers; each would run its own weekly ingest "
+                  "and multiply the spend. The job was NOT scheduled. Run the "
+                  "cron on a single-worker process.")
+        else:
+            scheduler = AsyncIOScheduler()
+            # Weekly, not daily: compute_signals aggregates into Monday-to-
+            # Sunday windows, so a mid-week ingest produces a partial window
+            # (worse than no data). Monday matches that windowing, not a
+            # budget choice -- if the SerpApi plan is ever raised, that does
+            # not make daily correct.
 
-        scheduler.add_job(run_chain_async, 'cron', day_of_week='mon', hour=0, minute=0)
-        scheduler.start()
-        print("Started DEMAND_INGEST_CRON weekly job")
+            async def run_chain_async():
+                await asyncio.to_thread(run_chain,
+                                        provider_name=CRON_PROVIDER,
+                                        dry_run=False,
+                                        # The cron opts in explicitly. It does
+                                        # not inherit permission from having
+                                        # been scheduled -- `run_chain`
+                                        # refuses a paid provider by default.
+                                        spend=True)
+
+            scheduler.add_job(run_chain_async, 'cron', day_of_week='mon',
+                              hour=0, minute=0)
+            scheduler.start()
+            print("Started DEMAND_INGEST_CRON weekly job")
 
     yield
 
