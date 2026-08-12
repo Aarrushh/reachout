@@ -1,5 +1,15 @@
 """Spend exactly 5 searches to learn what SerpApi actually returns for Madrid.
 
+ALREADY RUN. The captures under `demand/tests/fixtures/trends/captured/` are
+its output and are committed; the gate this probe existed to answer is
+answered. Running it again costs 5 more searches out of 250/month and buys
+nothing, so it now requires `--spend`, exactly like `run_ingest`, and refuses
+to overwrite an existing capture without `--overwrite` on top of that.
+
+That second guard is not tidiness. `test_serpapi_provider.py` asserts against
+`timeseries_web_5kw.json` field by field; a silent re-capture would rewrite
+the fixture underneath the test that proves the parser reads real data.
+
 Written before any parser exists, on purpose. Every parser task in this plan is
 tested against the JSON this script captures, so no parser is ever written
 against a guessed response shape.
@@ -10,6 +20,7 @@ region-scoped Spanish product terms is exactly the low-volume case where Trends
 returns nothing, and four samples is the cheapest honest read on that.
 """
 
+import argparse
 import json
 import os
 import sys
@@ -38,11 +49,27 @@ MEASUREMENT_KEYWORDS = [
 DISCOVERY_KEYWORDS = ["café", "cerveza", "chocolate", "protector solar"]
 
 
+#: Every file a full run writes. Listed so the overwrite check can be made
+#: BEFORE the first search rather than discovered file by file, half-spent.
+CAPTURE_NAMES = ["timeseries_web_5kw.json"] + [
+    f"related_queries_froogle_{kw.replace(' ', '_')}.json"
+    for kw in DISCOVERY_KEYWORDS
+]
+
+
 def _write(name: str, payload: dict) -> None:
     CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
     path = CAPTURE_DIR / name
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"  wrote {path.relative_to(REPO_ROOT)}")
+    try:
+        shown = path.relative_to(REPO_ROOT)
+    except ValueError:
+        shown = path
+    print(f"  wrote {shown}")
+
+
+def _existing_captures() -> list:
+    return [n for n in CAPTURE_NAMES if (CAPTURE_DIR / n).exists()]
 
 
 def _scrub(payload: dict) -> dict:
@@ -55,6 +82,41 @@ def _scrub(payload: dict) -> dict:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="One-shot SerpApi shape probe. Already run; see module "
+                    "docstring.")
+    parser.add_argument("--spend", action="store_true",
+                        help="Required. Without it the probe prints its cost "
+                             "and exits without calling out.")
+    parser.add_argument("--overwrite", action="store_true",
+                        help="Required as well when captures already exist. "
+                             "They are committed test fixtures.")
+    args = parser.parse_args()
+
+    # Checked FIRST, before `load_dotenv`: a run nobody authorised should not
+    # even open the credentials file, let alone put a live key into the
+    # environment of whatever process happens to be running this.
+    if not args.spend:
+        print("[Probe] PRE-FLIGHT -- nothing spent.")
+        print("         1 TIMESERIES + 4 RELATED_QUERIES = 5 searches "
+              "of a 250/month budget.")
+        print("         The captures this writes are already committed and "
+              "the gate they answered is closed.")
+        print("         Re-run with --spend to proceed.")
+        return 0
+
+    existing = _existing_captures()
+    if existing and not args.overwrite:
+        print(f"[Probe] {len(existing)} capture(s) already exist and would be "
+              f"overwritten:")
+        for name in existing:
+            print(f"           {name}")
+        print("         demand/tests/test_serpapi_provider.py asserts against "
+              "them field by field.")
+        print("         Pass --overwrite as well if replacing them is really "
+              "the intent.")
+        return 1
+
     load_dotenv(REPO_ROOT / "reachout" / ".env")
     api_key = os.environ.get("SERPAPI_API_KEY")
     if not api_key:
@@ -86,7 +148,13 @@ def main() -> int:
             _write(f"related_queries_froogle_{slug}.json",
                    {"related_queries": {}, "_probe_note": str(exc)})
 
-    print("[Probe] Done. 5 searches spent. 245 remain this month.")
+    # No remaining-balance figure. The line here used to read "245 remain this
+    # month", hardcoded from the assumption that this run was the only spend
+    # -- and it was already wrong by the time it was committed, because 8
+    # searches had gone by then, not 5. A number this script cannot observe
+    # must not be printed as though it had been observed.
+    print("[Probe] Done. 5 searches spent by this run. "
+          "Check the SerpApi dashboard for the remaining balance.")
     return 0
 
 
