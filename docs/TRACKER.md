@@ -5,8 +5,13 @@
 only thing left that nobody is blocked on.
 **Progress:** 31 of 33 tasks done. **The whole UI chain U0–U7 is finished**,
 and H1 has closed out the housekeeping. What remains is **V1a** and **V1b**,
-and only V1a is actionable: re-run `--provider trendspy` when Google's
-throttle clears. V1b is a five-minute visual confirmation once it does.
+and V1a is now actionable — it is a **decision, not a wait**. The old plan
+was "re-run `--provider trendspy` when Google's throttle clears". That
+provider is deleted. Demand ingest goes through **SerpApi**, a paid API
+rather than a scrape, so there is no throttle to wait out; V1a is
+`--provider serpapi --spend`, and it costs **22 of 250 searches for the
+month** (8 already spent). V1b is a five-minute visual confirmation once
+rows land.
 
 **U7 drove the real production build in a real browser and passed 25 of 25
 checks** (Chrome, Playwright, both APIs live). Test counts at that point:
@@ -39,8 +44,8 @@ each would have bitten the next person, not just this session:
 
 **The dashboard is showing practice data, and says so.** The demand service
 answers with `generated_from: "fixture"` until a live ingest lands (V1a is
-still blocked on Google's throttling), and fixture and live responses are
-byte-identical in shape by design. The dashboard prints a labelled banner
+open — see above; it is a spend decision, not a blocker), and fixture and
+live responses are byte-identical in shape by design. The dashboard prints a labelled banner
 whenever that field says fixture. When V1a clears, the banner disappears on
 its own — nothing needs editing.
 
@@ -62,27 +67,43 @@ Homebrew that was already present (not on `PATH` — it lives at
 exists, is exposed, and `service_role` is granted). Credentials are in
 `reachout/.env`, and `demand/` loads them.
 
-**V1a is BLOCKED, and not by us.** The live ingest ran for real and got three
-distinct answers out of Google:
+**V1a WAS blocked, and no longer is.** The live ingest ran for real against
+`trendspy` and got three distinct answers out of Google:
 
 1. All 49 keywords in one request → `400`. Google compares five terms at a
    time. Fixed in `9cecea2`: batched at five with a shared anchor term so the
    pieces come back on one scale.
 2. `interest_by_region` → `400` on a low-volume term. Fixed in the same
    commit: optional field, best-effort, stored null when unavailable.
-3. Re-run → `429` redirecting to `google.com/sorry` — this IP is now serving
-   a CAPTCHA. That is Google throttling, not a bug, and no code change gets
-   past it.
+3. Re-run → `429` redirecting to `google.com/sorry` — this IP was serving a
+   CAPTCHA. That was Google throttling a scraper, not a bug, and no code
+   change got past it.
 
-**The fixture fallback is not a fallback.** `demand/tests/fixtures/trends/`
-holds two English keywords (`sneakers`, `coffee`) with three daily points
-each. It is a unit-test fixture. Run the ingest against it and you get 49
-snapshots with empty series, zero signals, zero recommendations — which is
-what happened, and those 49 empty rows were deleted again rather than left
-sitting in the table looking like data. So V1a cannot be closed either way
-today: no live data, and nothing honest to substitute. **Do not present
-fixture output as an ingest.** The retry is free — wait out the throttle (or
-run it from a different IP) and re-run `--provider trendspy`.
+**That is history, not the current state.** `TrendspyProvider` is deleted and
+`trendspy`/`pandas` are out of `requirements.txt`. Demand ingest now goes
+through **SerpApi** (`demand/ingest/serpapi_client.py`), which is a paid
+Google Trends API rather than a scrape: no CAPTCHA, no IP throttle, nothing
+to wait for. `--provider trendspy` no longer exists and raises
+`ValueError: Unknown provider`. The two fixes above survived the swap — the
+batching and anchor rescaling are the same code, because SerpApi is a proxy
+and Google still renormalises every request to 0-100 independently.
+
+**What replaced the blocker is a price.** SerpApi bills per search on a
+250/month plan; one full run is 22 (12 TIMESERIES batches + 10
+RELATED_QUERIES for the discovery pass, which cannot batch). 8 searches are
+already spent. So V1a is now a decision to spend rather than a wait, and the
+spend is gated: `run_chain` refuses a paid provider unless it is passed
+`spend=True`, a bare `--provider serpapi` prints a cost estimate and exits,
+and the optional weekly cron needs `DEMAND_INGEST_CRON=1` **and**
+`DEMAND_INGEST_CRON_SPEND=1` on a single-worker process.
+
+**The fixture fallback is still not a fallback.**
+`demand/tests/fixtures/trends/` holds two English keywords (`sneakers`,
+`coffee`) with three daily points each. It is a unit-test fixture. Run the
+ingest against it and you get 49 snapshots with empty series, zero signals,
+zero recommendations — which is what happened, and those 49 empty rows were
+deleted again rather than left sitting in the table looking like data. **Do
+not present fixture output as an ingest.**
 
 **The board had drifted, and this is how it was caught.** The previous entry
 showed T73–T77 as `[ ]` and described two live lanes. In fact every one of
@@ -224,8 +245,8 @@ reachout/requirements.txt -r demand/requirements.txt`.
 
 | # | What it is | Who | Waiting on | Blocks | Done? |
 |---|---|---|---|---|---|
-| **V1a** | **Live ingest.** Founder does three things first, and only the first is in the SQL file: (a) paste all of `demand/data/schema.sql` into the Supabase SQL editor and run it; (b) Settings → API → Data API → **Exposed schemas** → add `demand` — the client sends `Accept-Profile: demand` and PostgREST refuses any schema not on that list, so skipping this 404s every call with the tables sitting right there; (c) back in the SQL editor, `grant usage on schema demand to service_role;` + `grant all on all tables in schema demand to service_role;` + `alter default privileges in schema demand grant all on tables to service_role;` — a new schema carries zero privileges, so skipping this is 42501 on every call. `service_role` only, **never `anon`**: RLS is off and the service has no auth, so granting `anon` would put write access on the public internet. Then Claude runs the dry-run, the live `--provider trendspy` run, checks rows landed, re-runs and confirms the counts stay **flat** (that is the dedupe indexes and the uuid5 natural keys working — doubling counts is a finding), and curls the API. | **You (founder)** → Claude | M3, T75 | V1b | `[!] blocked: Google IP-throttled (CAPTCHA); no usable fallback dataset` |
-| **V1b** | **Live dashboard.** With V1a's real rows in the database and U7 passing, open retail mode and confirm the three charts render the **ingested** numbers, each with its confidence label and its caveat visible without hovering. If the scrape was blocked and the data came from fixtures, the dashboard must **say so** — practice data is never presented as live. | Claude | V1a, U7 | H1 | `[ ]` |
+| **V1a** | **Live ingest.** Founder does three things first, and only the first is in the SQL file: (a) paste all of `demand/data/schema.sql` into the Supabase SQL editor and run it; (b) Settings → API → Data API → **Exposed schemas** → add `demand` — the client sends `Accept-Profile: demand` and PostgREST refuses any schema not on that list, so skipping this 404s every call with the tables sitting right there; (c) back in the SQL editor, `grant usage on schema demand to service_role;` + `grant all on all tables in schema demand to service_role;` + `alter default privileges in schema demand grant all on tables to service_role;` — a new schema carries zero privileges, so skipping this is 42501 on every call. `service_role` only, **never `anon`**: RLS is off and the service has no auth, so granting `anon` would put write access on the public internet. Note the schema now has **four** tables — `rising_queries` came with the SerpApi discovery pass — so re-paste the whole file, not the version you may have run in August. Then Claude runs `--provider fixture --dry-run` (free), then a bare `--provider serpapi` to read the pre-flight estimate back, then the live `--provider serpapi --spend` run — **this is the step that spends ~22 of 250 searches for the month, and it is the founder's call, not Claude's** — checks rows landed in all four tables, re-runs and confirms the counts stay **flat** (that is the dedupe indexes and the uuid5 natural keys working — doubling counts is a finding; note the re-run costs another 22 searches, so budget for 44 if the idempotence check is done live), and curls the API. | **You (founder)** → Claude | M3, T75 | V1b | `[ ] unblocked — awaiting a spend decision (~22 searches)` |
+| **V1b** | **Live dashboard.** With V1a's real rows in the database and U7 passing, open retail mode and confirm the three charts render the **ingested** numbers, each with its confidence label and its caveat visible without hovering. If V1a has not run and the data came from fixtures, the dashboard must **say so** — practice data is never presented as live. | Claude | V1a, U7 | H1 | `[ ]` |
 | **H1** | Archive the three finished task documents to `docs/archive/` with `git mv` (see BLOAT below). **The six scratch deletions are already done** (`901b444`, pulled forward on 2026-08-03): `reachout/test_tick_debug.py` was putting `reachout/` on `sys.path` as a pytest rootdir, which shadowed the `reachout` package and broke collection for the entire repo — it could not wait for close-out. | Claude | U7 | — | `[x] 2026-08-04` | *(Those archives were themselves deleted on 2026-08-10; recoverable from git history.)*
 
 ---
