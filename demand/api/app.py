@@ -185,30 +185,47 @@ def _cron_would_duplicate_across_workers() -> bool:
 
     Best-effort by construction: a worker cannot ask the parent how many
     siblings it has. `WEB_CONCURRENCY` is what uvicorn and gunicorn both read
-    for their default worker count, and `--workers` survives into the child's
-    argv, so between them they catch the realistic deployments. The contract
-    the operator has to hold is still the plain one: run the ingest cron on a
-    single-worker process (or, better, as an external scheduled job invoking
-    `run_ingest --spend`).
+    for their default worker count, and the worker flag survives into the
+    child's argv, so between them they catch the realistic deployments. The
+    contract the operator has to hold is still the plain one: run the ingest
+    cron on a single-worker process (or, better, as an external scheduled job
+    invoking `run_ingest --spend`).
+
+    All four spellings of the flag are checked, and `-w` is not optional
+    thoroughness: it is how gunicorn's own documentation writes it, and
+    `WEB_CONCURRENCY` is only gunicorn's *default* -- it is ignored the moment
+    `-w` is given. Checking the long form alone meant the commonest spelling of
+    the exact deployment this function exists to stop (`gunicorn -w 4 -k
+    uvicorn.workers.UvicornWorker demand.api.app:app`) walked straight through
+    into 4 x 22 = 88 searches a month, upserting over each other.
     """
     try:
         if int(os.environ.get("WEB_CONCURRENCY", "1")) > 1:
             return True
     except ValueError:
         pass
+
+    def _more_than_one(value: str) -> bool:
+        try:
+            return int(value) > 1
+        except ValueError:
+            return False
+
     for i, arg in enumerate(sys.argv):
-        if arg == "--workers" and i + 1 < len(sys.argv):
-            try:
-                if int(sys.argv[i + 1]) > 1:
-                    return True
-            except ValueError:
-                pass
+        # `-w 4` / `--workers 4`: the count is the next token.
+        if arg in ("-w", "--workers") and i + 1 < len(sys.argv):
+            if _more_than_one(sys.argv[i + 1]):
+                return True
+        # `--workers=4`: the count is after the `=`.
         elif arg.startswith("--workers="):
-            try:
-                if int(arg.split("=", 1)[1]) > 1:
-                    return True
-            except ValueError:
-                pass
+            if _more_than_one(arg.split("=", 1)[1]):
+                return True
+        # `-w4`: gunicorn accepts the count glued on. Guarded by `isdigit` so
+        # this stays an exact match on `-w` and never a prefix match on some
+        # future short flag that happens to begin with the same letter.
+        elif arg.startswith("-w") and arg[2:].isdigit():
+            if _more_than_one(arg[2:]):
+                return True
     return False
 
 
@@ -253,8 +270,16 @@ async def lifespan(app: FastAPI):
                                         # refuses a paid provider by default.
                                         spend=True)
 
+            # `timezone="UTC"` explicitly. APScheduler otherwise uses the
+            # server's local zone, and every other date in this chain is UTC:
+            # `now_utc` stamps `captured_at`, `select_discovery_parents`
+            # compares `window_end` against `now_utc[:10]`, and
+            # `compute_signals` builds Monday-to-Sunday windows. A host an hour
+            # west of UTC fires the "Monday" job on Sunday evening, inside a
+            # window that has not closed -- the partial-window case the weekly
+            # cadence was chosen to avoid.
             scheduler.add_job(run_chain_async, 'cron', day_of_week='mon',
-                              hour=0, minute=0)
+                              hour=0, minute=0, timezone='UTC')
             scheduler.start()
             print("Started DEMAND_INGEST_CRON weekly job")
 

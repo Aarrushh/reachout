@@ -429,7 +429,7 @@ def test_lifespan_starts_the_weekly_job_with_the_env_gate(monkeypatch, recording
             job = scheduler.jobs[0]
             assert job["trigger"] == "cron"
             assert job["kwargs"] == {"day_of_week": "mon", "hour": 0,
-                                     "minute": 0}
+                                     "minute": 0, "timezone": "UTC"}
             assert scheduler.stopped is False
 
     asyncio.run(run_with_cron())
@@ -922,3 +922,184 @@ def test_the_spend_flag_reaches_run_chain_from_the_command_line(monkeypatch):
 
     assert calls == [{"provider_name": "serpapi", "dry_run": False,
                       "spend": True}]
+
+
+# ---------------------------------------------------------------------------
+# `--dry-run` against a paid provider.
+#
+# `--dry-run` skips DATABASE writes. It has never skipped API calls, and
+# cannot: the numbers it would print are the numbers Google has to be asked
+# for. Against `serpapi` that makes `--spend --dry-run` the one combination
+# that is strictly dominated -- 22 billed searches, nothing kept, nothing to
+# look at afterwards, and no way to recover what was bought. It is not a
+# cheaper run, it is the most expensive run with the result deleted.
+# ---------------------------------------------------------------------------
+
+
+def test_run_chain_refuses_to_buy_searches_it_is_going_to_throw_away(
+        fake_client, monkeypatch):
+    _gate_setup(fake_client, monkeypatch)
+
+    built = []
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: built.append(name))
+
+    with pytest.raises(demand.scripts.run_ingest.SpendWouldBeDiscarded):
+        run_chain(provider_name="serpapi", dry_run=True, spend=True)
+
+    # Refused before the provider exists, so no window in which a search
+    # could be issued.
+    assert built == []
+
+
+def test_the_discard_guard_reads_the_same_paid_provider_list_as_the_gate(
+        fake_client, monkeypatch):
+    """Not `provider_name == "serpapi"`. A second paid provider must inherit
+    the refusal rather than have to be remembered."""
+    _gate_setup(fake_client, monkeypatch)
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: pytest.fail("a provider was built"))
+
+    for name in demand.scripts.run_ingest.PAID_PROVIDERS:
+        with pytest.raises(demand.scripts.run_ingest.SpendWouldBeDiscarded):
+            run_chain(provider_name=name, dry_run=True, spend=True)
+
+
+def test_dry_run_is_still_free_and_still_allowed_on_a_free_provider(
+        fake_client, monkeypatch):
+    """The guard is about spending, not about `--dry-run`. Fixture runs are
+    the whole reason `--dry-run` exists."""
+    _gate_setup(fake_client, monkeypatch)
+    run_chain(provider_name="fixture", dry_run=True)
+
+
+def test_a_non_json_discovery_response_only_costs_that_one_parent(
+        tmp_path, monkeypatch, capsys):
+    """An HTML body from SerpApi is not "this parent has no rising queries".
+
+    `rising_queries` swallows `SerpApiError` because a sparse Shopping panel
+    is data. A maintenance page is not, so the malformed-body error is a
+    `SerpApiHTTPError` and lands in the discovery guard: one search lost, the
+    remaining parents still asked.
+    """
+    import demand.ingest.serpapi_client as sc
+
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": sc.SerpApiMalformedResponseError(200),
+        "beta": [{"query": "beta barata", "growth_pct": 10.0,
+                  "is_breakout": False}],
+        "delta_kw": [{"query": "delta grande", "growth_pct": 42.0,
+                      "is_breakout": False}],
+    })
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    assert [c[0] for c in provider.rising_calls] == ["alfa", "beta", "delta_kw"]
+    assert {r["query"] for r in client.table('rising_queries')._data} == {
+        "beta barata", "delta grande"}
+    assert "1 failed" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("argv", [
+    ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker",
+     "demand.api.app:app"],
+    ["gunicorn", "-w4", "demand.api.app:app"],
+])
+def test_the_cron_refuses_to_schedule_under_gunicorns_short_worker_flag(
+        monkeypatch, recording_scheduler, argv):
+    """`-w` is how gunicorn's own documentation spells it.
+
+    The guard read `WEB_CONCURRENCY` and `--workers`, and `WEB_CONCURRENCY` is
+    only gunicorn's *default* -- it is ignored the moment `-w` is given. So the
+    commonest spelling of the exact deployment this guard exists to stop walked
+    straight through it: 4 x 22 = 88 searches a month, upserting over each
+    other, buying nothing.
+    """
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
+    monkeypatch.setattr(sys, "argv", argv)
+
+    async def run_with_workers():
+        async with app.lifespan(app.app):
+            assert recording_scheduler.instances == []
+
+    asyncio.run(run_with_workers())
+
+
+@pytest.mark.parametrize("argv", [
+    ["gunicorn", "-w", "1", "demand.api.app:app"],
+    ["gunicorn", "-w1", "demand.api.app:app"],
+    # `-w` is not a prefix match: a future flag starting with those letters
+    # must not be read as a worker count.
+    ["uvicorn", "--ws", "auto", "demand.api.app:app"],
+    ["pytest", "-q"],
+])
+def test_a_single_worker_process_still_gets_its_cron(
+        monkeypatch, recording_scheduler, argv):
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
+    monkeypatch.setattr(sys, "argv", argv)
+
+    async def run_single():
+        async with app.lifespan(app.app):
+            assert len(recording_scheduler.instances) == 1
+
+    asyncio.run(run_single())
+
+
+def test_the_weekly_job_fires_on_a_monday_in_utc_not_in_server_local_time(
+        monkeypatch, recording_scheduler):
+    """APScheduler defaults to the server's local timezone.
+
+    Every other date in this chain is UTC: `now_utc` stamps `captured_at`,
+    `select_discovery_parents` compares `window_end` against `now_utc[:10]`,
+    and `compute_signals` builds Monday-to-Sunday windows. A scheduler an hour
+    west of UTC fires the "Monday" job on Sunday evening, inside a window that
+    has not closed, which is precisely the partial-window case the weekly
+    cadence was chosen to avoid.
+    """
+    monkeypatch.setenv("DEMAND_INGEST_CRON", "1")
+    monkeypatch.setenv("DEMAND_INGEST_CRON_SPEND", "1")
+
+    async def run_with_cron():
+        async with app.lifespan(app.app):
+            assert recording_scheduler.instances[0].jobs[0]["kwargs"][
+                "timezone"] == "UTC"
+
+    asyncio.run(run_with_cron())
+
+
+def test_the_cli_refuses_spend_plus_dry_run_without_reaching_run_chain(
+        monkeypatch, capsys):
+    """`run_chain` is the guard and it raises; `main()` only turns the CLI's
+    version of that refusal into a sentence rather than a traceback.
+
+    It must refuse before `get_client`, so there is no window in which the
+    pre-flight's database read -- let alone a search -- could happen.
+    """
+    monkeypatch.setattr(demand.scripts.run_ingest, 'run_chain',
+                        lambda **kw: pytest.fail("run_chain was reached"))
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client',
+                        lambda: pytest.fail("a client was built"))
+    monkeypatch.setattr(sys, 'argv',
+                        ['run_ingest.py', '--provider', 'serpapi', '--spend',
+                         '--dry-run'])
+
+    demand.scripts.run_ingest.main()
+
+    out = capsys.readouterr().out
+    assert "REFUSED" in out
+    assert "not API calls" in out
+
+
+def test_the_dry_run_help_text_says_what_it_does_not_skip(monkeypatch, capsys):
+    """Belt as well as braces. The guard refuses the combination, and the
+    help text stops the reader forming the wrong model of `--dry-run` in the
+    first place -- it never skipped API calls and never could."""
+    monkeypatch.setattr(sys, 'argv', ['run_ingest.py', '--help'])
+
+    with pytest.raises(SystemExit):
+        demand.scripts.run_ingest.main()
+
+    out = capsys.readouterr().out
+    assert "does not skip api" in out.lower()

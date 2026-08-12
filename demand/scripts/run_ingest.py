@@ -23,6 +23,7 @@ from demand.ingest.keywords import build_universe, normalize_keyword
 from demand.ingest.rising_store import build_rows, store_rising_queries
 from demand.ingest.serpapi_client import SerpApiHTTPError
 from demand.ingest.trends_client import (
+    FIXTURE_PROVIDER,
     KEYWORDS_PER_BATCH,
     PAID_PROVIDERS,
     SERPAPI_PROVIDER,
@@ -221,6 +222,26 @@ class SpendNotAuthorised(RuntimeError):
     """
 
 
+class SpendWouldBeDiscarded(RuntimeError):
+    """A paid provider was asked to run with `dry_run=True`.
+
+    `--dry-run` skips DATABASE writes. It has never skipped API calls, and it
+    cannot: the counts it prints are the counts Google has to be asked for.
+    Against a paid provider that makes this combination strictly dominated --
+    22 billed searches, ~9% of the month, nothing stored, nothing to look at
+    afterwards, and no way to recover what was bought. It is not a cheaper
+    run; it is the most expensive run with the result deleted.
+
+    Refused rather than documented. The finding could have been closed by
+    rewording the `--dry-run` help text, and the help text says it plainly
+    now anyway -- but a warning only helps the reader who reads it, and the
+    cost of being wrong here is measured in a budget that does not refill
+    until the month turns. There is no use case on the other side of the
+    trade: anyone wanting a free rehearsal wants `--provider fixture`, and
+    anyone wanting to see live numbers wants them stored.
+    """
+
+
 def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
     """Run the whole demand chain once.
 
@@ -235,13 +256,27 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
 
     Default `False` on purpose: spending is opt-in per call, so a new caller
     added later inherits refusal rather than permission. `--dry-run` is NOT
-    this gate -- it skips database writes and still makes every search.
+    this gate -- it skips database writes and still makes every search, which
+    is why a paid provider refuses it outright (see `SpendWouldBeDiscarded`).
+
+    Both guards read `PAID_PROVIDERS` rather than the literal `"serpapi"`, and
+    both live here rather than in `main()`, for the same reason: a second paid
+    provider, or a rename, must inherit the refusal instead of having to be
+    remembered in two files.
     """
     if provider_name in PAID_PROVIDERS and not spend:
         raise SpendNotAuthorised(
             f"provider {provider_name!r} spends real SerpApi searches out of a "
             f"250/month budget. Pass spend=True, or run the CLI with --spend "
             f"to see the pre-flight estimate first."
+        )
+
+    if provider_name in PAID_PROVIDERS and dry_run:
+        raise SpendWouldBeDiscarded(
+            f"provider {provider_name!r} bills every search whether or not the "
+            f"rows are stored, so dry_run=True buys the whole run and then "
+            f"throws it away. Drop --dry-run to keep what you pay for, or use "
+            f"--provider {FIXTURE_PROVIDER} to rehearse for free."
         )
 
     print(f"[Ingest] Starting run (provider={provider_name}, dry_run={dry_run})")
@@ -255,7 +290,6 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
     provider = get_provider(provider_name)
     now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     snapshots = []
-    
 
     # Every batch carries the anchor, so the anchor decides whether the
     # batches can be compared at all. Pick it by measured volume: a low-volume
@@ -309,7 +343,6 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
         }
         snapshots.append(snapshot)
 
-    
     print(f"[Ingest] Captured {len(snapshots)} snapshots")
     if region_failures:
         print(
@@ -318,11 +351,11 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
             + ", ".join(f"{kw} ({err})" for kw, err in region_failures[:5])
             + (" ..." if len(region_failures) > 5 else "")
         )
-    
+
     if not dry_run:
         store_snapshots(snapshots, client)
         print("[Ingest] Stored snapshots in DB")
-    
+
     # 3. Compute Signals
     # public schema: the client is bound to `demand`, and `products` is not
     # in it (see PRODUCTS_SCHEMA in recommend.py).
@@ -356,15 +389,15 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
 
     if not dry_run and signals:
         client.table("demand_signals").upsert(
-            signals, 
+            signals,
             on_conflict="keyword,geo,window_start,window_end"
         ).execute()
         print("[Ingest] Upserted signals in DB")
-        
+
     # 4. Build Recommendations
     recommendations = build_recommendations(signals, client)
     print(f"[Ingest] Built {len(recommendations)} recommendations")
-    
+
     if not dry_run and recommendations:
         client.table("recommendations").upsert(
             recommendations,
@@ -435,7 +468,11 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
 def main():
     parser = argparse.ArgumentParser(description="Demand Ingest Chain")
     parser.add_argument("--dry-run", action="store_true",
-                        help="Print counts, write nothing")
+                        help="Skip DATABASE WRITES only. It does NOT skip API "
+                             "calls: a paid provider still bills every one of "
+                             "them, so this is refused for a paid provider "
+                             "rather than buying a run and discarding it. Use "
+                             f"--provider {FIXTURE_PROVIDER} to rehearse free.")
     parser.add_argument("--provider", type=str,
                         default=os.environ.get("DEMAND_TRENDS_PROVIDER",
                                                SERPAPI_PROVIDER),
@@ -463,6 +500,18 @@ def main():
               f"({DISCOVERY_TIMEFRAME}, {DISCOVERY_GPROP or 'web'})")
         print(f"         = {est['total']} searches of a 250/month budget.")
         print("         Re-run with --spend to proceed.")
+        return
+
+    # Same shape, same reason: `run_chain` is the guard and it raises, this
+    # block only turns the CLI's version of that refusal into a sentence
+    # instead of a traceback. `--spend --dry-run` is the one combination that
+    # spends the whole budget and keeps nothing.
+    if args.provider in PAID_PROVIDERS and args.dry_run:
+        print(f"[Ingest] provider={args.provider}  REFUSED")
+        print("         --dry-run skips database writes, not API calls. Every "
+              "search would still")
+        print("         be billed and then thrown away. Drop --dry-run, or "
+              f"use --provider {FIXTURE_PROVIDER}.")
         return
 
     run_chain(provider_name=args.provider, dry_run=args.dry_run,

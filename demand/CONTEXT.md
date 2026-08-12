@@ -29,7 +29,7 @@ trust this file — it is kept honest on purpose.
 | 5 | `scripts/recommend.py` | TASK 73 | **BUILT** | `demand.demand_signals` + `public.products` composition | `demand.recommendations`, validated against `shared/schemas/recommendation.schema.json` |
 | 6 | `api/app.py` | TASK 74 / 77 | **BUILT** | `demand.trend_snapshots`, `demand.demand_signals`, `demand.recommendations`, `public.products` | `GET /demand/api/health`, `/trends`, `/signals`, `/recommendations`, `/analytics` |
 | 7 | `ingest/rising_store.py` | SERPAPI TASK 5 | **BUILT** | the discovery pass's RELATED_QUERIES rows (one billed search per parent keyword, `hl="en"`) | `demand.rising_queries` (upsert on `id`, a uuid5 of `parent_keyword,query,geo,gprop,captured_date` — `gprop` is in the key because a Shopping-derived row and a Web-derived row mean different things) |
-| 8 | `scripts/run_ingest.py` | TASK 75 / SERPAPI TASK 6 | **BUILT** | chains steps 1-5, then runs the discovery pass into step 7 | batch entrypoint; `--provider serpapi\|fixture`, `--spend` required for the paid provider, `--dry-run` skips database writes |
+| 8 | `scripts/run_ingest.py` | TASK 75 / SERPAPI TASK 6 | **BUILT** | chains steps 1-5, then runs the discovery pass into step 7 | batch entrypoint; `--provider serpapi\|fixture`, `--spend` required for the paid provider, `--dry-run` skips database writes only (and is refused for a paid provider, which would bill every search anyway) |
 
 ## Run it
 
@@ -41,14 +41,18 @@ python -m demand.scripts.run_ingest --provider fixture --dry-run   # free, write
 python -m demand.scripts.run_ingest --provider serpapi             # prints the cost, spends nothing
 python -m demand.scripts.run_ingest --provider serpapi --spend     # the live run — SPENDS ~22 searches
 uvicorn demand.api.app:app --port 8001                             # the API
-python -m pytest demand/tests -q                                   # 289 tests
+python -m pytest demand/tests -q                                   # 309 tests
 ```
 
 **`--spend` is the only thing that makes a run cost money, and `--dry-run` is
 not the opposite of it.** `--dry-run` skips database writes; it does not skip
-API calls, so `--provider serpapi --spend --dry-run` makes all 22 searches and
-keeps nothing. The gate itself lives in `run_chain(spend=...)`, not in
-`main()`, so no caller can spend by forgetting to check — including
+API calls, and it cannot — the counts it would print are the counts Google has
+to be asked for. `--provider serpapi --spend --dry-run` would therefore buy all
+22 searches and keep nothing, so it is **refused**: a paid provider plus
+`dry_run=True` raises `SpendWouldBeDiscarded` from `run_chain`. Rehearse with
+`--provider fixture --dry-run`, which is free. The spend gate itself lives in
+`run_chain(spend=...)`, not in `main()`, so no caller can spend by forgetting
+to check — including
 `api/app.py`'s optional weekly cron, which has to set `DEMAND_INGEST_CRON=1`
 **and** `DEMAND_INGEST_CRON_SPEND=1` and must run on a single-worker process.
 
