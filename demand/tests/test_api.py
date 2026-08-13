@@ -373,7 +373,10 @@ def test_out_of_contract_signal_row_is_a_described_500(test_client):
 
 def test_out_of_contract_trend_row_is_a_described_500(test_client):
     tables = demand_tables()
-    tables["trend_snapshots"][0]["series"] = [{"date": "2024-01-01", "value": 500}]
+    # Negative, not 500: a rescaled batch legitimately exceeds 100, so a large
+    # value is no longer out of contract. Below zero still is -- interest has
+    # no negative direction.
+    tables["trend_snapshots"][0]["series"] = [{"date": "2024-01-01", "value": -5}]
     with _client_with(tables):
         api_app.get_client.cache_clear()
         response = test_client.get("/demand/api/trends")

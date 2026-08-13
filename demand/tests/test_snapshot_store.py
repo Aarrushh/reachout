@@ -87,7 +87,7 @@ def _valid_row(**overrides):
     ({"id": "not-a-uuid"}, "format: uuid on id"),
     ({"series": [{"date": "NOPE", "value": 50}]}, "format: date on series[].date"),
     ({"series": [{"date": "2023-08-01", "value": None}]}, "null interest value"),
-    ({"series": [{"date": "2023-08-01", "value": 101}]}, "value above the 0-100 range"),
+    ({"series": [{"date": "2023-08-01", "value": -1}]}, "negative interest value"),
 ])
 def test_format_and_range_violations_are_rejected(overrides, why):
     """`format` asserts now. Bare `jsonschema.validate` ignores `format` on
@@ -142,3 +142,33 @@ def test_idempotent_upsert():
     db_rows = _rows(fake_client)
     assert len(db_rows) == 1
     assert db_rows[0]["series"][0]["value"] == 80
+
+
+def test_a_rescaled_value_above_100_is_stored_not_rejected():
+    """49 keywords do not fit in one request, so batches are rescaled onto a
+    shared anchor. A keyword bigger than the reference then exceeds 100 --
+    Google's 0-100 only holds inside a single batch.
+
+    This is not hypothetical: the first live run fetched all 49 snapshots,
+    spent 12 searches, and then threw all of them away on
+    `163.56821589205396 is greater than the maximum of 100` for 'cafe'.
+    Nothing was written. Clamping instead would flatten exactly the peaks
+    the rescaling exists to expose, and would invent a number Google never
+    gave.
+    """
+    fake_client = make_client()
+    row = _valid_row(series=[{"date": "2023-08-01", "value": 163.56821589205396}])
+
+    store_snapshots([row], fake_client)
+
+    assert _rows(fake_client)[0]["series"][0]["value"] == 163.56821589205396
+
+
+def test_region_breakdown_keeps_its_100_ceiling():
+    """region_breakdown is raw Google, one request, never rescaled. It has no
+    reason to exceed 100 and a value that does means something is wrong."""
+    fake_client = make_client()
+    row = _valid_row(region_breakdown=[{"region": "Madrid", "value": 101}])
+
+    with pytest.raises(ValueError):
+        store_snapshots([row], fake_client)
