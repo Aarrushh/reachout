@@ -48,7 +48,7 @@
     "interest_avg": {
       "type": "number",
       "minimum": 0,
-      "maximum": 100
+      "description": "Mean of rescaled series values. NOT capped at 100: batches are rescaled onto a shared anchor, so a keyword larger than the reference legitimately exceeds 100. Google's raw 0-100 only holds inside one batch."
     },
     "delta_pct": {
       "type": "number",

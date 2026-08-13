@@ -54,7 +54,7 @@
                   "interest_avg": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 100
+                    "description": "Mean of rescaled series values. NOT capped at 100 -- see demand_signal.schema.json. share_pct and risk_pct below ARE true percentages and keep their ceilings."
                   },
                   "delta_pct": {
                     "type": "number"

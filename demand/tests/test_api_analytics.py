@@ -492,7 +492,9 @@ def test_analytics_invalid_inventory_type(test_client):
 @pytest.mark.parametrize(
     "mutation",
     [
-        {"interest_avg": 150},
+        # Not 150: rescaled interest_avg legitimately exceeds 100 (see
+        # demand_signal.schema.json). Negative is still impossible.
+        {"interest_avg": -5},
         {"direction": "unknown"},
         {"keyword": None},
         {"interest_avg": "not-a-number"},
@@ -508,6 +510,25 @@ def test_out_of_contract_signal_row_is_a_described_500(test_client, live, mutati
     assert response.status_code == 500
     assert response.json()["detail"] == "Response failed the analytics_response contract"
     assert "Traceback" not in response.text
+
+
+def test_a_rescaled_interest_avg_above_100_is_served_not_a_500(test_client, live):
+    """The second live run stored all 49 snapshots, then died at
+    compute_signals on `220.12 is greater than the maximum of 100`. Batches
+    are rescaled onto a shared anchor, so a keyword bigger than the reference
+    exceeds 100 -- Google's 0-100 only holds inside one request. share_pct and
+    risk_pct are real percentages and keep their ceilings.
+    """
+    rows = signal_rows()
+    rows[2]["interest_avg"] = 220.12  # cerveza, rank 1: wins the keyword
+    with _with_client(signals=rows):
+        api_app.get_client.cache_clear()
+        response = test_client.get("/demand/api/analytics")
+
+    assert response.status_code == 200
+    data = response.json()
+    validate_with_formats(data, ANALYTICS_SCHEMA)
+    assert _points(data, "top_movers")[0]["interest_avg"] == 220.12
 
 
 def test_a_signal_row_missing_keyword_entirely_is_not_a_crash(test_client, live):
