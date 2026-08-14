@@ -1,9 +1,10 @@
 [
   {
-    "id": "57f671b3-53d1-57a8-9140-32dd43ef4153",
+    "id": "903bde72-b773-5b37-939a-8980594bb20d",
     "keyword": "boundary_kw",
     "category": "BoundCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-02",
     "window_end": "2023-10-08",
     "interest_avg": 80.0,
@@ -17,10 +18,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "f3e55be1-200d-562b-8c0e-7601e3b9b2c8",
+    "id": "b9300290-c3f5-5627-a3a4-807d7b3f64c3",
     "keyword": "gap_kw",
     "category": "GapCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-02",
     "window_end": "2023-10-08",
     "interest_avg": 30.0,
@@ -34,10 +36,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "10097958-90af-5448-b7b2-de3b4587cd25",
+    "id": "10dcef74-13a0-5a61-8ab1-901388d759f5",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-02",
     "window_end": "2023-10-08",
     "interest_avg": 20.0,
@@ -51,10 +54,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "242dae20-3a01-5d05-bcaa-6e726d10b40b",
+    "id": "ee9e6aa2-73ab-5b32-b8fc-295307cf8f7b",
     "keyword": "boundary_kw",
     "category": "BoundCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-09",
     "window_end": "2023-10-15",
     "interest_avg": 92.0,
@@ -68,10 +72,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "ab3964af-2db2-5807-b738-0e536495e294",
+    "id": "e865a993-af85-510f-a876-f752fa3a37ac",
     "keyword": "gap_kw",
     "category": "GapCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-09",
     "window_end": "2023-10-15",
     "interest_avg": 30.0,
@@ -85,10 +90,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "b2701fd9-1734-5d5a-9070-1eda772169f5",
+    "id": "262a87a0-7db0-570f-87d2-821d318db14a",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-09",
     "window_end": "2023-10-15",
     "interest_avg": 21.0,
@@ -102,10 +108,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "bd6c57fc-0eda-59b4-9025-44f74674f22a",
+    "id": "46cdbc0f-4173-5d37-ba0d-509f8b392df1",
     "keyword": "boundary_kw",
     "category": "BoundCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-16",
     "window_end": "2023-10-22",
     "interest_avg": 78.2,
@@ -119,10 +126,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "d5b00bb4-e587-5c02-96b5-4b1a8541f5fa",
+    "id": "20ecf16f-1842-5fcd-971b-ebbab59d6fef",
     "keyword": "gap_kw",
     "category": "GapCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-16",
     "window_end": "2023-10-22",
     "interest_avg": 30.0,
@@ -136,10 +144,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "a4c977b3-1e0a-5af0-99ca-3756ed761f5b",
+    "id": "aa34cd33-85bc-5228-8e3c-245e6eac219e",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-16",
     "window_end": "2023-10-22",
     "interest_avg": 22.0,
@@ -153,10 +162,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "968e7f61-f56e-5505-ac41-0d53f107be7c",
+    "id": "a5a7578a-e20d-5abc-8920-e8fbb65fe7e5",
     "keyword": "gap_kw",
     "category": "GapCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-23",
     "window_end": "2023-10-29",
     "interest_avg": 30.0,
@@ -170,10 +180,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "f7415c26-ed4b-5787-a26f-473252435cf5",
+    "id": "cc0341d0-b0e9-5a44-a61b-89447f7643a3",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-23",
     "window_end": "2023-10-29",
     "interest_avg": 23.0,
@@ -187,10 +198,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "26412bd0-a07e-59cb-ad98-4f1ecc473a23",
+    "id": "dc03a3a0-9a4d-5d13-b0bf-91d26f4e61fa",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-30",
     "window_end": "2023-11-05",
     "interest_avg": 24.0,
@@ -204,10 +216,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "13ea1750-6f3c-59e3-be9a-b9ce6a12ecff",
+    "id": "614ed599-b8b9-5ffb-88e6-bdada453938e",
     "keyword": "medium_kw",
     "category": "MedCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-10-30",
     "window_end": "2023-11-05",
     "interest_avg": 15.0,
@@ -221,10 +234,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "6042924d-8ea2-565c-94d0-6a10f7a57e72",
+    "id": "76767f7c-f0b5-5b81-b99a-523d1a9e7ce9",
     "keyword": "short_kw",
     "category": "ShortCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-06",
     "window_end": "2023-11-12",
     "interest_avg": 50.0,
@@ -238,10 +252,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "aae6a61d-de5c-5a83-a5db-b1fb342abd2b",
+    "id": "23f202ca-c72e-5ca1-b36c-80ffe8ba2d0d",
     "keyword": "gap_kw",
     "category": "GapCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-06",
     "window_end": "2023-11-12",
     "interest_avg": 30.0,
@@ -255,10 +270,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "34b42f38-9589-521b-8662-108e523d29ac",
+    "id": "4c3a51a4-e902-5e44-b5d9-2cc136465ed7",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-06",
     "window_end": "2023-11-12",
     "interest_avg": 28.8,
@@ -272,10 +288,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "0fd09c59-fa27-5d0b-b701-b7a48869f718",
+    "id": "836b86c9-c948-504b-a110-fbf25402531b",
     "keyword": "medium_kw",
     "category": "MedCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-06",
     "window_end": "2023-11-12",
     "interest_avg": 15.0,
@@ -289,10 +306,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "065f5c18-bf20-5854-a117-02cc9c036a73",
+    "id": "04f8bac0-3cf1-5e71-90c8-c68ef3406335",
     "keyword": "short_kw",
     "category": "ShortCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-13",
     "window_end": "2023-11-19",
     "interest_avg": 50.0,
@@ -306,10 +324,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "e5bf8d72-b7c8-58fc-8a11-e000ea592e35",
+    "id": "860110dc-a599-5c73-99dd-05d09a36a6fc",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-13",
     "window_end": "2023-11-19",
     "interest_avg": 34.56,
@@ -323,10 +342,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "70676146-c02f-5310-9126-e797140d3a88",
+    "id": "d4fb882c-a30c-5ecf-a7e6-f2108c2a6852",
     "keyword": "gap_kw",
     "category": "GapCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-13",
     "window_end": "2023-11-19",
     "interest_avg": 30.0,
@@ -340,10 +360,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "b2dc236d-0e42-5bbf-af61-46ab20ac1277",
+    "id": "6d11c04a-8e64-59f2-97bc-b6fb408d53f1",
     "keyword": "medium_kw",
     "category": "MedCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-13",
     "window_end": "2023-11-19",
     "interest_avg": 15.0,
@@ -357,10 +378,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "6826ba22-3e69-55ff-a7c5-91acca70ab2b",
+    "id": "dd95e5ec-da0b-538c-b1b4-739a46b4946d",
     "keyword": "short_kw",
     "category": "ShortCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-20",
     "window_end": "2023-11-26",
     "interest_avg": 50.0,
@@ -374,10 +396,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "4fb357f0-e7ab-5f23-a582-c1443808e507",
+    "id": "660e9276-87c6-50b6-9a2d-a67dc71a540d",
     "keyword": "high_kw",
     "category": "HighCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-20",
     "window_end": "2023-11-26",
     "interest_avg": 41.47,
@@ -391,10 +414,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "98797b06-71db-5208-ad78-2fcbebea1f2b",
+    "id": "7b11d4a1-c369-5e23-9b6a-d6c0e0bc81c3",
     "keyword": "gap_kw",
     "category": "GapCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-20",
     "window_end": "2023-11-26",
     "interest_avg": 30.0,
@@ -408,10 +432,11 @@
     "computed_at": "2023-11-20T12:00:00Z"
   },
   {
-    "id": "39799dc2-1ab1-5c6f-b7b4-763ab7a80a0c",
+    "id": "85f4a430-2011-5550-ad24-7952be3b8125",
     "keyword": "medium_kw",
     "category": "MedCat",
     "geo": "ES-MD",
+    "timeframe": "today 3-m",
     "window_start": "2023-11-20",
     "window_end": "2023-11-26",
     "interest_avg": 15.0,

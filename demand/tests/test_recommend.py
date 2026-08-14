@@ -47,13 +47,15 @@ F_PRODUCTS = [
 ]
 
 
-def make_signal(direction, confidence, category="clothing", keyword="test_kw"):
+def make_signal(direction, confidence, category="clothing", keyword="test_kw",
+                timeframe="today 3-m"):
     window_start, window_end = "2023-01-02", "2023-01-08"
     return {
-        "id": signal_id(keyword, "ES-MD", window_start, window_end),
+        "id": signal_id(keyword, "ES-MD", timeframe, window_start, window_end),
         "keyword": keyword,
         "category": category,
         "geo": "ES-MD",
+        "timeframe": timeframe,
         "window_start": window_start,
         "window_end": window_end,
         "interest_avg": 50.0,

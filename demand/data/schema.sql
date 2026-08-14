@@ -73,16 +73,29 @@ create table if not exists demand.demand_signals (
     direction     text not null,
     rank          int not null,
     confidence    text not null,
+    -- Which capture window the signal was derived from, carried down from
+    -- demand.trend_snapshots. Part of the dedupe key below: see the comment
+    -- there, and migrations/001_demand_signals_timeframe.sql for the ALTER
+    -- that puts it on a database created before this column existed.
+    timeframe     text not null,
     snapshot_ids  uuid[] not null,
     computed_at   timestamptz not null
 );
 
--- Unique on (keyword, geo, window_start, window_end) -> one signal per
--- keyword per geo per window, matching TASK 72's "per keyword/window"
--- derivation. Lets TASK 75's chained write upsert on-conflict instead of
--- re-inserting when the same window is recomputed on a re-run.
-create unique index if not exists demand_signals_dedupe_idx
-    on demand.demand_signals (keyword, geo, window_start, window_end);
+-- Unique on (keyword, geo, timeframe, window_start, window_end) -> one signal
+-- per keyword per geo per window PER CAPTURE WINDOW, matching TASK 72's "per
+-- keyword/window" derivation. Lets TASK 75's chained write upsert on-conflict
+-- instead of re-inserting when the same window is recomputed on a re-run.
+--
+-- `timeframe` is in the key for the same reason `gprop` is in the
+-- rising_queries key: it changes what the row MEANS. Google's 0-100 index is
+-- scaled to the window requested, and this pipeline rescales each batch onto
+-- a shared anchor on top of that, so the same keyword in the same calendar
+-- week reads differently at 'today 3-m' and 'today 12-m'. Without timeframe
+-- here, a 12-month backfill silently overwrites the 3-month signal for every
+-- overlapping week and the history stops being comparable to itself.
+create unique index if not exists demand_signals_dedupe_tf_idx
+    on demand.demand_signals (keyword, geo, timeframe, window_start, window_end);
 
 create index if not exists demand_signals_keyword_idx on demand.demand_signals (keyword);
 create index if not exists demand_signals_window_idx  on demand.demand_signals (window_start, window_end);

@@ -61,6 +61,7 @@ def _signal_row(keyword, rank, direction="rising", confidence="high", window_sta
         "keyword": keyword,
         "category": "grocery",
         "geo": "ES-MD",
+        "timeframe": "today 3-m",
         "window_start": window_start,
         "window_end": "2024-01-07",
         "interest_avg": 50,

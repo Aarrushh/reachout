@@ -263,11 +263,17 @@ def test_a_quantified_percentage_is_still_read_in_any_locale(label, expected):
 def test_a_quantified_label_with_no_extracted_value_stores_no_number():
     # The label says quantified, the payload supplies nothing to quantify
     # with. Inventing one from the string is the fabrication this avoids.
+    #
+    # The row is stored as a refusal, not left half-quantified. `is_breakout`
+    # false used to be returned beside a NULL `growth_pct`, which made this
+    # row indistinguishable from a Breakout downstream while claiming to be a
+    # measured one. The invariant the table is read under is total: breakout
+    # true <-> growth_pct NULL.
     payload = {"related_queries": {"rising": [
         {"query": "q", "value": "+150%"},
     ]}}
     assert parse_rising_queries(payload) == [
-        {"query": "q", "growth_pct": None, "is_breakout": False},
+        {"query": "q", "growth_pct": None, "is_breakout": True},
     ]
 
 
@@ -283,19 +289,138 @@ def test_a_quantified_label_with_no_extracted_value_stores_no_number():
 # `abanico` to 0 across the window. `_rescale_to_anchor` then correctly refuses
 # to scale -- and the caller used to swallow that silently, storing four
 # keywords with an empty series for one paid search.
+#
+# Ranking on volume and taking the TOP term overcorrected into the opposite
+# failure, and the opposite failure is the silent one. A staple anchor reads
+# fine itself while rounding its four companions to 0, so nothing refuses
+# anything: the zeros rescale, store, and publish as measured demand. The
+# median is the term that minimises both ends at once.
 # ---------------------------------------------------------------------------
 
 from demand.ingest.trends_client import pick_anchor  # noqa: E402
 
 
 def test_pick_anchor_prefers_measured_volume_over_the_alphabet():
+    # `pan` is neither first in the alphabet nor the loudest term. It is the
+    # middle reading, which is the whole point.
     signals = [
         {"keyword": "abanico", "interest_avg": 11.16,
          "window_start": "2026-08-03"},
         {"keyword": "café", "interest_avg": 78.0,
          "window_start": "2026-08-03"},
+        {"keyword": "pan", "interest_avg": 40.0,
+         "window_start": "2026-08-03"},
     ]
-    assert pick_anchor(signals, ["abanico", "café", "pan"]) == "café"
+    assert pick_anchor(signals, ["abanico", "café", "pan"]) == "pan"
+
+
+def test_pick_anchor_takes_the_median_not_the_maximum():
+    """The maximum is the silent failure, and these are the probe's numbers.
+
+    `ventilador` at 300.06 is ~27x `abanico` and ~2000x the thin terms.
+    Anchored on it, Google's integer rounding returns `aspirinas` and
+    `bebidas energéticas` as a full series of zeros -- and because the ANCHOR
+    reads fine, `_rescale_to_anchor` scales those zeros and stores them as
+    measured demand with no drop announcement anywhere.
+    """
+    # The five probe readings, plus `aceite`. The five alone cannot make this
+    # test discriminating: their median IS `abanico`, which is also the
+    # alphabetically-first term, so the alphabet assertion below could never
+    # fail and the original bug would pass. `aceite` is a constructed value,
+    # not probe data -- it exists only to move the alphabetical answer off the
+    # median so all three assertions mean something. It has to sort BEFORE
+    # `abanico` to do that, which "aceite" does not -- 'b' < 'c'.
+    signals = [
+        {"keyword": "ventilador", "interest_avg": 300.06,
+         "window_start": "2026-08-03"},
+        {"keyword": "abadejo", "interest_avg": 200.0,
+         "window_start": "2026-08-03"},
+        {"keyword": "café", "interest_avg": 78.0,
+         "window_start": "2026-08-03"},
+        {"keyword": "abanico", "interest_avg": 11.16,
+         "window_start": "2026-08-03"},
+        {"keyword": "aspirinas", "interest_avg": 0.14,
+         "window_start": "2026-08-03"},
+        {"keyword": "bebidas energéticas", "interest_avg": 0.14,
+         "window_start": "2026-08-03"},
+    ]
+    universe = sorted(s["keyword"] for s in signals)
+
+    anchor = pick_anchor(signals, universe)
+
+    assert anchor == "abanico"
+    assert anchor != "ventilador", "the maximum fabricates zeros, silently"
+    assert anchor != universe[0], "and the alphabet is not a measurement"
+
+
+def test_pick_anchor_takes_the_lower_of_two_middles_on_an_even_count():
+    # Four readings, no single middle. The tie has to break somewhere, and it
+    # breaks low: erring low risks a batch that is dropped AND announced,
+    # erring high risks four keywords published as zero demand in silence.
+    signals = [
+        {"keyword": "a", "interest_avg": 1.0, "window_start": "2026-08-03"},
+        {"keyword": "b", "interest_avg": 10.0, "window_start": "2026-08-03"},
+        {"keyword": "c", "interest_avg": 20.0, "window_start": "2026-08-03"},
+        {"keyword": "d", "interest_avg": 100.0, "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["a", "b", "c", "d"]) == "b"
+
+
+def test_pick_anchor_breaks_an_even_middle_tie_on_the_keyword():
+    # Both middles read the same. Falling back to the keyword keeps two runs
+    # over the same signals -- in whatever order the DB hands them back --
+    # anchored on the same term.
+    signals = [
+        {"keyword": "zeta", "interest_avg": 5.0, "window_start": "2026-08-03"},
+        {"keyword": "alfa", "interest_avg": 5.0, "window_start": "2026-08-03"},
+        {"keyword": "bajo", "interest_avg": 1.0, "window_start": "2026-08-03"},
+        {"keyword": "alto", "interest_avg": 90.0, "window_start": "2026-08-03"},
+    ]
+    universe = ["alfa", "alto", "bajo", "zeta"]
+    assert pick_anchor(signals, universe) == "alfa"
+    assert pick_anchor(list(reversed(signals)), universe) == "alfa"
+
+
+def test_pick_anchor_never_anchors_on_a_zero_reading():
+    """The median of [0, 0, 50] is 0, and 0 cannot anchor anything.
+
+    A term Google measured at zero last run IS the low-end failure -- it will
+    round to zero again beside anything else and take its batch down with it.
+    Zeros are dropped before the median is taken, not skipped after.
+    """
+    signals = [
+        {"keyword": "difunto", "interest_avg": 0.0,
+         "window_start": "2026-08-03"},
+        {"keyword": "extinto", "interest_avg": 0.0,
+         "window_start": "2026-08-03"},
+        {"keyword": "vivo", "interest_avg": 50.0,
+         "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["difunto", "extinto", "vivo"]) == "vivo"
+
+
+def test_pick_anchor_falls_back_when_nothing_read_above_zero():
+    # Previous run measured nothing anywhere. There is no informed choice to
+    # make, so take the uninformed one rather than anchor on a known zero.
+    signals = [
+        {"keyword": "abanico", "interest_avg": 0.0,
+         "window_start": "2026-08-03"},
+        {"keyword": "café", "interest_avg": 0.0,
+         "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["abanico", "café"]) == "abanico"
+
+
+def test_pick_anchor_survives_an_unreadable_interest_avg():
+    # `interest_avg` arrives from the DB, but the parser feeding it is the one
+    # guarded above. An unreadable reading is not a measurement, and it must
+    # not take the anchor choice -- or the run -- down with it.
+    signals = [
+        {"keyword": "café", "interest_avg": "N/A",
+         "window_start": "2026-08-03"},
+        {"keyword": "pan", "interest_avg": 20.0, "window_start": "2026-08-03"},
+    ]
+    assert pick_anchor(signals, ["café", "pan"]) == "pan"
 
 
 def test_pick_anchor_falls_back_to_alphabetical_on_a_cold_start():

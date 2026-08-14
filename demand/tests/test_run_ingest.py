@@ -111,9 +111,11 @@ class DiscoveryProvider:
         self.rising_by_keyword = rising_by_keyword or {}
         self.rising_calls = []
         self.requested_keywords = None
+        self.requested_timeframe = None
 
     def interest_over_time(self, keywords, geo, timeframe, anchor=""):
         self.requested_keywords = list(keywords)
+        self.requested_timeframe = timeframe
         return {kw: [dict(pt) for pt in self.series_by_keyword.get(kw, [])]
                 for kw in keywords}
 
@@ -785,23 +787,118 @@ def test_discovery_stops_asking_once_the_budget_is_gone(tmp_path, monkeypatch,
     assert "budget" in capsys.readouterr().out.lower()
 
 
+def test_a_parser_error_on_one_parent_does_not_end_the_discovery_pass(
+        tmp_path, monkeypatch, capsys):
+    """Not every failure arrives wearing an HTTP status.
+
+    `parse_rising_queries` raises `ValueError` when Google's payload changes
+    shape, and the client stack has transport and attribute errors of its own.
+    Only `SerpApiHTTPError` was caught, so any of those ended the pass and
+    threw away every parent still unasked -- with discovery widened from 10
+    parents to 49, that is up to 48 searches' worth of coverage lost to one
+    bad payload.
+    """
+    secret = "SERPAPI_API_KEY=sk-live-do-not-print-me"
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": ValueError(f"unexpected payload for params {secret}"),
+        "beta": [{"query": "beta barata", "growth_pct": 10.0,
+                  "is_breakout": False}],
+        "delta_kw": [{"query": "delta grande", "growth_pct": 42.0,
+                      "is_breakout": False}],
+    })
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    assert [c[0] for c in provider.rising_calls] == ["alfa", "beta", "delta_kw"]
+    assert {r["query"] for r in client.table('rising_queries')._data} == {
+        "beta barata", "delta grande"}
+
+    out = capsys.readouterr().out
+    assert "1 failed" in out
+    # The TYPE, never the message: an unrecognised exception's text is of
+    # unknown provenance, and anything built from the request carries the key.
+    assert "ValueError" in out
+    assert secret not in out
+    assert "sk-live" not in out
+
+
+def test_a_storage_failure_loses_one_parent_not_the_run(tmp_path, monkeypatch,
+                                                         capsys):
+    """The store call has to sit under the same guard as the fetch.
+
+    The loop's comment promises that a failure "loses ONE search, not the nine
+    others" and that "whatever already landed stays landed", but
+    `store_rising_queries` used to sit outside the `try`: a database error
+    raised straight out of `run_chain` with the search already billed, and
+    under the weekly cron it dies in an APScheduler job thread where nobody
+    reads it.
+    """
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": [{"query": "alfa barata", "growth_pct": 150.0,
+                  "is_breakout": False}],
+        "beta": [{"query": "beta barata", "growth_pct": 10.0,
+                  "is_breakout": False}],
+        "delta_kw": [{"query": "delta grande", "growth_pct": 42.0,
+                      "is_breakout": False}],
+    })
+
+    real_store = demand.scripts.run_ingest.store_rising_queries
+
+    def flaky_store(supa_client, rows):
+        if any(r["parent_keyword"] == "beta" for r in rows):
+            raise RuntimeError(f"connection reset while writing {len(rows)} rows")
+        return real_store(supa_client, rows)
+
+    monkeypatch.setattr(demand.scripts.run_ingest, 'store_rising_queries',
+                        flaky_store)
+
+    # No exception escapes: the run completes.
+    run_chain(provider_name="stub", dry_run=False)
+
+    # The parent before the failure stayed landed, the parent after it was
+    # still asked and still stored.
+    assert [c[0] for c in provider.rising_calls] == ["alfa", "beta", "delta_kw"]
+    assert {r["query"] for r in client.table('rising_queries')._data} == {
+        "alfa barata", "delta grande"}
+
+    out = capsys.readouterr().out
+    # Counted apart from a fetch failure: one is SerpApi or the parser, the
+    # other is the database, and they send you to different places.
+    assert "1 storage failures" in out
+    assert "0 failed" in out
+    assert "RuntimeError" in out
+    # Honest about persisted vs merely fetched: three rows came back from
+    # Google, two reached the table.
+    assert "2 rising queries stored" in out
+    assert "3 fetched" in out
+
+
 def test_the_batch_anchor_comes_from_the_previous_runs_signals(
         fake_client, monkeypatch):
     """The anchor decides whether the batches are comparable at all.
 
-    `keywords[0]` made it an alphabetical accident. `build_universe` sorts, so
-    the universe here is ["coffee", "sneakers"] and the old code would anchor
-    on "coffee". The previous run measured "sneakers" at 90.0 against
-    "coffee" at 2.0, so a volume-chosen anchor is "sneakers" -- the opposite
-    of the sort order, which is what makes this test able to tell them apart.
+    Three keywords, not two, because the rule under test has to be told apart
+    from BOTH failures either side of it. `build_universe` sorts, so the
+    universe is ["apples", "coffee", "sneakers"]:
+
+      - alphabet (the original bug)      -> "apples"
+      - highest volume (the overcorrect) -> "sneakers"
+      - median volume (what we want)     -> "coffee"
+
+    Two keywords could not do this: a median of two takes the lower, which
+    here would also be the alphabetically-first one, and the test would pass
+    just as happily against the bug it exists to catch.
     """
     client, seed_file = fake_client
+    seed_file.write_text(json.dumps(["sneakers", "coffee", "apples"]))
     monkeypatch.setattr('demand.ingest.keywords.CONFIG_PATH', str(seed_file))
     monkeypatch.setattr(app, 'get_client', lambda: client)
     monkeypatch.setattr(demand.scripts.run_ingest, 'get_client', lambda: client)
 
     client.table("demand_signals").insert([
-        {"keyword": "coffee", "interest_avg": 2.0,
+        {"keyword": "apples", "interest_avg": 2.0,
+         "window_start": "2026-08-03"},
+        {"keyword": "coffee", "interest_avg": 50.0,
          "window_start": "2026-08-03"},
         {"keyword": "sneakers", "interest_avg": 90.0,
          "window_start": "2026-08-03"},
@@ -813,8 +910,8 @@ def test_the_batch_anchor_comes_from_the_previous_runs_signals(
 
     run_chain(provider_name="fixture", dry_run=True)
 
-    assert provider.requested_keywords == ["coffee", "sneakers"]
-    assert provider.requested_anchor == "sneakers"
+    assert provider.requested_keywords == ["apples", "coffee", "sneakers"]
+    assert provider.requested_anchor == "coffee"
 
 
 def test_a_cold_start_still_picks_an_anchor(fake_client, monkeypatch):
@@ -920,8 +1017,11 @@ def test_the_spend_flag_reaches_run_chain_from_the_command_line(monkeypatch):
 
     demand.scripts.run_ingest.main()
 
+    # `timeframe` and `discovery_top_n` ride along as None -- "not passed" --
+    # so an ordinary CLI run still reads INGEST_TIMEFRAME and DISCOVERY_TOP_N.
     assert calls == [{"provider_name": "serpapi", "dry_run": False,
-                      "spend": True}]
+                      "spend": True, "timeframe": None,
+                      "discovery_top_n": None}]
 
 
 # ---------------------------------------------------------------------------
@@ -1103,3 +1203,179 @@ def test_the_dry_run_help_text_says_what_it_does_not_skip(monkeypatch, capsys):
 
     out = capsys.readouterr().out
     assert "does not skip api" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# Per-run overrides: `timeframe` and `discovery_top_n`.
+#
+# Two constants that a one-off run legitimately has to move -- a 12-month
+# backfill, a discovery pass over more of the universe than a weekly cron can
+# afford -- without editing source that the cron then inherits. Two things are
+# being pinned below, and both are about money or data loss:
+#
+#   * the DEFAULTS still apply when nobody passes anything, because the cron
+#     passes nothing; and
+#   * `timeframe` reaches all THREE places -- the provider call, the stored
+#     row and `snapshot_id` -- because it is the third field of the
+#     trend_snapshots natural key. Threaded into the fetch but not the id, a
+#     backfill silently upserts twelve months of numbers over three months of
+#     real captures under the ids those rows are addressed by.
+# ---------------------------------------------------------------------------
+
+
+def _record_selector_cap(monkeypatch):
+    """Record the cap `run_chain` hands the selector.
+
+    That number is the ceiling on billed RELATED_QUERIES searches for the run,
+    so it is worth asserting directly rather than inferring it from a fixture
+    that happens to yield fewer eligible parents than the cap.
+    """
+    caps = []
+    original = demand.scripts.run_ingest.select_discovery_parents
+
+    def recording(signals, as_of_date, **kwargs):
+        caps.append(kwargs.get("top_n"))
+        return original(signals, as_of_date, **kwargs)
+
+    monkeypatch.setattr(demand.scripts.run_ingest,
+                        'select_discovery_parents', recording)
+    return caps
+
+
+def test_the_defaults_still_apply_when_no_override_is_passed(tmp_path,
+                                                             monkeypatch):
+    """The cron calls `run_chain` with neither argument. It must keep reading
+    the constants, or this change moved production instead of enabling a
+    one-off."""
+    client, provider = _discovery_setup(tmp_path, monkeypatch)
+    caps = _record_selector_cap(monkeypatch)
+
+    run_chain(provider_name="stub", dry_run=False)
+
+    assert provider.requested_timeframe == INGEST_TIMEFRAME
+    assert all(s["timeframe"] == INGEST_TIMEFRAME
+               for s in client.table('trend_snapshots')._data)
+    assert caps == [demand.scripts.run_ingest.DISCOVERY_TOP_N]
+
+
+def test_an_explicit_timeframe_reaches_the_fetch_the_row_and_the_id(
+        tmp_path, monkeypatch):
+    """All three, in one test, because two out of three is the destructive
+    case: the run fetches a 12-month window, stores it as a 12-month row, and
+    addresses it by the id of the 3-month row it is about to overwrite."""
+    client, provider = _discovery_setup(tmp_path, monkeypatch)
+
+    run_chain(provider_name="stub", dry_run=False, timeframe="today 12-m")
+
+    assert provider.requested_timeframe == "today 12-m"
+
+    snapshots = client.table('trend_snapshots')._data
+    assert snapshots
+    assert all(s["timeframe"] == "today 12-m" for s in snapshots)
+
+    for snapshot in snapshots:
+        captured_date = snapshot["captured_at"][:10]
+        assert snapshot["id"] == snapshot_id(
+            snapshot["keyword"], "ES-MD", "today 12-m", captured_date)
+        # Same keyword, same day, different window: a different row identity.
+        # If these matched, the backfill would be an overwrite.
+        assert snapshot["id"] != snapshot_id(
+            snapshot["keyword"], "ES-MD", INGEST_TIMEFRAME, captured_date)
+
+
+def test_a_backfill_lands_beside_the_earlier_capture_not_on_top_of_it(
+        tmp_path, monkeypatch):
+    """The dedupe key is (keyword, geo, timeframe, captured_date), so the
+    default run's rows must still be there, byte for byte, after a backfill
+    run on the same day. This is the assertion that would have failed if
+    `snapshot_id` had been left reading the module constant."""
+    client, provider = _discovery_setup(tmp_path, monkeypatch)
+
+    run_chain(provider_name="stub", dry_run=False)
+    default_rows = {s["id"]: dict(s)
+                    for s in client.table('trend_snapshots')._data}
+    assert default_rows
+
+    run_chain(provider_name="stub", dry_run=False, timeframe="today 12-m")
+
+    rows = {s["id"]: dict(s) for s in client.table('trend_snapshots')._data}
+    assert len(rows) == 2 * len(default_rows)
+    for row_id, row in default_rows.items():
+        assert rows[row_id] == row
+
+
+def test_discovery_top_n_of_zero_buys_no_discovery_searches(tmp_path,
+                                                            monkeypatch):
+    """`0` means measurement only. The selector's stop condition is
+    `len(parents) == top_n`, which can never fire at 0, so a pass-through
+    without a guard would have bought one search per keyword instead of
+    none -- the most expensive possible reading of "skip discovery"."""
+    client, provider = _discovery_setup(tmp_path, monkeypatch, rising={
+        "alfa": [{"query": "alfa barata", "growth_pct": 150.0,
+                  "is_breakout": False}],
+    })
+
+    run_chain(provider_name="stub", dry_run=False, discovery_top_n=0)
+
+    assert provider.rising_calls == []
+    assert client.table('rising_queries')._data == []
+    # ...and the measurement half is untouched: 0 skips discovery, not the run.
+    assert client.table('trend_snapshots')._data != []
+
+
+def test_a_negative_discovery_top_n_is_refused_before_anything_is_built(
+        fake_client, monkeypatch):
+    """`-1` is a typo, not an instruction. Every silent reading of it spends:
+    it slices as "all but the last" and never satisfies the stop condition."""
+    _gate_setup(fake_client, monkeypatch)
+
+    built = []
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_provider',
+                        lambda name: built.append(name))
+
+    with pytest.raises(ValueError):
+        run_chain(provider_name="fixture", dry_run=False, discovery_top_n=-1)
+
+    assert built == []
+
+
+def test_the_pre_flight_quotes_the_run_that_is_about_to_happen(monkeypatch,
+                                                              capsys):
+    """The pre-flight is what the founder reads before typing `--spend`. If it
+    keeps quoting the constants while the next invocation carries overrides,
+    it does not merely fail to help -- it is believed, and the month's budget
+    goes with it."""
+    monkeypatch.setattr(demand.scripts.run_ingest, 'get_client',
+                        lambda: "client")
+    monkeypatch.setattr(demand.scripts.run_ingest, 'build_universe',
+                        lambda client: [f"kw{i:02d}" for i in range(49)])
+    monkeypatch.setattr(demand.scripts.run_ingest, 'run_chain',
+                        lambda **kw: pytest.fail("run_chain was reached"))
+    monkeypatch.setattr(sys, 'argv',
+                        ['run_ingest.py', '--provider', 'serpapi',
+                         '--timeframe', 'today 12-m', '--discovery-top-n',
+                         '40'])
+
+    demand.scripts.run_ingest.main()
+
+    out = capsys.readouterr().out
+    assert "today 12-m" in out
+    assert INGEST_TIMEFRAME not in out
+    assert "40 RELATED_QUERIES" in out
+    # 49 keywords = 1 anchor + 48 real at 4 per request = 12, plus 40.
+    assert "= 52 searches" in out
+
+
+def test_the_overrides_reach_run_chain_from_the_command_line(monkeypatch):
+    calls = []
+    monkeypatch.setattr(demand.scripts.run_ingest, 'run_chain',
+                        lambda **kw: calls.append(kw))
+    monkeypatch.setattr(sys, 'argv',
+                        ['run_ingest.py', '--provider', 'fixture',
+                         '--timeframe', 'today 12-m', '--discovery-top-n', '0'])
+
+    demand.scripts.run_ingest.main()
+
+    assert calls == [{"provider_name": "fixture", "dry_run": False,
+                      "spend": False, "timeframe": "today 12-m",
+                      "discovery_top_n": 0}]

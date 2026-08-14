@@ -39,16 +39,31 @@ DEMAND_ID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_DNS, "demand.reachout")
 NATURAL_KEY_SEP = "|"
 
 
-def signal_id(keyword: str, geo: str, window_start: str, window_end: str) -> str:
+def signal_id(keyword: str, geo: str, timeframe: str,
+              window_start: str, window_end: str) -> str:
     """The id of the signal row for this natural key. Same key -> same id, forever.
 
     Natural key, verbatim:
-        "demand_signal|<keyword>|<geo>|<window_start>|<window_end>"
+        "demand_signal|<keyword>|<geo>|<timeframe>|<window_start>|<window_end>"
     hashed with `uuid5` under `DEMAND_ID_NAMESPACE`. `uuid5` output is a
     real RFC-4122 UUID, so it satisfies the schema's `format: uuid`.
+
+    `timeframe` is in the key because it is in the table's unique index, and
+    the two must agree or the row cannot be written at all. `id` is the
+    PRIMARY key: leave `timeframe` out here and the `today 3-m` and
+    `today 12-m` signals for one keyword and week hash to the SAME uuid, so
+    the backfill collides on the primary key while `on_conflict` is pointed
+    at a different tuple entirely. The upsert does not resolve that -- it
+    fails, after the searches are paid for.
+
+    It is also the honest key. Google's 0-100 index is scaled to the window
+    requested and this pipeline rescales onto an anchor on top of that, so
+    the same keyword in the same calendar week genuinely reads differently at
+    3-m and at 12-m. Two readings, two rows. Same rule as `gprop` in the
+    rising_queries key and `timeframe` in `snapshot_id`.
     """
     natural_key = NATURAL_KEY_SEP.join(
-        ["demand_signal", keyword, geo, window_start, window_end]
+        ["demand_signal", keyword, geo, timeframe, window_start, window_end]
     )
     return str(uuid.uuid5(DEMAND_ID_NAMESPACE, natural_key))
 
@@ -161,7 +176,13 @@ def compute_signals(snapshots: List[Dict[str, Any]], category_map: Dict[str, str
         geo = snap["geo"]
         capture_key = _capture_key(snap)
 
-        key = (kw, geo)
+        # `timeframe` partitions here for the same reason `geo` does. Google
+        # scales its 0-100 index to the window requested, so a week measured
+        # inside `today 3-m` and the same week measured inside `today 12-m`
+        # are two readings on two scales. Grouping them together would average
+        # across scales -- exactly the merge the capture-bucketing above
+        # exists to prevent, one level up.
+        key = (kw, geo, snap["timeframe"])
         if key not in kw_geo_windows:
             kw_geo_windows[key] = {}
 
@@ -175,7 +196,7 @@ def compute_signals(snapshots: List[Dict[str, Any]], category_map: Dict[str, str
     # Compute interest_avg per window per keyword
     window_signals: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
 
-    for (kw, geo), windows in sorted(kw_geo_windows.items()):
+    for (kw, geo, timeframe), windows in sorted(kw_geo_windows.items()):
         sorted_window_keys = sorted(windows.keys())  # Sorts chronologically
 
         # Check for provider gaps
@@ -251,17 +272,22 @@ def compute_signals(snapshots: List[Dict[str, Any]], category_map: Dict[str, str
             curr["confidence"] = confidence
             curr["keyword"] = kw
             curr["geo"] = geo
+            curr["timeframe"] = timeframe
             # Normalised lookup: the map is keyed by normalized_keyword(),
             # the universe keeps the original casing. An exact-match lookup
             # here missed every time in production and stamped every row
             # with category=None.
             curr["category"] = category_map.get(normalize_keyword(kw), None)
 
-            # Rank is per (window, geo): ES-CT and ES-MD are separate
-            # markets and separate 0-100 scales, so ranking them against
-            # each other would be meaningless -- and would make the output
-            # depend on which geos happened to be in the batch.
-            w_key = (curr["window_start"], curr["window_end"], geo)
+            # Rank is per (window, geo, timeframe): ES-CT and ES-MD are
+            # separate markets and separate 0-100 scales, so ranking them
+            # against each other would be meaningless -- and would make the
+            # output depend on which geos happened to be in the batch.
+            # `timeframe` joins the key on identical grounds: a 3-month and a
+            # 12-month capture of the same week are different scales too, and
+            # ranking across them would let a backfill reshuffle the ranks of
+            # rows it has no business touching.
+            w_key = (curr["window_start"], curr["window_end"], geo, timeframe)
             if w_key not in window_signals:
                 window_signals[w_key] = []
             window_signals[w_key].append(curr)
@@ -282,12 +308,14 @@ def compute_signals(snapshots: List[Dict[str, Any]], category_map: Dict[str, str
                 "id": signal_id(
                     signals[i]["keyword"],
                     signals[i]["geo"],
+                    signals[i]["timeframe"],
                     signals[i]["window_start"],
                     signals[i]["window_end"],
                 ),
                 "keyword": signals[i]["keyword"],
                 "category": signals[i]["category"],
                 "geo": signals[i]["geo"],
+                "timeframe": signals[i]["timeframe"],
                 "window_start": signals[i]["window_start"],
                 "window_end": signals[i]["window_end"],
                 "interest_avg": float(signals[i]["interest_avg"]),

@@ -125,6 +125,15 @@ def select_discovery_parents(
     if not signals:
         return []
 
+    # `top_n <= 0` means "buy nothing", and it has to be said here rather than
+    # left to the loop below: the only stop condition is `len(parents) ==
+    # top_n`, which can never fire when `top_n` is 0 or negative, so a bare
+    # pass-through would return the ENTIRE eligible universe -- one billed
+    # RELATED_QUERIES search per keyword, the exact opposite of what the
+    # caller asked for.
+    if top_n <= 0:
+        return []
+
     closed = [s for s in signals if s.get("window_end", "") < as_of_date]
     eligible = closed or signals
 
@@ -195,6 +204,35 @@ def snapshot_id(keyword: str, geo: str, timeframe: str, captured_date: str) -> s
     return str(uuid.uuid5(DEMAND_ID_NAMESPACE, natural_key))
 
 
+#: How many `demand_signals` rows the anchor read pulls back, and why a bare
+#: `.select(...)` was not enough.
+#:
+#: `pick_anchor` needs exactly one thing: every row of the NEWEST window, so
+#: it can rank that window's `interest_avg`. `demand_signals` carries one row
+#: per keyword per weekly window, so the newest window is one row per keyword
+#: -- 49 today, the size of the universe `build_universe` returns.
+#:
+#: The ORDER is what makes this safe; the number only buys headroom. Old
+#: windows are never deleted and every run adds ~49 more rows per distinct
+#: window: a `today 3-m` capture is ~13 windows (~637 rows), the table already
+#: holds 686, and the 12-month backfill about to run takes it to roughly 2548.
+#: That is past Supabase's default `db-max-rows` (1000), where PostgREST
+#: truncates the response on its own, in whatever physical order the rows come
+#: back in. An unordered read therefore hands `pick_anchor` an arbitrary page,
+#: `max(window_start)` is computed over that page rather than over the table,
+#: and the anchor -- the single value all cross-batch comparability depends on
+#: -- is chosen from a stale window with nothing printed. Sorting
+#: `window_start` descending server-side guarantees the newest window sits at
+#: the FRONT of the page, so the limit only has to be wider than that one
+#: window.
+#:
+#: 500 is ~10x the 49-keyword universe, so the universe can grow an order of
+#: magnitude before the newest window stops fitting. It stays under
+#: `db-max-rows` (1000) on purpose: the page that comes back is then the page
+#: this code asked for, not whatever a server-side cap happened to leave.
+PRIOR_SIGNALS_LIMIT = 500
+
+
 def _load_prior_signals(client) -> list:
     """The previous run's `demand_signals`, for anchor selection only.
 
@@ -202,10 +240,14 @@ def _load_prior_signals(client) -> list:
     error must not stop a capture: `pick_anchor` treats an empty list as a
     cold start and falls back to alphabetical, which is what this run would
     have done anyway.
+
+    Ordered and bounded rather than open-ended -- see `PRIOR_SIGNALS_LIMIT`.
     """
     try:
         return (client.table("demand_signals")
                 .select("keyword, interest_avg, window_start")
+                .order("window_start", desc=True)
+                .limit(PRIOR_SIGNALS_LIMIT)
                 .execute().data) or []
     except Exception as exc:  # noqa: BLE001 - anchor choice is not worth a run
         print(f"[Ingest] Could not read prior signals for anchor ({exc}); "
@@ -242,8 +284,41 @@ class SpendWouldBeDiscarded(RuntimeError):
     """
 
 
-def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
+def _resolve_discovery_top_n(value) -> int:
+    """`None` means the default; anything else is used as given, once checked.
+
+    Shared by `run_chain` and the CLI pre-flight so that the estimate printed
+    in front of a run and the run itself cannot disagree about how many
+    searches discovery will buy. A pre-flight that quotes a different number
+    than the run spends is worse than no pre-flight, because it is believed.
+
+    Negative is refused rather than clamped. `-1` is far more likely a typo
+    than an intention, and every silent reading of it spends money: it slices
+    as "all but the last" and never satisfies `len(parents) == top_n`. 0 is a
+    legitimate answer -- "measure the universe, skip discovery" -- so it is 0
+    that has to be allowed and negative that has to raise.
+    """
+    if value is None:
+        return DISCOVERY_TOP_N
+    if value < 0:
+        raise ValueError(
+            f"discovery_top_n must be >= 0, got {value}. Use 0 to skip the "
+            f"discovery pass; a negative count has no meaning and would buy "
+            f"one RELATED_QUERIES search per keyword in the universe."
+        )
+    return value
+
+
+def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False,
+              timeframe: str = None, discovery_top_n: int = None):
     """Run the whole demand chain once.
+
+    `timeframe` and `discovery_top_n` default to `None`, meaning "use
+    `INGEST_TIMEFRAME` / `DISCOVERY_TOP_N`". They exist for the one-off runs
+    the constants deliberately do not serve -- a 12-month backfill, or a
+    discovery pass over more of the universe than a weekly cron can afford --
+    without editing source that the cron then inherits. Every existing caller,
+    the cron included, keeps exactly the behaviour it was written against.
 
     `spend` is the budget gate and it lives HERE, at the one place every
     caller passes through, not in `main()`. The previous guard was
@@ -279,6 +354,23 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
             f"--provider {FIXTURE_PROVIDER} to rehearse for free."
         )
 
+    # Both overrides resolve ONCE, here, into locals that the rest of this
+    # function reads instead of the module constants. Resolving at each use
+    # site is how half a run ends up on one window and half on another.
+    #
+    # `timeframe` is not merely a fetch parameter. It is the third field of the
+    # `trend_snapshots` natural key -- (keyword, geo, timeframe,
+    # captured_date) -- which is what `snapshot_id` hashes with uuid5 and what
+    # `trend_snapshots_dedupe_idx` in `demand/data/schema.sql` dedupes on. So
+    # `run_timeframe` must reach the provider call, the `"timeframe"` field AND
+    # `snapshot_id`, all three, or the run is silently destructive: a
+    # `today 12-m` backfill that still computes ids from `today 3-m` upserts
+    # twelve months of numbers on top of the three-month rows a real capture
+    # already wrote, under the ids those rows are addressed by, and the
+    # original data is gone. Threaded everywhere or nowhere.
+    run_timeframe = INGEST_TIMEFRAME if timeframe is None else timeframe
+    run_discovery_top_n = _resolve_discovery_top_n(discovery_top_n)
+
     print(f"[Ingest] Starting run (provider={provider_name}, dry_run={dry_run})")
     client = get_client()
 
@@ -301,13 +393,16 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
     anchor = pick_anchor(_load_prior_signals(client), universe)
     print(f"[Ingest] Batch anchor: {anchor!r}")
 
-    print(f"[Ingest] Fetching interest_over_time ({INGEST_TIMEFRAME})...")
+    print(f"[Ingest] Fetching interest_over_time ({run_timeframe})...")
     time_series = provider.interest_over_time(
-        universe, geo=INGEST_GEO, timeframe=INGEST_TIMEFRAME, anchor=anchor)
+        universe, geo=INGEST_GEO, timeframe=run_timeframe, anchor=anchor)
 
     # No id-preserving round-trip: snapshot ids are uuid5 over the same
     # (keyword, geo, timeframe, captured_date) tuple the dedupe index uses,
     # so re-running the same day recomputes the ids already in the table.
+    # `run_timeframe` is part of that tuple, so a run on a different window
+    # lands on different ids and sits BESIDE the existing rows instead of
+    # overwriting them -- which is what makes a backfill safe to run at all.
     region_failures = []
     for kw in universe:
         series = time_series.get(kw, [])
@@ -329,10 +424,10 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
         captured_date = now_utc[:10]
 
         snapshot = {
-            "id": snapshot_id(kw, INGEST_GEO, INGEST_TIMEFRAME, captured_date),
+            "id": snapshot_id(kw, INGEST_GEO, run_timeframe, captured_date),
             "keyword": kw,
             "geo": INGEST_GEO,
-            "timeframe": INGEST_TIMEFRAME,
+            "timeframe": run_timeframe,
             "provider": provider_name,
             "captured_at": now_utc,
             "series": series,
@@ -380,17 +475,23 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
     signals = compute_signals(snapshots, category_map=cat_map, computed_at=now_utc)
     print(f"[Ingest] Computed {len(signals)} signals")
 
-    # No id-preserving round-trip here: `compute_signals` derives each
-    # signal id with uuid5 from (keyword, geo, window_start, window_end) --
-    # the same tuple `demand_signals_dedupe_idx` uses -- so re-running a
+    # No id-preserving round-trip here: `compute_signals` derives each signal
+    # id with uuid5 from (keyword, geo, timeframe, window_start, window_end)
+    # -- the same tuple `demand_signals_dedupe_tf_idx` uses -- so re-running a
     # window recomputes the id it already wrote and the upsert below
     # updates that row. Reading the table back to copy old ids would be
     # asking the DB a question the data already answers.
+    #
+    # `timeframe` must appear in BOTH that uuid5 key and this conflict target
+    # or the two disagree: `id` is the primary key, so a backfill at a new
+    # timeframe would hash to an existing row's id and fail on the primary
+    # key while `on_conflict` pointed somewhere else entirely. See
+    # `data/migrations/001_demand_signals_timeframe.sql`.
 
     if not dry_run and signals:
         client.table("demand_signals").upsert(
             signals,
-            on_conflict="keyword,geo,window_start,window_end"
+            on_conflict="keyword,geo,timeframe,window_start,window_end"
         ).execute()
         print("[Ingest] Upserted signals in DB")
 
@@ -410,22 +511,34 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
     # per keyword and blow the monthly budget in two runs.
     #
     # `select_discovery_parents` carries the whole selection rule and its
-    # reasoning. It may legitimately return FEWER than DISCOVERY_TOP_N
-    # keywords -- a quiet week buys fewer searches rather than padding the
-    # list back up with noise.
-    top_keywords = select_discovery_parents(signals, as_of_date=now_utc[:10])
-    print(f"[Ingest] Discovery on {len(top_keywords)}/{DISCOVERY_TOP_N} "
+    # reasoning. It may legitimately return FEWER than the cap -- a quiet week
+    # buys fewer searches rather than padding the list back up with noise --
+    # and at `run_discovery_top_n == 0` it returns nothing at all, so the loop
+    # below never asks and the run costs measurement only.
+    top_keywords = select_discovery_parents(signals, as_of_date=now_utc[:10],
+                                            top_n=run_discovery_top_n)
+    print(f"[Ingest] Discovery on {len(top_keywords)}/{run_discovery_top_n} "
           f"eligible movers ({DISCOVERY_GPROP or 'web'}, "
           f"{DISCOVERY_TIMEFRAME}, interest_avg >= {DISCOVERY_MIN_INTEREST})")
 
-    discovered = 0
+    fetched = 0
+    stored = 0
     empty = 0
     failed = 0
+    store_failed = 0
     for keyword in top_keywords:
         # One billed search per parent, and the rows for each are stored as
         # soon as they arrive. So a failure here loses ONE search, not the
         # nine others: the loop keeps going and whatever already landed
         # stays landed. Same rule as the measurement batch loop.
+        #
+        # "A failure here" means the whole parent -- fetch AND store. The
+        # store call used to sit outside this `try`, which made the promise
+        # above false in the one direction nobody would notice: a database
+        # error raised straight out of `run_chain` after the search was
+        # billed, and under the weekly cron it dies inside an APScheduler job
+        # thread where nothing reads it. The parents already banked are not
+        # worth one parent's failed write.
         try:
             rows = provider.rising_queries(
                 keyword, geo=INGEST_GEO, date=DISCOVERY_TIMEFRAME,
@@ -444,6 +557,25 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
             print(f"[Ingest] Discovery: {keyword!r} failed ({exc}); "
                   f"one search lost, continuing.")
             continue
+        except Exception as exc:  # noqa: BLE001 - one parent, not the pass
+            # Everything the provider can raise that is not an HTTP status.
+            # `parse_rising_queries` raises `ValueError` on a payload whose
+            # shape Google changed, and the client stack can raise transport
+            # and attribute errors of its own; only `SerpApiHTTPError` was
+            # caught, so any of those ended the pass and threw away every
+            # parent still unasked. The measurement half already treats this
+            # as one batch's problem (`SerpApiProvider._fetch_batch`'s final
+            # `except Exception`) and discovery is one parent's problem for
+            # exactly the same reason: the search is billed either way.
+            #
+            # The TYPE only, never `str(exc)` -- the same rule `_fetch_batch`
+            # states. An unrecognised exception's message is text of unknown
+            # provenance heading for stdout, and anything built from the
+            # request carries the API key.
+            failed += 1
+            print(f"[Ingest] Discovery: {keyword!r} failed "
+                  f"({type(exc).__name__}); one search lost, continuing.")
+            continue
         if not rows:
             empty += 1
             continue
@@ -452,16 +584,43 @@ def run_chain(provider_name: str, dry_run: bool = False, spend: bool = False):
         # one captured_at rather than drifting by however long the fetch took.
         built = build_rows(keyword, rows, INGEST_GEO, DISCOVERY_GPROP,
                            now_utc)
-        if not dry_run:
+        fetched += len(built)
+        if dry_run:
+            # Nothing is written, so nothing can fail to be written. The
+            # `fetched` count above still tells the rehearsal what the run
+            # would have stored, which is the whole point of `--dry-run`.
+            continue
+        try:
             store_rising_queries(client, built)
-        discovered += len(built)
+        except Exception as exc:  # noqa: BLE001 - one parent's rows, not the run
+            # The search is already paid for and these rows are lost, but the
+            # parents before this one are in the table and the parents after
+            # it are still worth asking. Type only, same reason as above.
+            store_failed += 1
+            print(f"[Ingest] Discovery: {keyword!r} fetched {len(built)} rows "
+                  f"but storing them failed ({type(exc).__name__}); "
+                  f"those rows are lost, continuing.")
+            continue
+        stored += len(built)
 
     # Coverage is reported, not hidden. Shopping is sparse for region-scoped
     # Spanish terms, and a run where 8 of 10 parents came back empty is a very
     # different result from one where all 10 answered.
-    print(f"[Ingest] Discovery: {discovered} rising queries, "
+    #
+    # Stored and fetched are printed apart because they are different claims.
+    # The old line printed one number and called it "rising queries" whether
+    # or not a row ever reached the database, so a run that fetched 40 and
+    # persisted none read exactly like a run that persisted 40.
+    #
+    # Fetch failures and storage failures are counted apart for the same
+    # reason: one is SerpApi or the parser, the other is the database. They
+    # have different causes and different fixes, and a single combined number
+    # sends whoever reads it to the wrong half of the system.
+    print(f"[Ingest] Discovery: {stored} rising queries stored "
+          f"({fetched} fetched{', dry run stored none' if dry_run else ''}), "
           f"{empty}/{len(top_keywords)} parents empty, "
-          f"{failed} failed")
+          f"{failed} failed, "
+          f"{store_failed} storage failures")
 
     print("[Ingest] Finished.")
 
@@ -480,6 +639,22 @@ def main():
     parser.add_argument("--spend", action="store_true",
                         help="Required for a live provider. Without it the run "
                              "prints its cost and exits without calling out.")
+    # Both default to None, not to the constant, so that "not passed" stays
+    # distinguishable from "passed the same value as the default" and the
+    # weekly cron -- which passes neither -- keeps reading the constants.
+    parser.add_argument("--timeframe", type=str, default=None,
+                        help="Measurement window for interest_over_time, e.g. "
+                             f"'today 12-m' for a one-off backfill. Defaults to "
+                             f"{INGEST_TIMEFRAME!r}. The window is part of a "
+                             "trend_snapshots row's identity, so a different "
+                             "one writes new rows beside the existing ones "
+                             "rather than over them.")
+    parser.add_argument("--discovery-top-n", type=int, default=None,
+                        help="How many top movers get one RELATED_QUERIES "
+                             f"search each. Defaults to {DISCOVERY_TOP_N}. "
+                             "0 skips discovery entirely (measurement only); "
+                             "raising it costs one extra search per keyword "
+                             "out of the 250/month budget.")
     args = parser.parse_args()
 
     # The pre-flight, not the guard. The guard is `spend=` inside `run_chain`,
@@ -492,10 +667,19 @@ def main():
         # scope by run_ingest.py -- `run_chain` calls both. Reading the universe
         # costs a database query, not a search.
         universe = build_universe(get_client())
-        est = estimate_searches(len(universe), DISCOVERY_TOP_N)
+        # The estimate has to describe THIS run, not the defaults. Quoting
+        # `today 3-m` and 10 searches while the next invocation is about to
+        # fetch a 12-month window and buy 40 is the worst failure available
+        # here: the founder reads the number, believes it, adds --spend, and
+        # the budget is gone. Resolved exactly the way `run_chain` will resolve
+        # it, through the same helper, so the two cannot drift apart.
+        preflight_timeframe = (INGEST_TIMEFRAME if args.timeframe is None
+                               else args.timeframe)
+        preflight_top_n = _resolve_discovery_top_n(args.discovery_top_n)
+        est = estimate_searches(len(universe), preflight_top_n)
         print(f"[Ingest] provider={args.provider}  PRE-FLIGHT")
         print(f"         {est['timeseries']} TIMESERIES "
-              f"({len(universe)} kw, {INGEST_TIMEFRAME}, web)")
+              f"({len(universe)} kw, {preflight_timeframe}, web)")
         print(f"       + {est['discovery']} RELATED_QUERIES "
               f"({DISCOVERY_TIMEFRAME}, {DISCOVERY_GPROP or 'web'})")
         print(f"         = {est['total']} searches of a 250/month budget.")
@@ -515,7 +699,8 @@ def main():
         return
 
     run_chain(provider_name=args.provider, dry_run=args.dry_run,
-              spend=args.spend)
+              spend=args.spend, timeframe=args.timeframe,
+              discovery_top_n=args.discovery_top_n)
 
 if __name__ == "__main__":
     main()

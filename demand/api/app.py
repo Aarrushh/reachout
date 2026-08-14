@@ -98,9 +98,14 @@ UUID_SCHEMA = {"type": "string", "format": "uuid"}
 TREND_COLUMNS = (
     "id, keyword, geo, timeframe, provider, captured_at, series, region_breakdown"
 )
+#: `timeframe` is selected, not omitted: it is `required` in
+#: demand_signal.schema.json, so a response without it fails the contract and
+#: 500s. It is also what a consumer needs in order NOT to plot a 3-month and a
+#: 12-month reading of the same week on one axis -- they are different scales.
 SIGNAL_COLUMNS = (
-    "id, keyword, category, geo, window_start, window_end, interest_avg, "
-    "delta_pct, direction, rank, confidence, snapshot_ids, computed_at"
+    "id, keyword, category, geo, timeframe, window_start, window_end, "
+    "interest_avg, delta_pct, direction, rank, confidence, snapshot_ids, "
+    "computed_at"
 )
 RECOMMENDATION_COLUMNS = (
     "id, store_id, signal_id, headline, body, action, confidence, caveat, created_at"

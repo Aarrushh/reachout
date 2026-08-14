@@ -27,12 +27,39 @@ def rising_query_id(parent_keyword: str, query: str, geo: str, gprop: str,
 
 def build_rows(parent_keyword: str, rows: List[Dict[str, Any]], geo: str,
                gprop: str, captured_at: str) -> List[Dict[str, Any]]:
-    """Parser output -> database rows. No derivation, only shaping."""
+    """Parser output -> database rows. No derivation, only shaping and a dedupe.
+
+    Deduped by `id`, and the FIRST occurrence wins. Google returns the
+    `rising` list in rank order, so the first copy of a repeated query is the
+    highest-ranked one, and keeping it makes the output a function of the
+    payload alone: the same payload always yields the same rows, in the same
+    order, with the same values. (The duplicates are not necessarily
+    identical -- a repeat can carry a different `growth_pct` -- so "which one
+    wins" has to be stated rather than left to whichever the loop saw last.)
+
+    The dedupe is not cosmetic. `store_rising_queries` sends the whole list in
+    a single `upsert(on_conflict="id")`, and Postgres refuses a statement that
+    touches the same conflict target twice: "ON CONFLICT DO UPDATE command
+    cannot affect row a second time" (SQLSTATE 21000). That error aborts the
+    entire statement, so ONE repeated query string loses the whole parent's
+    rows -- after the search has already been billed. `rising_query_id` hashes
+    (parent, query, geo, gprop, captured_date), and every one of those is
+    fixed for a single `build_rows` call except `query`, so two identical
+    `query` strings in one parent's payload are one id by construction.
+    Nothing upstream promises Google will not repeat a string; the committed
+    café capture simply happens not to, which is why no test caught this.
+    """
     captured_date = captured_at[:10]
-    return [
-        {
-            "id": rising_query_id(parent_keyword, row["query"], geo, gprop,
-                                  captured_date),
+    built = []
+    seen = set()
+    for row in rows:
+        row_id = rising_query_id(parent_keyword, row["query"], geo, gprop,
+                                 captured_date)
+        if row_id in seen:
+            continue
+        seen.add(row_id)
+        built.append({
+            "id": row_id,
             "parent_keyword": parent_keyword,
             "query": row["query"],
             "growth_pct": row["growth_pct"],
@@ -41,9 +68,8 @@ def build_rows(parent_keyword: str, rows: List[Dict[str, Any]], geo: str,
             "gprop": gprop,
             "captured_at": captured_at,
             "captured_date": captured_date,
-        }
-        for row in rows
-    ]
+        })
+    return built
 
 
 def store_rising_queries(supa_client: Any, rows: List[Dict[str, Any]]) -> int:

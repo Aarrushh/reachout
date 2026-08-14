@@ -214,6 +214,7 @@ def signal_row(**overrides):
         "keyword": "cerveza",
         "category": "Alcohol",
         "geo": "ES-MD",
+        "timeframe": "today 3-m",
         "window_start": "2024-01-01",
         "window_end": "2024-01-07",
         "interest_avg": 50,

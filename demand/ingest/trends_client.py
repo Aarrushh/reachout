@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 from datetime import datetime, timezone
@@ -18,9 +19,11 @@ BATCH_RETRIES = 2
 #: Seconds before the first retry. Doubles each time (2s, then 4s).
 BATCH_RETRY_BACKOFF = 2.0
 
-#: Status codes worth trying again. Server-side and gateway faults only, plus
-#: `None`, which `SerpApiHTTPError` uses for "no response reached us at all"
-#: (timeout, dropped connection).
+#: Status codes worth trying again. Server-side and gateway faults only:
+#: SerpApi told us it failed, so we know what the first search bought.
+#:
+#: `None` -- which `SerpApiHTTPError` uses for "no response reached us at all"
+#: -- is deliberately ABSENT for the same reason 429 is; see `_fetch_batch`.
 #:
 #: 429 is deliberately ABSENT, and that is a departure from the obvious
 #: "retry on 429 and 5xx" rule. On this plan 429 means the 250/month budget
@@ -69,6 +72,35 @@ BREAKOUT_TOKEN = "Breakout"
 QUANTIFIED_GROWTH = re.compile(r"^[+-]?[\d.,\s\xa0\u202f]*\d[\d.,\s\xa0\u202f]*%$")
 
 
+def _as_float(value: Any) -> Optional[float]:
+    """SerpApi's number as a float, or `None` when what arrived is not one.
+
+    Every numeric field in this module is echoed from Google through SerpApi
+    and neither party promises its type. Unguarded, a "N/A" or a stray dict
+    raises `ValueError`/`TypeError` out of the parser, out of the batch loop
+    and out of `run_chain` before `store_snapshots` -- forfeiting every search
+    the earlier batches already paid for, over one bad field in one row. That
+    is the same shape as the hole `_fetch_batch`'s catch-all closes, one layer
+    up, and the parsers run OUTSIDE that clause.
+
+    `None` means "no number here" and every caller has to take its own
+    no-number path. It never means zero: 0 is a reading Google made, and
+    substituting it for something nobody could parse is precisely the
+    fabrication the rest of this module is built to refuse.
+
+    `True` is rejected on purpose -- `float(True)` is 1.0, a number this
+    codebase would have invented. So are NaN and infinity, which pass
+    `float()` and then poison every mean, rank and JSON write downstream.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
 def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
     """One RELATED_QUERIES payload -> rising rows.
 
@@ -94,8 +126,28 @@ def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
         # safe enough.
         label = str(item.get("value", "")).strip()
         is_breakout = QUANTIFIED_GROWTH.match(label) is None
-        extracted = item.get("extracted_value")
-        growth = None if (is_breakout or extracted is None) else float(extracted)
+        growth = None if is_breakout else _as_float(item.get("extracted_value"))
+        if growth is None and not is_breakout:
+            # The label promised a percentage and `extracted_value` could not
+            # supply the number -- missing, "N/A", whatever Google sent. Two
+            # ways out, and this takes the second:
+            #
+            # Dropping the row loses a rising search term this run was billed
+            # for, and loses it invisibly -- the term reads as "Google had
+            # nothing", which is the one thing it is known not to be.
+            #
+            # Storing it unquantified keeps the invariant every reader of this
+            # table depends on: `is_breakout` true means `growth_pct` IS NULL,
+            # false means a number Google actually supplied. Leaving it false
+            # with a NULL beside it makes "refused to quantify" and "quantified
+            # but unreadable" indistinguishable downstream, and the only ways
+            # out of THAT are the two forbidden ones -- a placeholder like
+            # 5000, or a silent 0.
+            #
+            # We do lose the distinction between the two refusals. That is a
+            # fact about Google we could not read, not a number we invented,
+            # and the honesty rule prices those differently.
+            is_breakout = True
         rows.append({"query": query, "growth_pct": growth,
                      "is_breakout": is_breakout})
 
@@ -103,41 +155,72 @@ def parse_rising_queries(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def pick_anchor(signals: List[Dict[str, Any]], keywords: List[str]) -> str:
-    """Choose the batch anchor by MEASURED volume, not by alphabet.
+    """Choose the batch anchor by MEDIAN measured volume -- not the maximum.
 
     Every batch carries the anchor so the batches can be rescaled onto a
     common level, which makes the anchor the one slot the entire cross-batch
-    comparability depends on. Taking `keywords[0]` made that an alphabetical
-    accident: `build_universe` sorts, so the anchor was `abanico` -- measured
-    mean 11.16 in ES-MD over 3 months. Google renormalises every request so
-    its own peak term is 100 and rounds to integers, so batching `abanico`
-    against `cafe`, `cerveza` or `pan` rounds `abanico` to 0 across the whole
-    window, `anchor_mean` is 0, and `_rescale_to_anchor` correctly refuses to
-    scale -- dropping that batch's four keywords for one paid search.
+    comparability depends on. Google renormalises every request so its own
+    peak term is 100 and rounds to INTEGERS, which makes the anchor the term
+    that sets the resolution the other four are measured at. Both ends of the
+    volume range fail, and they do not fail equally:
 
-    A high-volume anchor is far less likely to round to zero next to anything
-    else. `signals` is the PREVIOUS run's `demand_signals`; the newest window
-    wins, `interest_avg` ranks, and `keyword` breaks ties so two runs over the
-    same signals pick the same anchor.
+    A LOW anchor rounds ITSELF to 0 next to a staple. `abanico`, measured mean
+    11.16 in ES-MD over 3 months, does exactly this against `cafe`, `cerveza`
+    or `pan`; `_rescale_to_anchor` then refuses to scale, and the batch is
+    dropped and announced. Four keywords lost for one paid search -- lossy,
+    but honest, and the operator is told.
 
-    Cold start (no signals, or none of them still in the universe) falls back
-    to `keywords[0]`, which is the old alphabetical behaviour.
+    A HIGH anchor rounds the OTHER FOUR to 0 while reading fine itself, so
+    nothing refuses anything: `_rescale_to_anchor` only checks the anchor, and
+    a full series of zeros is rescaled, stored and published as MEASURED
+    demand. The probe already shows the shape -- `aspirinas` and `bebidas
+    energeticas` came back at 0.14 against `abanico`, itself a low-volume
+    term. Anchoring on the maximum makes that the normal case: the next run
+    would pick `ventilador` at 300.06, some 27x `abanico`, and quietly report
+    no demand for terms it merely could not resolve. Nothing prints, nothing
+    is dropped, and the dashboard shows a confident zero. That failure is
+    silent, which makes it the worse of the two -- and choosing the maximum
+    was overcorrection towards it.
+
+    The median is the reading with the most of the universe within reach in
+    both directions, so it is the choice that minimises both ends at once.
+    `signals` is the PREVIOUS run's `demand_signals`; the newest window wins,
+    and `keyword` breaks value ties so two runs over the same signals pick the
+    same anchor.
+
+    A reading of 0 or less is dropped BEFORE the median is taken, not merely
+    skipped if it lands in the middle. A term Google measured at zero last run
+    is the low-end failure by definition, and leaving it in the list also
+    shifts the median for everyone else.
+
+    Cold start -- no signals, none still in the universe, or none of them with
+    a positive reading -- falls back to `keywords[0]`, the old alphabetical
+    behaviour, which is what the run would have done anyway.
     """
     if not keywords:
         return ""
 
     universe = set(keywords)
-    usable = [s for s in signals or []
-              if s.get("keyword") in universe
-              and s.get("interest_avg") is not None]
+    usable: List[Tuple[str, float, str]] = []
+    for signal in signals or []:
+        keyword = signal.get("keyword")
+        volume = _as_float(signal.get("interest_avg"))
+        if keyword not in universe or volume is None or volume <= 0:
+            continue
+        usable.append((str(signal.get("window_start", "")), volume, keyword))
     if not usable:
         return keywords[0]
 
-    latest = max(s.get("window_start", "") for s in usable)
-    newest = [s for s in usable if s.get("window_start", "") == latest]
-    best = sorted(newest,
-                  key=lambda s: (-float(s["interest_avg"]), s["keyword"]))[0]
-    return best["keyword"]
+    latest = max(window for window, _, _ in usable)
+    newest = sorted((volume, keyword)
+                    for window, volume, keyword in usable if window == latest)
+    # Ascending, so an even count takes the LOWER of the two middles, and a
+    # tie between them breaks on the keyword. It has to break somewhere; this
+    # breaks it towards the failure that announces itself. Erring low risks a
+    # dropped batch the operator is told about; erring high risks four
+    # keywords published as zero demand with nothing said. Same direction
+    # QUANTIFIED_GROWTH fails in, for the same reason.
+    return newest[(len(newest) - 1) // 2][1]
 
 
 class TrendsProvider(Protocol):
@@ -188,10 +271,15 @@ def parse_timeseries(payload: Dict[str, Any],
                 keyword = keywords[slot]
             if keyword not in result:
                 continue
-            extracted = value.get("extracted_value")
-            if extracted is None:
+            # A point nobody can read is dropped, never zeroed. `0` is a
+            # reading Google made and the anchor logic turns on it: a
+            # fabricated zero inside the anchor's series drags `anchor_mean`
+            # down and rescales the batch's real keywords by a factor nobody
+            # measured -- or, if it drags far enough, drops them outright.
+            point = _as_float(value.get("extracted_value"))
+            if point is None:
                 continue
-            result[keyword].append({"date": date, "value": float(extracted)})
+            result[keyword].append({"date": date, "value": point})
 
     return result
 
@@ -356,11 +444,33 @@ class SerpApiProvider:
                     return None, "HTTP 429 -- SerpApi budget exhausted", True
                 if status in (401, 403):
                     return None, f"HTTP {status} -- API key rejected", True
-                if status not in RETRYABLE_STATUS and status is not None:
+                if status is None:
+                    # Nothing reached us at all: the 60s timeout expired, or
+                    # the connection dropped. Not retried, and that is a
+                    # BUDGET decision rather than a taxonomy one.
+                    #
+                    # Silence says nothing about what SerpApi did. A search it
+                    # processed is billed whether or not the answer got back
+                    # to us, so the likeliest cause -- slow-but-successful
+                    # upstream -- is the one where retrying spends a second
+                    # and a third unit on a batch that was already paid for
+                    # and may already have succeeded. Three attempts is up to
+                    # 3 of the 250 for the month, on one batch, for nothing.
+                    # A 5xx is different in exactly the way that matters:
+                    # SerpApi answered, so we know what the first search
+                    # bought. This is the same bet the
+                    # `SerpApiMalformedResponseError` clause above declines --
+                    # "nobody knows whether the retry is billed too" -- with
+                    # even less to go on.
+                    #
+                    # Wrong in this direction costs four keywords from one
+                    # weekly run, and it is announced. Wrong in the other
+                    # direction costs money and is not.
+                    return None, "no response", False
+                if status not in RETRYABLE_STATUS:
                     return None, f"HTTP {status}", False
                 if attempt == BATCH_RETRIES:
-                    detail = f"HTTP {status}" if status else "no response"
-                    return None, f"{detail} after {attempt + 1} attempts", False
+                    return None, f"HTTP {status} after {attempt + 1} attempts", False
                 sleep(delay)
                 delay *= 2
             except Exception as exc:  # noqa: BLE001 - one batch, not the run

@@ -26,12 +26,12 @@ def _weekly_series(values, skip_weeks=()):
 
 
 def _snapshot(keyword, values=None, *, snap_id=None, geo="ES-MD", skip_weeks=(),
-              captured_at=CAPTURED_AT, series=None):
+              captured_at=CAPTURED_AT, series=None, timeframe="today 3-m"):
     return {
         "id": snap_id or str(uuid.uuid4()),
         "keyword": keyword,
         "geo": geo,
-        "timeframe": "today 3-m",
+        "timeframe": timeframe,
         "provider": "trendspy",
         "captured_at": captured_at,
         "series": series if series is not None else _weekly_series(values, skip_weeks),
@@ -48,6 +48,14 @@ def _rows(snapshots, **kwargs):
 # The golden file. Hand-derived from the spec, row by row -- never
 # regenerated from the code. Only the `id` column was ever rewritten, and
 # only by recomputing uuid5 from the documented natural key.
+#
+# The `timeframe` column was added the same way: taken from the committed
+# golden, the constant "today 3-m" inserted after `geo` (every input snapshot
+# carries that timeframe and no other), and `id` recomputed from the widened
+# natural key. The result was then compared against what `compute_signals`
+# produces and matched exactly -- but the file is the derivation, not the
+# output. Regenerating it from the code would make this test agree with
+# whatever the code does, which is the one thing a golden file must not do.
 # ---------------------------------------------------------------------------
 
 def test_compute_signals_byte_for_byte():
@@ -273,11 +281,13 @@ def test_ids_are_uuid5_of_the_natural_key():
         expected = str(uuid.uuid5(
             uuid.uuid5(uuid.NAMESPACE_DNS, "demand.reachout"),
             "|".join(["demand_signal", row["keyword"], row["geo"],
-                      row["window_start"], row["window_end"]]),
+                      row["timeframe"], row["window_start"],
+                      row["window_end"]]),
         ))
         assert row["id"] == expected
         assert row["id"] == signal_id(
-            row["keyword"], row["geo"], row["window_start"], row["window_end"]
+            row["keyword"], row["geo"], row["timeframe"],
+            row["window_start"], row["window_end"]
         )
         assert uuid.UUID(row["id"]).version == 5
 
@@ -322,3 +332,36 @@ def test_category_lookup_is_case_insensitive():
     )
 
     assert rows[0]["category"] == "Zapatillas"
+
+
+def test_two_timeframes_for_one_week_are_two_rows_not_one():
+    """A 12-month backfill must land beside the 3-month capture, not on it.
+
+    Google scales its 0-100 index to the window requested and this pipeline
+    rescales onto an anchor on top of that, so the same keyword in the same
+    calendar week genuinely reads differently at 3-m and at 12-m. They are two
+    measurements and they need two rows.
+
+    `id` is the PRIMARY key, so this is not merely a tidiness point: before
+    `timeframe` joined the uuid5 key, both rows hashed to the SAME id and the
+    backfill upsert collided on the primary key -- after the searches were
+    paid for.
+    """
+    rows = _rows([
+        _snapshot("cerveza", [50.0, 50.0], timeframe="today 3-m",
+                  snap_id="44444444-4444-4444-4444-444444444444"),
+        _snapshot("cerveza", [90.0, 90.0], timeframe="today 12-m",
+                  snap_id="55555555-5555-5555-5555-555555555555"),
+    ])
+
+    by_tf = {r["timeframe"]: r for r in rows}
+    assert set(by_tf) == {"today 3-m", "today 12-m"}
+    assert by_tf["today 3-m"]["id"] != by_tf["today 12-m"]["id"]
+
+    # And the readings did not average into each other on the way through.
+    assert by_tf["today 3-m"]["interest_avg"] == 50.0
+    assert by_tf["today 12-m"]["interest_avg"] == 90.0
+
+    # Each is ranked within its own timeframe, not against the other.
+    assert by_tf["today 3-m"]["rank"] == 1
+    assert by_tf["today 12-m"]["rank"] == 1
