@@ -9,11 +9,11 @@ Postgres DDL (`data/schema.sql`) are committed and **DO-NOT-MODIFY** — if
 an output fails validation, the OUTPUT is wrong; never widen a schema to
 let a payload through.
 
-What is *not* done is the live data: **all four `demand` tables are empty**
-(verified 2026-08-05; `rising_queries` has never held a row). The chain has
-never processed a real Google Trends capture — see "Live status" below. The
-API still serves a real, schema-valid payload because of the committed
-fixture (D10), and it labels it as practice data.
+The live data is populated: **all four `demand` tables hold rows** from a
+live SerpApi backfill (ran 2026-08-14, verified 2026-08-15) — see "Live
+status" below for the row counts. The API still serves a real,
+schema-valid payload because of the committed fixture (D10), and it labels
+it as practice data.
 
 If a Jules master-context block or any other doc disagrees with this file,
 trust this file — it is kept honest on purpose.
@@ -84,24 +84,34 @@ The API serves `/demand/api/health` unauthenticated (no auth anywhere — D2)
 and every other endpoint schema-validated. `/analytics` serves the committed
 fixture unless `DEMAND_ANALYTICS_SOURCE=live`.
 
-## Live status — the tables are empty
+## Live status — the tables are populated
 
 `demand.trend_snapshots`, `demand.demand_signals`, `demand.recommendations`
-and `demand.rising_queries` all hold **0 rows**. The Supabase schema is
-applied, exposed on the Data API, and granted to `service_role` (M3, verified
-by a live REST probe). The chain runs.
+and `demand.rising_queries` all hold rows from a live SerpApi backfill (ran
+2026-08-14, verified 2026-08-15): `demand.trend_snapshots` has 98 rows (49
+keywords × 2 timeframes); `demand.demand_signals` has 3,283 rows (2,597 ×
+`today 12-m` across 53 weekly windows, 2025-08-04 → 2026-08-03, plus 686 ×
+`today 3-m` across 14 windows, 2026-05-11 → 2026-08-10); `demand.rising_queries`
+has 658 rows (638 distinct queries across 42 parent keywords; 447 breakout,
+211 quantified); `demand.recommendations` has 1,541 rows (one per store ×
+signal). The Supabase schema is applied, exposed on the Data API, and
+granted to `service_role` (M3, verified by a live REST probe). The chain
+has run.
 
-What has not happened is the **first live run**. It is no longer blocked on
-anything external. The old blocker was scraping: `trendspy` hit Google
-directly, Google IP-throttled the project and served a CAPTCHA, and the
-answer was to wait. That provider is deleted and the workspace now goes
-through SerpApi, which is a paid API rather than a scrape — there is no
-throttle to wait out, and re-reading this section as "we are waiting for
-Google" is reading a world that no longer exists.
+The **first live run** has happened. The anchor keyword selected on that
+run was `crema hidratante`, chosen by the median rule. `interest_avg` is not
+capped at 100 — cross-batch rescaling puts the live maximum at 304.15. The
+honesty invariant holds in the live data: 0 rows where `is_breakout` is true
+and `growth_pct` is non-null.
 
-What stands between here and rows is a **decision to spend**: one run costs
-22 of the 250 searches for the month, and 8 are already spent. The run is
-`--provider serpapi --spend` from the repo root, and it is deliberately not
+The old blocker was scraping: `trendspy` hit Google directly, Google
+IP-throttled the project and served a CAPTCHA, and the answer was to wait.
+That provider is deleted and the workspace now goes through SerpApi, which
+is a paid API rather than a scrape.
+
+SerpApi budget: 97 of the 250 searches for the month are used, 153 remain.
+A further run costs 22 searches. The backfill was run with `--provider
+serpapi --spend` from the repo root, and that command is deliberately not
 something a script, a cron or an agent can trigger on its own.
 
 **The fixture provider is not a substitute for live data.**
