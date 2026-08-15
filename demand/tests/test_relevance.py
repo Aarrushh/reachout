@@ -85,28 +85,74 @@ def test_chain_name_modifier_tiers_commercial():
 
 
 # ---------------------------------------------------------------------------
-# 5. Eclipse variants that differ only by stopwords share one cluster_key
+# 5. All five eclipse variants share one cluster_id
 # ---------------------------------------------------------------------------
-# cluster_key's spec is: fold accents, lowercase, drop the named stopword
-# list, sort what remains, join it. That is a SYNTACTIC near-duplicate key,
-# not a semantic one. Of the five eclipse variants in the source table
-# ("gafas eclipse", "gafas para el eclipse", "gafas eclipse carrefour",
-# "comprar gafas eclipse solar", "donde comprar gafas para el eclipse"),
-# only the first two differ from each other by nothing but stopwords
-# ("para", "el") -- the other three each add a genuine extra content word
-# (carrefour / comprar / solar / donde) that the stopword list does not
-# cover, and by design those words are NOT discarded, so those three
-# deliberately get distinct cluster keys. This test covers the pair the
-# algorithm, as specified, actually collapses.
+# cluster_key() folds accents, lowercases, drops CLUSTER_STOPWORDS and
+# CLUSTER_DECORATION_TOKENS (retail decoration: chain names, "comprar",
+# "donde", ...), sorts what remains, and joins it. Of the five eclipse
+# variants in the source table ("gafas eclipse", "gafas para el eclipse",
+# "gafas eclipse carrefour", "comprar gafas eclipse solar", "donde comprar
+# gafas para el eclipse"), decoration-stripping alone already collapses
+# four of them onto the key `eclipse_gafas`; only "solar" in "comprar gafas
+# eclipse solar" is genuine extra content neither list covers, so
+# cluster_key() alone still gives that one variant the distinct, larger key
+# `eclipse_gafas_solar`. annotate() then merges that larger key into the
+# smaller key it is a strict superset of (see _merge_subset_keys in
+# relevance.py), so all five variants end up sharing one cluster_id. This
+# is the settled requirement -- all five share one id -- not merely
+# whatever today's implementation happens to produce.
 
 def test_eclipse_stopword_variants_share_cluster_key():
     assert cluster_key("gafas eclipse") == cluster_key("gafas para el eclipse")
 
 
-def test_eclipse_variant_with_extra_content_word_gets_distinct_key():
-    # Documents the boundary above: this is NOT a bug, it's the stopword-only
-    # heuristic doing exactly what it says on the tin.
-    assert cluster_key("gafas eclipse carrefour") != cluster_key("gafas eclipse")
+_ECLIPSE_VARIANTS = [
+    "gafas eclipse",
+    "gafas para el eclipse",
+    "gafas eclipse carrefour",
+    "comprar gafas eclipse solar",
+    "donde comprar gafas para el eclipse",
+]
+
+
+def test_all_five_eclipse_variants_share_one_cluster_id():
+    rows = [
+        {"query": q, "parent_keyword": "gafas de sol"} for q in _ECLIPSE_VARIANTS
+    ]
+    result = annotate(rows)
+    cluster_ids = {row["cluster_id"] for row in result}
+    assert len(cluster_ids) == 1, (
+        f"expected all five eclipse variants to share one cluster_id, "
+        f"got {cluster_ids!r}"
+    )
+
+
+def test_cluster_merge_is_order_independent():
+    rows = [
+        {"query": q, "parent_keyword": "gafas de sol"} for q in _ECLIPSE_VARIANTS
+    ]
+
+    forward = {row["query"]: row["cluster_id"] for row in annotate(rows)}
+    shuffled = {
+        row["query"]: row["cluster_id"]
+        for row in annotate(list(reversed(rows)))
+    }
+    assert forward == shuffled
+
+
+def test_single_token_key_does_not_absorb_unrelated_queries():
+    # A bare single-token cluster_key ("gafas") must never act as an
+    # absorbing key for a larger, unrelated query that merely shares that
+    # one token -- otherwise every eyewear query in the table would
+    # collapse into it. "gafas" alone and "gafas eclipse" must stay
+    # distinct clusters.
+    rows = [
+        {"query": "gafas", "parent_keyword": "gafas de sol"},
+        {"query": "gafas eclipse", "parent_keyword": "gafas de sol"},
+    ]
+    result = annotate(rows)
+    by_query = {row["query"]: row["cluster_id"] for row in result}
+    assert by_query["gafas"] != by_query["gafas eclipse"]
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +198,10 @@ def test_reasons_always_non_empty():
         ("bancos", "café"),
         ("bufanda en ingles", "bufanda"),
         ("bombillas led g9", "bombillas"),
-        ("xyz", "xyz"),  # a token with no signals at all
+        # query == parent, so contains_parent_keyword fires (the query is a
+        # one-token contiguous run of itself) alongside single_bare_token --
+        # NOT a case with no signals at all.
+        ("xyz", "xyz"),
     ]
     for query, parent in queries:
         result = score_query(query, parent)
@@ -162,6 +211,19 @@ def test_reasons_always_non_empty():
     rows = [{"query": q, "parent_keyword": p} for q, p in queries]
     for row in annotate(rows):
         assert len(row["relevance_reasons"]) >= 1
+
+
+def test_no_signals_detected_fallback_reached():
+    # A query that actually trips none of the positive or negative signals:
+    # too many tokens for the token-count-range band, no parent-keyword
+    # containment, no retail modifier, no chain name, no variant token, not
+    # blocklisted, no informational marker, and not a single bare token.
+    # This is the only path that should ever emit "no_signals_detected".
+    result = score_query(
+        "lorem ipsum dolor sit amet consectetur", "unrelated parent"
+    )
+    assert result["reasons"] == ["no_signals_detected"]
+    assert result["score"] == 0.0
 
 
 # ---------------------------------------------------------------------------

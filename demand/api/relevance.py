@@ -129,6 +129,10 @@ BLOCKLIST_EXACT = _NAVIGATIONAL_TERMS | _BARE_RETAILER_NAMES
 #: phrases that can appear with other tokens around them
 #: (`antes de que se enfrie el cafe` would match if it had "que es" in it;
 #: `bufanda en ingles` matches "en ingles" directly).
+#: Accented spellings ("qué es", "cómo se") are intentionally omitted: this
+#: set is only ever matched against `normalized_query`, which _fold() has
+#: already accent-stripped, so an accented entry here would never match
+#: anything and would be redundant -- do not "fix" that by adding them back.
 INFORMATIONAL_MARKERS = frozenset({
     "que es", "como se", "donde tirar", "donde se tiran",
     "en ingles", "significado", "letra", "receta",
@@ -206,26 +210,54 @@ NOISE_THRESHOLD = 0.0
 
 #: Dropped before sorting/joining so that queries differing only by function
 #: words collapse to the same key (`gafas eclipse` and `gafas para el
-#: eclipse` both reduce to the sorted pair `eclipse`, `gafas`). This is a
-#: syntactic near-duplicate key, not a semantic one: variants that add a
-#: genuine extra content word (`gafas eclipse carrefour`, `comprar gafas
-#: eclipse solar`) deliberately get their OWN cluster key, because that
-#: extra word is itself real information (which retailer, which action) that
-#: a stopword-only heuristic has no business discarding.
+#: eclipse` both reduce to the sorted pair `eclipse`, `gafas`). Retail
+#: decoration (chain names, "comprar", "donde", ...) is stripped separately
+#: by CLUSTER_DECORATION_TOKENS below -- see that constant and
+#: cluster_key()'s docstring for why. A genuine extra content word that is
+#: neither a stopword nor decoration (e.g. "solar" in "comprar gafas
+#: eclipse solar") still produces its own, larger key from this function
+#: alone; annotate() below merges that into the smaller key via
+#: _merge_subset_keys.
 CLUSTER_STOPWORDS = frozenset({
     "de", "la", "el", "para", "con", "en", "los", "las", "del", "al", "y",
 })
+
+#: Retail decoration to strip when building a CLUSTER key only -- scoring is
+#: untouched: RETAIL_MODIFIER_TOKENS and CHAIN_NAME_TOKENS above still score
+#: exactly as before in score_query(). These are vendor names and
+#: action/intent words wrapped around a query's actual subject
+#: ("comprar gafas...", "...gafas eclipse carrefour", "donde comprar..."),
+#: not the subject itself, so two rows differing only by one of these
+#: should still land on the same cluster card. `donde` is included here on
+#: top of RETAIL_MODIFIER_TOKENS because "donde comprar" is decoration for
+#: clustering purposes even though "donde" alone earns no retail-modifier
+#: score.
+CLUSTER_DECORATION_TOKENS = (
+    RETAIL_MODIFIER_TOKENS | CHAIN_NAME_TOKENS | frozenset({"donde"})
+)
 
 
 def cluster_key(query: str) -> str:
     """Stable key grouping near-duplicate queries.
 
-    Accent/case-folds the query, drops CLUSTER_STOPWORDS, sorts what remains,
-    and joins it. Two queries that differ only in function words (`gafas
-    eclipse` vs. `gafas para el eclipse`) collapse to the same key so a
-    consumer can surface one card instead of many near-identical rows.
+    Accent/case-folds the query, drops CLUSTER_STOPWORDS and
+    CLUSTER_DECORATION_TOKENS, sorts what remains, and joins it. Two
+    queries that differ only in function words or retail decoration
+    (`gafas eclipse` vs. `gafas para el eclipse` vs. `gafas eclipse
+    carrefour` vs. `donde comprar gafas para el eclipse`) collapse to the
+    same key so a consumer can surface one card instead of many
+    near-identical rows.
+
+    This function is pure and per-query: it has no knowledge of any other
+    row in the batch. A variant that adds one genuine extra content word
+    neither list covers (e.g. "solar" in "comprar gafas eclipse solar")
+    still gets its own, larger key here -- annotate() below does a second,
+    batch-level merge pass on top of these keys to fold that case in too.
     """
-    tokens = [t for t in _tokenize(query) if t not in CLUSTER_STOPWORDS]
+    tokens = [
+        t for t in _tokenize(query)
+        if t not in CLUSTER_STOPWORDS and t not in CLUSTER_DECORATION_TOKENS
+    ]
     return "_".join(sorted(tokens))
 
 
@@ -305,6 +337,50 @@ def score_query(query: str, parent_keyword: str) -> dict:
 # annotate
 # ---------------------------------------------------------------------------
 
+def _merge_subset_keys(keys) -> dict:
+    """Map each distinct cluster_key in a batch to its final cluster_id.
+
+    A key whose token set is a strict superset of another present key's
+    token set collapses into that smaller key -- e.g. "comprar gafas
+    eclipse solar" produces the raw key `eclipse_gafas_solar` (its "solar"
+    is genuine content cluster_key() cannot drop), and that key's token
+    set {eclipse, gafas, solar} is a strict superset of `eclipse_gafas`'s
+    {eclipse, gafas}, which is also present in the same batch, so it
+    collapses into `eclipse_gafas`.
+
+    This is a batch-level pass over the *set* of distinct keys the batch
+    produced -- never per-row and never dependent on which row happened to
+    appear first -- so the mapping (and therefore every row's cluster_id)
+    cannot depend on row order. See test_cluster_merge_is_order_independent.
+
+    Two constraints, both load-bearing:
+    - An absorbing (i.e. smaller/target) key must have at least 2 tokens,
+      so a bare single-token key such as `gafas` can never swallow every
+      other eyewear query in the table.
+    - When more than one present key qualifies as a strict subset, the
+      smallest one wins -- fewest tokens first, then lexicographic key
+      string as a tiebreak -- so the result is a pure function of the key
+      set alone, independent of iteration or insertion order. Because the
+      strict-subset relation is transitive, picking the global minimum
+      qualifying key directly (rather than one merge hop at a time) already
+      lands on the fixed point: if some key K were a smaller subset of that
+      minimum, K would itself be a strict subset of the original key too,
+      and so would have been chosen instead.
+    """
+    token_sets = {key: frozenset(key.split("_")) for key in keys}
+    mapping = {}
+    for key, tokens in token_sets.items():
+        candidates = [
+            other for other, other_tokens in token_sets.items()
+            if other_tokens < tokens and len(other_tokens) >= 2
+        ]
+        mapping[key] = (
+            min(candidates, key=lambda k: (len(token_sets[k]), k))
+            if candidates else key
+        )
+    return mapping
+
+
 def annotate(rows: list) -> list:
     """Adds relevance_score / relevance_tier / relevance_reasons / cluster_id.
 
@@ -312,14 +388,26 @@ def annotate(rows: list) -> list:
     and every original field (including `growth_pct` / `is_breakout`) is
     copied through unchanged. Rows are copied, not mutated in place, so the
     caller's original list is left untouched.
+
+    `cluster_id` is not simply `cluster_key(query)`: after every row's raw
+    key is computed, keys whose token set is a strict superset of another
+    present key's are merged toward the smaller key (see
+    _merge_subset_keys), so near-duplicates that differ by one genuine
+    extra content word -- not just a stopword or retail decoration -- still
+    land on one card. That merge is batch-level and order-independent;
+    cluster_key() itself stays a pure per-query function with no knowledge
+    of any other row, per the endpoint task's public-surface contract.
     """
+    raw_keys = [cluster_key(row.get("query", "")) for row in rows]
+    merge_map = _merge_subset_keys(set(raw_keys))
+
     annotated = []
-    for row in rows:
+    for row, raw_key in zip(rows, raw_keys):
         result = score_query(row.get("query", ""), row.get("parent_keyword", ""))
         new_row = dict(row)
         new_row["relevance_score"] = result["score"]
         new_row["relevance_tier"] = result["tier"]
         new_row["relevance_reasons"] = result["reasons"]
-        new_row["cluster_id"] = cluster_key(row.get("query", ""))
+        new_row["cluster_id"] = merge_map[raw_key]
         annotated.append(new_row)
     return annotated
