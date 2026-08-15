@@ -17,6 +17,7 @@ schema and `products` in `public`. The fake is configured that way; a single
 flat dict would pass while hiding a wrong-schema read.
 """
 
+import datetime
 import json
 import uuid
 from pathlib import Path
@@ -41,6 +42,13 @@ STORE_B = "22222222-2222-2222-2222-222222222222"
 #: The plan's binding fixture size (S3): 8 weeks x 100 SKUs.
 FIXTURE_SKU_COUNT = 100
 
+#: Every `_signal()` row defaults onto this `window_start` unless a test
+#: overrides it. It is the single value the analytics endpoint's
+#: latest-window lookup resolves to when it is the only (or the most
+#: recent) window present, so the existing fixtures keep behaving exactly
+#: as they did before `timeframe`/`window_start` filtering existed.
+LATEST_WINDOW_START = "2024-01-21"
+
 
 def real_category_vocabulary():
     """The only categories `products.category` can hold."""
@@ -50,7 +58,8 @@ def real_category_vocabulary():
 
 
 def _signal(keyword, rank, window_end, interest_avg, delta_pct, direction,
-            confidence, category=None):
+            confidence, category=None, window_start=LATEST_WINDOW_START,
+            timeframe="today 3-m"):
     return {
         "keyword": keyword,
         "category": category,
@@ -60,6 +69,8 @@ def _signal(keyword, rank, window_end, interest_avg, delta_pct, direction,
         "confidence": confidence,
         "rank": rank,
         "window_end": window_end,
+        "window_start": window_start,
+        "timeframe": timeframe,
     }
 
 
@@ -481,11 +492,161 @@ def test_unknown_store_id_yields_empty_inventory_segments(test_client, live):
 
 
 # ---------------------------------------------------------------------------
+# timeframe: two incomparable scales in one table (Requirement 1)
+# ---------------------------------------------------------------------------
+
+def test_analytics_timeframe_selects_which_scale_top_movers_reads(test_client, live):
+    """The same keyword, two timeframes, two different `interest_avg` values.
+
+    `demand.demand_signals` holds `today 3-m` and `today 12-m` readings of
+    the same calendar week in one table. Without a `timeframe` filter every
+    read mixes both scales; with it, each call sees exactly one.
+    """
+    rows = [
+        _signal("cerveza", 1, "2024-01-21", 70.0, 5.0, "rising", "high",
+                "grocery", window_start="2024-01-21", timeframe="today 3-m"),
+        _signal("cerveza", 1, "2024-06-03", 40.0, -2.0, "falling", "high",
+                "grocery", window_start="2024-06-03", timeframe="today 12-m"),
+    ]
+    with _with_client(signals=rows):
+        api_app.get_client.cache_clear()
+        three_m = test_client.get(
+            "/demand/api/analytics", params={"timeframe": "today 3-m"}
+        ).json()
+        twelve_m = test_client.get(
+            "/demand/api/analytics", params={"timeframe": "today 12-m"}
+        ).json()
+
+    assert _points(three_m, "top_movers")[0]["interest_avg"] == 70.0
+    assert _points(twelve_m, "top_movers")[0]["interest_avg"] == 40.0
+
+
+def test_analytics_default_timeframe_is_3m(test_client, live):
+    """No `timeframe` param behaves exactly like `timeframe=today 3-m`."""
+    rows = [
+        _signal("cerveza", 1, "2024-01-21", 70.0, 5.0, "rising", "high",
+                "grocery", window_start="2024-01-21", timeframe="today 3-m"),
+        _signal("cerveza", 1, "2024-06-03", 40.0, -2.0, "falling", "high",
+                "grocery", window_start="2024-06-03", timeframe="today 12-m"),
+    ]
+    with _with_client(signals=rows):
+        api_app.get_client.cache_clear()
+        data = test_client.get("/demand/api/analytics").json()
+    assert _points(data, "top_movers")[0]["interest_avg"] == 70.0
+
+
+# ---------------------------------------------------------------------------
+# The analytics cap regression guard (Requirement 2, the important one)
+# ---------------------------------------------------------------------------
+
+def _many_windows_signal_rows(num_keywords=49, num_windows=53):
+    """~49 keywords x ~53 weekly windows -- the real 12-month shape.
+
+    Every keyword holds the SAME `rank` in every window (so a query that
+    orders by `rank` across all windows, ignoring `window_start`, groups
+    all of one keyword's rows together before moving to the next keyword --
+    exactly the defect Requirement 2 fixes). `delta_pct` is stamped with the
+    window's index so a test can tell, after the fact, which window a
+    surviving row actually came from.
+    """
+    base = datetime.date(2024, 1, 1)
+    window_starts = [
+        (base + datetime.timedelta(weeks=w)).isoformat() for w in range(num_windows)
+    ]
+    rows = []
+    for w, window_start in enumerate(window_starts):
+        for k in range(num_keywords):
+            rows.append(
+                _signal(
+                    f"kw{k:02d}",
+                    rank=k + 1,
+                    window_end=window_start,
+                    interest_avg=50.0,
+                    delta_pct=float(w),
+                    direction="flat",
+                    confidence="high",
+                    category="grocery",
+                    window_start=window_start,
+                    timeframe="today 3-m",
+                )
+            )
+    return rows, window_starts
+
+
+def test_analytics_cap_is_bounded_to_the_latest_window_not_the_whole_table(
+    test_client, live, monkeypatch
+):
+    """The whole point of Requirement 2.
+
+    Before the fix, the live query ordered by `rank` across every window and
+    took the top `ANALYTICS_SIGNALS_CAP` (500) rows. With ~49 keywords x ~53
+    windows (2597 rows, mirroring the real `today 12-m` table), that keeps
+    every row for the first ~9 best-ranked keywords and drops the other ~40
+    entirely -- `top_movers` would show a handful of perennial staples, not
+    the actual movers. This must fail against the old code.
+    """
+    # TOP_MOVERS_MAX_POINTS (20) is a deliberate chart-size cap, unrelated to
+    # Requirement 2; raise it so the assertions below see the full set of
+    # keywords the query actually resolved, not the display truncation.
+    monkeypatch.setattr(api_app, "TOP_MOVERS_MAX_POINTS", 200)
+
+    rows, window_starts = _many_windows_signal_rows()
+    latest_window = max(window_starts)
+
+    with _with_client(signals=rows):
+        api_app.get_client.cache_clear()
+        data = test_client.get("/demand/api/analytics").json()
+
+    points = _points(data, "top_movers")
+
+    # Not collapsed to the handful a rank-ordered 500-row slice would leave:
+    # every one of the 49 keywords in the latest window makes it through.
+    assert len(points) == 49
+    assert {point["keyword"] for point in points} == {
+        f"kw{k:02d}" for k in range(49)
+    }
+
+    # Every surviving point comes from the single latest window: delta_pct
+    # was stamped with the window index, and the latest window is the last
+    # one (index num_windows - 1).
+    assert all(point["delta_pct"] == 52.0 for point in points), (
+        "a top_movers point was built from a row outside the latest window"
+    )
+
+    # Confirms which window that actually was, independent of the encoding
+    # above: the max window_start really is the one the endpoint resolved.
+    assert latest_window == window_starts[-1]
+
+
+def test_analytics_empty_signals_table_is_a_valid_shaped_response(test_client, live):
+    """No window at all for the timeframe: still 200, still schema-valid.
+
+    `analytics_response.schema.json` documents empty `points` arrays as a
+    valid response, not an error -- this is the empty-table case from
+    Requirement 2's implementation note.
+    """
+    with _with_client(signals=[]):
+        api_app.get_client.cache_clear()
+        response = test_client.get("/demand/api/analytics")
+    assert response.status_code == 200
+    data = response.json()
+    validate_with_formats(data, ANALYTICS_SCHEMA)
+    assert _points(data, "top_movers") == []
+
+
+# ---------------------------------------------------------------------------
 # Failure paths: described, never a stack trace
 # ---------------------------------------------------------------------------
 
 def test_analytics_invalid_inventory_type(test_client):
     response = test_client.get("/demand/api/analytics?inventory_type=grocery")
+    assert response.status_code == 422
+
+
+def test_analytics_invalid_timeframe(test_client):
+    response = test_client.get(
+        "/demand/api/analytics", params={"timeframe": "today 6-m"}
+    )
     assert response.status_code == 422
 
 

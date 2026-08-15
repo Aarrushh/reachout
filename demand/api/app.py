@@ -120,15 +120,29 @@ ANALYTICS_SIGNAL_COLUMNS = (
 ANALYTICS_PRODUCT_COLUMNS = "category, stock_qty"
 
 # --- Bounds. Every read is bounded and ordered; none of these are magic. ---
+#: The two measurement scales `demand.demand_signals` and
+#: `demand.trend_snapshots` hold, discriminated by `timeframe`. Google
+#: rescales its 0-100 interest index to the requested window, and this
+#: pipeline rescales again onto a shared anchor keyword, so the same keyword
+#: in the same calendar week reads differently at 3-m and at 12-m. Every
+#: read of either table must pick one.
+ALLOWED_TIMEFRAMES = ("today 3-m", "today 12-m")
+#: Unchanged default: a caller that never heard of the new param gets
+#: exactly the scale every existing consumer already read.
+DEFAULT_TIMEFRAME = "today 3-m"
+
 #: Default page size for the three list endpoints.
 DEFAULT_PAGE_SIZE = 100
 #: Documented hard cap. `limit` above this is a 422 from FastAPI, not a
 #: silently-clamped value: a caller that asked for 10_000 rows should be
 #: told it cannot have them rather than quietly handed 500.
 MAX_PAGE_SIZE = 500
-#: `demand.demand_signals` holds one row per keyword per weekly window; the
-#: keyword universe is capped at 100 (`build_universe`), so 500 covers five
-#: windows of the full universe.
+#: `demand.demand_signals` holds one row per keyword per weekly window, but
+#: the analytics query is now bounded to a single `window_start` (the most
+#: recent one for the requested timeframe, resolved separately -- see
+#: `get_analytics`), not to the whole table. The keyword universe is capped
+#: at 100 (`build_universe`), so this cap is a backstop against one
+#: pathologically large window, not the primary bound.
 ANALYTICS_SIGNALS_CAP = 500
 #: `public.products` is specified at 3000-5000 rows
 #: (`reachout/data/schema.sql`). The cap sits at the top of that range so a
@@ -368,6 +382,19 @@ def _require_uuid(value: Any, field: str) -> str:
     return value
 
 
+def _require_timeframe(timeframe: str) -> None:
+    """4xx on a timeframe outside `ALLOWED_TIMEFRAMES`.
+
+    Same guard style as `inventory_type` below: an unrecognised value is a
+    422, not a silent fall-through to one scale or the other.
+    `demand_signals` and `trend_snapshots` hold two measurement scales in
+    one table; picking the wrong one silently is exactly the bug this
+    parameter exists to close.
+    """
+    if timeframe not in ALLOWED_TIMEFRAMES:
+        raise HTTPException(status_code=422, detail="Unsupported timeframe")
+
+
 def _as_number(value: Any) -> Optional[float]:
     """Coerce a PostgREST `numeric` to float, or None if it is not one.
 
@@ -450,12 +477,15 @@ async def health():
 @app.get("/demand/api/trends")
 async def get_trends(
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    timeframe: str = DEFAULT_TIMEFRAME,
 ):
     """Newest captures first, bounded. Never the whole table."""
+    _require_timeframe(timeframe)
     data = await _fetch(
         lambda: get_client()
         .table("trend_snapshots")
         .select(TREND_COLUMNS)
+        .eq("timeframe", timeframe)
         .order("captured_at", desc=True)
         .limit(limit)
     )
@@ -470,20 +500,41 @@ async def get_trends(
 async def get_signals(
     window: Optional[str] = None,
     direction: Optional[str] = None,
+    keyword: Optional[str] = None,
+    order: str = "rank",
+    timeframe: str = DEFAULT_TIMEFRAME,
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ):
-    """Signals ordered by `rank` (best first), bounded."""
+    """Signals ordered by `rank` (best first) by default, bounded.
+
+    `order="window_start"` is opt-in only -- flipping the default would
+    silently change this endpoint's existing, documented contract for every
+    caller who never asked for a time series. It sorts ascending
+    (chronological), which is what a caller building a demand-over-time
+    chart for one `keyword` needs.
+    """
+    _require_timeframe(timeframe)
+    if order not in ("rank", "window_start"):
+        raise HTTPException(status_code=422, detail="Unsupported order")
+
     def _build():
         query = (
             get_client()
             .table("demand_signals")
             .select(SIGNAL_COLUMNS)
+            .eq("timeframe", timeframe)
         )
         if window:
             query = query.eq("window_start", window)
         if direction:
             query = query.eq("direction", direction)
-        return query.order("rank").limit(limit)
+        if keyword:
+            query = query.eq("keyword", keyword)
+        if order == "window_start":
+            query = query.order("window_start")
+        else:
+            query = query.order("rank")
+        return query.limit(limit)
 
     data = await _fetch(_build)
 
@@ -668,6 +719,7 @@ async def get_analytics(
         ),
     ),
     inventory_type: str = "convenience_store",
+    timeframe: str = DEFAULT_TIMEFRAME,
 ):
     """Three chart segments for the retail dashboard.
 
@@ -677,9 +729,16 @@ async def get_analytics(
     dimension by design (search interest is ES-MD wide, per the caveat), and
     pretending otherwise would be the same class of lie as the numbers this
     fix removed. It is still not an authorization subject: no auth (D2).
+
+    `timeframe` selects which of the two `demand_signals` scales
+    `top_movers` reads (see `ALLOWED_TIMEFRAMES`). It is NOT applied to
+    `public.products`: `category_mix` and `stock_out_risk` are a census of
+    inventory, not a read of search signals, and are timeframe-independent.
     """
     if inventory_type != "convenience_store":
         raise HTTPException(status_code=422, detail="Unsupported inventory_type")
+
+    _require_timeframe(timeframe)
 
     if store_id is not None:
         _require_uuid(store_id, "store_id")
@@ -694,13 +753,40 @@ async def get_analytics(
         _validate_response(data, ANALYTICS_SCHEMA, "analytics_response")
         return data
 
-    signals = await _fetch(
+    # The main signals query used to order by `rank` across every window in
+    # the table and take the top ANALYTICS_SIGNALS_CAP rows. With a year of
+    # history that slices off everything except the best few ranks --
+    # `top_movers` would show a handful of perennial high-volume staples and
+    # almost none of the actual movers. Resolving the latest `window_start`
+    # first and constraining the main query to it bounds the read to one
+    # week, so the cap below is a backstop again, not the primary bound.
+    latest_window_rows = await _fetch(
         lambda: get_client()
         .table("demand_signals")
-        .select(ANALYTICS_SIGNAL_COLUMNS)
-        .order("rank")
-        .limit(ANALYTICS_SIGNALS_CAP)
+        .select("window_start")
+        .eq("timeframe", timeframe)
+        .order("window_start", desc=True)
+        .limit(1)
     )
+    latest_window = (
+        latest_window_rows[0].get("window_start") if latest_window_rows else None
+    )
+
+    if latest_window is None:
+        # No window at all for this timeframe: still a valid, shaped
+        # response with empty `points` arrays, not an error --
+        # `analytics_response.schema.json` documents that shape as valid.
+        signals: List[dict] = []
+    else:
+        signals = await _fetch(
+            lambda: get_client()
+            .table("demand_signals")
+            .select(ANALYTICS_SIGNAL_COLUMNS)
+            .eq("timeframe", timeframe)
+            .eq("window_start", latest_window)
+            .order("rank")
+            .limit(ANALYTICS_SIGNALS_CAP)
+        )
 
     def _products_query():
         query = (

@@ -36,12 +36,12 @@ SNAPSHOT_ID = "33333333-3333-3333-3333-333333333333"
 CAVEAT = "Basado en interés de búsqueda en Madrid, no en compras reales."
 
 
-def _trend_row(keyword, captured_at, captured_date):
+def _trend_row(keyword, captured_at, captured_date, timeframe="today 3-m"):
     return {
         "id": str(uuid.uuid4()),
         "keyword": keyword,
         "geo": "ES-MD",
-        "timeframe": "today 3-m",
+        "timeframe": timeframe,
         "provider": "trendspy",
         "captured_at": captured_at,
         "series": [{"date": captured_date, "value": 50}],
@@ -55,13 +55,14 @@ def _trend_row(keyword, captured_at, captured_date):
     }
 
 
-def _signal_row(keyword, rank, direction="rising", confidence="high", window_start="2024-01-01"):
+def _signal_row(keyword, rank, direction="rising", confidence="high", window_start="2024-01-01",
+                 timeframe="today 3-m"):
     return {
         "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{keyword}-{window_start}")),
         "keyword": keyword,
         "category": "grocery",
         "geo": "ES-MD",
-        "timeframe": "today 3-m",
+        "timeframe": timeframe,
         "window_start": window_start,
         "window_end": "2024-01-07",
         "interest_avg": 50,
@@ -197,6 +198,85 @@ def test_signals_limit_is_honoured_and_capped(test_client):
     assert len(test_client.get("/demand/api/signals?limit=1").json()) == 1
     over = test_client.get(f"/demand/api/signals?limit={api_app.MAX_PAGE_SIZE + 1}")
     assert over.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# timeframe: the two demand_signals/trend_snapshots scales stay separate
+# ---------------------------------------------------------------------------
+
+def test_get_trends_filters_by_timeframe(test_client):
+    """A 12-m trend is invisible on the (default) 3-m read, and vice versa."""
+    tables = demand_tables()
+    tables["trend_snapshots"].append(
+        _trend_row("otro", "2024-01-05T12:00:00Z", "2024-01-05", timeframe="today 12-m")
+    )
+    with _client_with(tables):
+        api_app.get_client.cache_clear()
+        default_keywords = {
+            row["keyword"] for row in test_client.get("/demand/api/trends").json()
+        }
+        assert "otro" not in default_keywords
+
+        twelve_m = test_client.get(
+            "/demand/api/trends", params={"timeframe": "today 12-m"}
+        )
+        assert [row["keyword"] for row in twelve_m.json()] == ["otro"]
+
+
+def test_get_signals_filters_by_timeframe(test_client):
+    tables = demand_tables()
+    tables["demand_signals"].append(
+        _signal_row("otro", rank=1, window_start="2024-03-01", timeframe="today 12-m")
+    )
+    with _client_with(tables):
+        api_app.get_client.cache_clear()
+        default_keywords = {
+            row["keyword"] for row in test_client.get("/demand/api/signals").json()
+        }
+        assert "otro" not in default_keywords
+
+        twelve_m = test_client.get(
+            "/demand/api/signals", params={"timeframe": "today 12-m"}
+        )
+        assert [row["keyword"] for row in twelve_m.json()] == ["otro"]
+
+
+@pytest.mark.parametrize(
+    "route",
+    ["/demand/api/trends", "/demand/api/signals", "/demand/api/analytics"],
+)
+def test_unrecognised_timeframe_is_422_on_every_endpoint(test_client, route):
+    response = test_client.get(route, params={"timeframe": "today 6-m"})
+    assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# /signals: keyword filter and opt-in chronological order (Requirement 3)
+# ---------------------------------------------------------------------------
+
+def test_get_signals_keyword_filter(test_client):
+    response = test_client.get("/demand/api/signals", params={"keyword": "cerveza"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data and {row["keyword"] for row in data} == {"cerveza"}
+
+
+def test_get_signals_order_defaults_to_rank(test_client):
+    """Unchanged default: no `order` param behaves exactly as before."""
+    response = test_client.get("/demand/api/signals")
+    assert [row["keyword"] for row in response.json()] == ["cerveza", "hielo", "helados"]
+
+
+def test_get_signals_order_by_window_start_is_chronological(test_client):
+    response = test_client.get("/demand/api/signals", params={"order": "window_start"})
+    assert response.status_code == 200
+    starts = [row["window_start"] for row in response.json()]
+    assert starts == sorted(starts)
+
+
+def test_get_signals_invalid_order_is_422(test_client):
+    response = test_client.get("/demand/api/signals", params={"order": "bogus"})
+    assert response.status_code == 422
 
 
 def test_get_recommendations_for_a_store(test_client):
