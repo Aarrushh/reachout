@@ -126,6 +126,17 @@ class FakeQueryBuilder:
         return self
 
     def order(self, col, desc=False):
+        """Sort by one column.
+
+        Do NOT chain two `.order()` calls and assert on the result: this
+        fake and the real client compose them in opposite priority. Here
+        each call re-sorts the whole list, and because Python's sort is
+        stable the LAST call wins as the primary key. postgrest-py instead
+        appends to one comma-joined `order` param, so Postgres reads it as
+        `ORDER BY first, second` and the FIRST call wins. A compound-order
+        test written against this fake therefore passes while asserting
+        the reverse of production. Order by a unique column instead.
+        """
         def _get_val(row):
             val = row.get(col)
             return val if val is not None else float('-inf')

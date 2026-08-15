@@ -89,6 +89,21 @@ def _recommendation_row(store_id, headline, created_at):
     }
 
 
+def _rising_query_row(query, parent_keyword, growth_pct=None, is_breakout=False):
+    return {
+        "id": str(uuid.uuid4()),
+        "parent_keyword": parent_keyword,
+        "query": query,
+        "growth_pct": growth_pct,
+        "is_breakout": is_breakout,
+        "geo": "ES-MD",
+        # "" is the real stored value for Web-derived rows, not a missing one.
+        "gprop": "",
+        "captured_at": "2024-01-05T12:00:00Z",
+        "captured_date": "2024-01-05",
+    }
+
+
 def demand_tables():
     return {
         "trend_snapshots": [
@@ -105,6 +120,13 @@ def demand_tables():
             _recommendation_row(STORE_A, "Stock up on cerveza", "2024-01-08T12:00:00Z"),
             _recommendation_row(STORE_A, "Stock up on hielo", "2024-01-09T12:00:00Z"),
             _recommendation_row(STORE_B, "Stock up on helados", "2024-01-10T12:00:00Z"),
+        ],
+        # One quantified row and one breakout row. The breakout row carries
+        # growth_pct=None on purpose: Google declined to quantify it, and a
+        # fixture that invented a number here would let a regression through.
+        "rising_queries": [
+            _rising_query_row("comprar cerveza barata", "cerveza", growth_pct=90.0),
+            _rising_query_row("cerveza sin alcohol", "cerveza", is_breakout=True),
         ],
     }
 
@@ -347,6 +369,7 @@ SUPABASE_BACKED_ROUTES = [
     "/demand/api/signals",
     f"/demand/api/recommendations?store_id={STORE_A}",
     "/demand/api/analytics",
+    "/demand/api/rising-queries",
 ]
 
 
@@ -596,12 +619,19 @@ def test_selects_are_explicit_and_never_star(monkeypatch):
         "demand.trend_snapshots",
         "demand.demand_signals",
         "demand.recommendations",
+        "demand.rising_queries",
         "public.products",
     }
 
     for label, cols in recorder.selects:
         assert cols.strip() != "*", f"{label} was read with select('*')"
         assert "*" not in cols, f"{label} was read with a wildcard select: {cols!r}"
-        assert "captured_date" not in cols, (
-            f"{label} asked for the DB-only captured_date column"
-        )
+        # captured_date is DB-only for trend_snapshots alone: its schema
+        # forbids the column, so selecting it 500s in production. It is a
+        # required field of rising_query.schema.json, so that route must
+        # select it. Scope the guard to the table it actually protects
+        # rather than letting a legitimate select trip it.
+        if label == "demand.trend_snapshots":
+            assert "captured_date" not in cols, (
+                f"{label} asked for the DB-only captured_date column"
+            )
