@@ -27,11 +27,17 @@ const CONFIDENCE_KEY = {
  *
  * An empty segment is a normal state, not an error (D10, fixture-first): the
  * panel says there is nothing to show yet and still shows its caveat.
+ *
+ * `confidence` is optional because not every panel's endpoint carries one —
+ * `/demand/api/rising-queries` has no confidence field of its own, and
+ * inventing a label for a number that has none would be the same honesty
+ * violation as fabricating the number itself. Omitting the prop omits the
+ * chip; it never falls back to a guessed level.
  */
 export interface ChartPanelProps {
   lang: Lang;
   title: string;
-  confidence: Confidence;
+  confidence?: Confidence;
   caveat: string;
   /** Empty `points` renders the empty state instead of the chart. */
   isEmpty: boolean;
@@ -50,9 +56,11 @@ export default function ChartPanel({
     <section className="chart-panel">
       <header className="chart-panel__head">
         <h2 className="chart-panel__title">{title}</h2>
-        <span className={`chart-panel__chip chart-panel__chip--${confidence}`}>
-          {t(lang, "retail.confidenceLabel", { level: t(lang, CONFIDENCE_KEY[confidence]) })}
-        </span>
+        {confidence && (
+          <span className={`chart-panel__chip chart-panel__chip--${confidence}`}>
+            {t(lang, "retail.confidenceLabel", { level: t(lang, CONFIDENCE_KEY[confidence]) })}
+          </span>
+        )}
       </header>
 
       {isEmpty ? (

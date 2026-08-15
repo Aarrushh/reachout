@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import RetailDashboard from "./RetailDashboard";
 import type { AnalyticsResponse } from "../../types/AnalyticsResponse";
+import type { RisingQuery } from "../../types/RisingQuery";
 
 // ECharts renders into a canvas that jsdom does not implement. The chart
 // library is not what these tests are about — the frame around it is — so it
@@ -43,10 +44,20 @@ function mount(lang: "es" | "en" = "en") {
   );
 }
 
-function respondWith(body: AnalyticsResponse) {
+// RetailDashboard now fires two independent fetches once analytics loads:
+// its own /analytics call and the discovery panel's /rising-queries call.
+// Routing by URL keeps each test's analytics fixture from being handed back
+// for the rising-queries request too, which would not even be the right
+// shape (an object, not an array).
+function respondWith(body: AnalyticsResponse, risingQueries: RisingQuery[] = []) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ ok: true, status: 200, json: async () => body }) as unknown as Response),
+    vi.fn(async (url: string) => {
+      if (String(url).includes("/rising-queries")) {
+        return { ok: true, status: 200, json: async () => risingQueries } as unknown as Response;
+      }
+      return { ok: true, status: 200, json: async () => body } as unknown as Response;
+    }),
   );
 }
 
@@ -69,7 +80,7 @@ describe("RetailDashboard", () => {
     respondWith({ ...RESPONSE, generated_from: "live" });
     mount();
 
-    await screen.findByText(/top movers/i);
+    await screen.findByRole("heading", { name: /^top movers$/i });
     expect(screen.queryByText(/practice data/i)).toBeNull();
   });
 
@@ -88,7 +99,7 @@ describe("RetailDashboard", () => {
     respondWith(RESPONSE);
     mount();
 
-    await screen.findByText(/top movers/i);
+    await screen.findByRole("heading", { name: /^top movers$/i });
     expect(screen.getAllByText(RESPONSE.caveat)).toHaveLength(3);
     // stock_out_risk has no points: empty state, chart absent, caveat present.
     expect(screen.getByText(/no data for this chart yet/i)).toBeTruthy();
@@ -113,9 +124,45 @@ describe("RetailDashboard", () => {
     respondWith(RESPONSE);
     mount();
 
-    await screen.findByText(/top movers/i);
+    await screen.findByRole("heading", { name: /^top movers$/i });
     const url = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(url).toContain("/demand/api/analytics");
     expect(url).toContain("inventory_type=convenience_store");
+  });
+
+  it("defaults to the 3-month timeframe and refetches on switching to 12 months", async () => {
+    respondWith(RESPONSE);
+    mount();
+
+    await screen.findByRole("heading", { name: /^top movers$/i });
+    const calls = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const firstAnalyticsCall = calls.find((c) => String(c[0]).includes("/demand/api/analytics"));
+    expect(String(firstAnalyticsCall?.[0])).toContain("timeframe=today+3-m");
+
+    // This is the critical correctness rule (task-4, requirement 2): a
+    // 3-month reading and a 12-month reading of the same keyword are on
+    // different, non-convertible scales, so switching the toggle must issue
+    // a brand new fetch rather than reslicing what is already in memory.
+    fireEvent.click(screen.getByRole("button", { name: "12 months" }));
+
+    await waitFor(() => {
+      const callsAfter = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+      const secondAnalyticsCall = callsAfter
+        .filter((c) => String(c[0]).includes("/demand/api/analytics"))
+        .at(-1);
+      expect(String(secondAnalyticsCall?.[0])).toContain("timeframe=today+12-m");
+    });
+  });
+
+  it("does not let the timeframe toggle appear to move category mix or stock-out risk", async () => {
+    respondWith(RESPONSE);
+    mount();
+
+    await screen.findByRole("heading", { name: /^top movers$/i });
+
+    // Placement, not just wording: the toggle's caption names the two
+    // segments it does NOT govern, and both charts still render outside
+    // the toggle's own column.
+    expect(screen.getByText(/category mix and stock-out risk/i)).toBeTruthy();
   });
 });

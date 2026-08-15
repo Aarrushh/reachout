@@ -88,6 +88,16 @@ const STRINGS = {
   "retail.loading":         { es: "Cargando analíticas…", en: "Loading analytics…" },
   "retail.loadFailed":      { es: "No se pudieron cargar las analíticas. Vuelve a intentarlo.", en: "Could not load the analytics. Try again." },
   "retail.practiceData":    { es: "Datos de práctica, no de tu tienda. Todavía no hay una ingesta real detrás de estas cifras.", en: "Practice data, not your shop's. There is no live ingest behind these figures yet." },
+  "retail.timeframe.label":  { es: "Ventana de búsqueda", en: "Search window" },
+  "retail.timeframe.caption": { es: "Cambia solo lo que más sube — el reparto por categoría y el riesgo de stock vienen de tu inventario y no cambian.", en: "Changes the top movers chart only — category mix and stock-out risk come from your inventory and do not change." },
+  "retail.timeframe.3m":     { es: "3 meses", en: "3 months" },
+  "retail.timeframe.12m":    { es: "12 meses", en: "12 months" },
+  "retail.chart.risingQueries": { es: "Búsquedas en alza", en: "Rising searches" },
+  "retail.risingQueries.caveat": { es: "Interés de búsqueda en todo Madrid, no compras reales, y no el inventario de esta tienda.", en: "Search interest across Madrid, not real purchases, and not this shop's inventory." },
+  "retail.risingQueries.breakout": { es: "Búsqueda revelación", en: "Breakout" },
+  "retail.risingQueries.growth":   { es: "+{pct}%", en: "+{pct}%" },
+  "retail.risingQueries.clusterSize": { es: "{n} variantes similares", en: "{n} similar searches" },
+  "retail.risingQueries.underParent": { es: "bajo «{parent}»", en: "under \"{parent}\"" },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

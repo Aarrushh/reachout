@@ -155,3 +155,109 @@
   line-height: 1.4;
   color: var(--sand-dim);
 }
+
+/* Task 4: the movers column wraps the timeframe toggle around the one chart
+ * it governs, so the toggle sits inside the same grid cell as top movers
+ * rather than floating above category_mix and stock_out_risk too. */
+.retail-dash__movers-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.timeframe-toggle__buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.timeframe-toggle__button {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--ink-600);
+  background: transparent;
+  color: var(--sand-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.timeframe-toggle__button[aria-pressed="true"] {
+  background: var(--sand);
+  color: var(--ink-900);
+  border-color: var(--sand);
+}
+
+/* Not decoration: the toggle only rescales the movers chart, and this line
+ * is what keeps a shopkeeper from reading "12 months" as a change to their
+ * category mix or stock-out risk, neither of which move with it. */
+.timeframe-toggle__caption {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--sand-dim);
+  max-width: 40ch;
+}
+
+/* Task 4: the discovery panel's clustered rows. */
+.rising-queries__list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rising-queries__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ink-700);
+}
+
+.rising-queries__row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.rising-queries__row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rising-queries__query {
+  font-size: 13px;
+}
+
+.rising-queries__parent {
+  font-size: 11px;
+  color: var(--sand-dim);
+}
+
+.rising-queries__row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.rising-queries__count {
+  font-size: 11px;
+  color: var(--sand-dim);
+}
+
+.rising-queries__growth {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--stock-green);
+}
+
+/* Google refused to quantify this row: never a number, colour included —
+ * a green figure and a "Breakout" label must not read as interchangeable. */
+.rising-queries__growth--breakout {
+  color: var(--terracotta-hot);
+}

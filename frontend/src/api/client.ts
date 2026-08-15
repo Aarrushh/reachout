@@ -6,8 +6,20 @@
 import type { AnalyticsResponse } from "../types/AnalyticsResponse";
 import type { PicksResponse } from "../types/PicksResponse";
 import type { RankedShops } from "../types/RankedShops";
+import type { RisingQuery } from "../types/RisingQuery";
 import type { ShopMapGeoJSON } from "../types/MapGeojson";
 import type { ShopsGeoJSON } from "../types/ShopsGeojson";
+
+/**
+ * The two windows `/demand/api/analytics` (and `/signals`, `/trends`) accept,
+ * exactly as `ALLOWED_TIMEFRAMES` in `demand/api/app.py`. Google scales its
+ * 0-100 interest index to the requested window, and the ingest pipeline
+ * rescales again on top of that — a 3-month reading and a 12-month reading
+ * of the same keyword in the same week are different numbers on different
+ * scales, never convertible by browser arithmetic. That is why switching
+ * this value must always be a new fetch, never a client-side reslice.
+ */
+export type Timeframe = "today 3-m" | "today 12-m";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -73,17 +85,57 @@ export async function fetchPicks(neighbourhood?: string | null): Promise<PicksRe
   return res.json();
 }
 
+export interface AnalyticsParams {
+  storeId?: string;
+  /** Defaults to `"today 3-m"`, matching the server's own default. */
+  timeframe?: Timeframe;
+}
+
 /**
  * The retail dashboard's one fetch (U3). Everything the three charts draw
  * arrives here already computed — including each segment's confidence label
  * and the caveat — because the browser is not allowed to derive either.
+ *
+ * `timeframe` only moves `top_movers`: the server deliberately does not
+ * apply it to `category_mix` or `stock_out_risk`, which are a census of
+ * `public.products` inventory, not a read of search signals.
  */
-export async function fetchAnalytics(storeId?: string): Promise<AnalyticsResponse> {
-  const usp = new URLSearchParams({ inventory_type: "convenience_store" });
+export async function fetchAnalytics({
+  storeId,
+  timeframe = "today 3-m",
+}: AnalyticsParams = {}): Promise<AnalyticsResponse> {
+  const usp = new URLSearchParams({ inventory_type: "convenience_store", timeframe });
   if (storeId) usp.set("store_id", storeId);
   const res = await fetch(`${DEMAND_API_BASE}/demand/api/analytics?${usp.toString()}`);
   if (!res.ok) {
     throw new ApiError(`GET /demand/api/analytics failed: ${res.status}`, res.status);
+  }
+  return res.json();
+}
+
+export interface RisingQueriesParams {
+  parentKeyword?: string;
+  /** `"commercial"` (server default) or `"all"`, for auditing the tiering heuristic. */
+  include?: "commercial" | "all";
+  limit?: number;
+}
+
+/**
+ * The discovery panel's fetch (U3 follow-up). Unlike `/analytics`, this
+ * endpoint's response is a bare array, not an envelope with `segments` — do
+ * not assume the two share a shape.
+ */
+export async function fetchRisingQueries(
+  params: RisingQueriesParams = {},
+): Promise<RisingQuery[]> {
+  const usp = new URLSearchParams();
+  if (params.parentKeyword) usp.set("parent_keyword", params.parentKeyword);
+  if (params.include) usp.set("include", params.include);
+  if (params.limit !== undefined) usp.set("limit", String(params.limit));
+  const qs = usp.toString();
+  const res = await fetch(`${DEMAND_API_BASE}/demand/api/rising-queries${qs ? `?${qs}` : ""}`);
+  if (!res.ok) {
+    throw new ApiError(`GET /demand/api/rising-queries failed: ${res.status}`, res.status);
   }
   return res.json();
 }

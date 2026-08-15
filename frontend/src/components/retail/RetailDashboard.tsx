@@ -1,14 +1,19 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchAnalytics } from "../../api/client";
+import type { Timeframe } from "../../api/client";
 import { t } from "../../i18n/strings";
 import type { Lang } from "../../i18n/strings";
 import CategoryMixChart from "./charts/CategoryMixChart";
 import StockOutRiskChart from "./charts/StockOutRiskChart";
 import TopMoversChart from "./charts/TopMoversChart";
+import RisingQueriesPanel from "./RisingQueriesPanel";
+import TimeframeToggle from "./TimeframeToggle";
 
 /**
- * The three charts and the one fetch that feeds them (U3).
+ * The three charts and the one fetch that feeds them (U3), plus the
+ * timeframe toggle and discovery panel added in task 4.
  *
  * Loading, error and empty are all first-class states, because
  * empty-but-shaped is the NORMAL response under D10 — the demand service
@@ -18,11 +23,19 @@ import TopMoversChart from "./charts/TopMoversChart";
  * `generated_from` is surfaced, not swallowed. A fixture response is practice
  * data; showing it unlabelled beside the word "analytics" would be presenting
  * canned numbers as this shop's own.
+ *
+ * `timeframe` lives in `queryKey`, not in a client-side reslice: Google
+ * scales its interest index to the requested window and the ingest pipeline
+ * rescales again on top of that, so a 3-month reading and a 12-month reading
+ * of the same keyword are different numbers on different scales. Switching
+ * the toggle must always be a new fetch.
  */
 export default function RetailDashboard({ lang }: { lang: Lang }) {
+  const [timeframe, setTimeframe] = useState<Timeframe>("today 3-m");
+
   const analytics = useQuery({
-    queryKey: ["analytics", "convenience_store"],
-    queryFn: () => fetchAnalytics(),
+    queryKey: ["analytics", "convenience_store", timeframe],
+    queryFn: () => fetchAnalytics({ timeframe }),
   });
 
   if (analytics.isPending) {
@@ -45,12 +58,22 @@ export default function RetailDashboard({ lang }: { lang: Lang }) {
         <p className="retail-dash__practice">{t(lang, "retail.practiceData")}</p>
       )}
       <div className="retail-dash__grid">
-        <TopMoversChart
-          lang={lang}
-          confidence={segments.top_movers.confidence}
-          caveat={caveat}
-          points={segments.top_movers.points}
-        />
+        {/*
+          The toggle sits inside the movers column, above that one chart,
+          rather than above the whole grid: category_mix and stock_out_risk
+          are a census of inventory and are timeframe-independent, and a
+          toggle floating above all three would make it look like it
+          rescales them too.
+        */}
+        <div className="retail-dash__movers-col">
+          <TimeframeToggle lang={lang} timeframe={timeframe} onChange={setTimeframe} />
+          <TopMoversChart
+            lang={lang}
+            confidence={segments.top_movers.confidence}
+            caveat={caveat}
+            points={segments.top_movers.points}
+          />
+        </div>
         <CategoryMixChart
           lang={lang}
           confidence={segments.category_mix.confidence}
@@ -63,6 +86,7 @@ export default function RetailDashboard({ lang }: { lang: Lang }) {
           caveat={caveat}
           points={segments.stock_out_risk.points}
         />
+        <RisingQueriesPanel lang={lang} />
       </div>
     </>
   );
