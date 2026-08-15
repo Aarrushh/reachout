@@ -48,6 +48,7 @@ import jsonschema
 from supabase import Client, create_client
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from demand.api.relevance import annotate
 from demand.ingest.trends_client import SERPAPI_PROVIDER
 from demand.shared.validation import validate_with_formats
 
@@ -88,6 +89,7 @@ TREND_SCHEMA = load_schema("trend_snapshot.schema.json")
 SIGNAL_SCHEMA = load_schema("demand_signal.schema.json")
 REC_RESPONSE_SCHEMA = load_schema("recommendations_response.schema.json")
 ANALYTICS_SCHEMA = load_schema("analytics_response.schema.json")
+RISING_QUERY_SCHEMA = load_schema("rising_query.schema.json")
 
 #: A caller-supplied id is checked against the SAME schema fragment the
 #: response is later checked against, so the boundary check and the contract
@@ -118,6 +120,13 @@ ANALYTICS_SIGNAL_COLUMNS = (
 #: `stock_qty` is the input the plan (§5.5) names for `stock_out_risk`. It
 #: was never selected before W1-FIX-F, which is why the metric was faked.
 ANALYTICS_PRODUCT_COLUMNS = "category, stock_qty"
+#: Every DB column `rising_query.schema.json` requires that is not one of
+#: the four fields `demand/api/relevance.py:annotate()` computes at read
+#: time (relevance_score, relevance_tier, relevance_reasons, cluster_id).
+RISING_QUERY_COLUMNS = (
+    "id, parent_keyword, query, growth_pct, is_breakout, geo, gprop, "
+    "captured_at, captured_date"
+)
 
 # --- Bounds. Every read is bounded and ordered; none of these are magic. ---
 #: The two measurement scales `demand.demand_signals` and
@@ -151,6 +160,17 @@ ANALYTICS_SIGNALS_CAP = 500
 ANALYTICS_PRODUCTS_CAP = 5000
 #: `top_movers` is a chart, not a data dump.
 TOP_MOVERS_MAX_POINTS = 20
+#: `demand.rising_queries` holds 658 rows today across 42 parent keywords.
+#: This is NOT the caller's `limit` on /rising-queries -- it is a backstop
+#: on the database read that happens BEFORE `annotate()`/tiering/`limit`
+#: (see that endpoint's docstring for why the order matters). `annotate()`
+#: must see the whole result set to cluster correctly, so this cap has to
+#: sit comfortably above the live row count, not near the caller-facing
+#: page size.
+RISING_QUERIES_READ_CAP = 5000
+#: `include` values for /rising-queries: `commercial` is the default,
+#: filtered view; `all` is the audit view over every tier.
+ALLOWED_RISING_QUERY_INCLUDES = ("commercial", "all")
 
 #: A SKU with this many units or fewer on hand counts as at risk of stocking
 #: out. Deterministic, documented, and applied to `products.stock_qty` — the
@@ -828,3 +848,73 @@ async def get_analytics(
 
     _validate_response(response_data, ANALYTICS_SCHEMA, "analytics_response")
     return response_data
+
+
+@app.get("/demand/api/rising-queries")
+async def get_rising_queries(
+    parent_keyword: Optional[str] = None,
+    include: str = "commercial",
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+):
+    """Discovery-pass queries, scored for commercial relevance, bounded.
+
+    `relevance_score` / `relevance_tier` / `relevance_reasons` / `cluster_id`
+    are not columns -- `demand/api/relevance.py:annotate()` computes them at
+    read time from `query` and `parent_keyword`. That forces a specific,
+    non-obvious order of operations, and getting it wrong breaks clustering
+    silently, exactly at the scale where it matters (see the task's
+    Addendum). In this order, and no other:
+
+    1. Bound and order the database read itself
+       (`RISING_QUERIES_READ_CAP`), ordered by `id`. `id` is the primary
+       key, so it can never tie between rows -- unlike `captured_at`, which
+       many rows in one parent keyword's discovery pass share exactly (see
+       `demand/ingest/rising_store.py:build_rows`). An order that can tie
+       leaves the tied rows in whatever order Postgres's physical storage
+       happens to hand back, which is exactly the non-determinism this
+       endpoint must not have.
+    2. `annotate()` the FULL set just read, in ONE call. `annotate()`
+       assigns `cluster_id` by merging cluster keys ACROSS the batch handed
+       to it (`_merge_subset_keys`), so calling it once per page would make
+       a row's `cluster_id` depend on which other rows happened to land on
+       that page -- the same query could carry two different cluster ids on
+       page 1 and page 2. Calling it once, over everything read, is what
+       lets a twelve-row cluster like `gafas eclipse` collapse to one card
+       no matter how the caller later slices the response.
+    3. Filter by `relevance_tier` in Python. `include="commercial"` (the
+       default) keeps only rows the scorer tiers `commercial`;
+       `include="all"` keeps every row, for auditing the heuristic itself.
+       Relevance is computed at read time, not stored in the database, so
+       this filter cannot be pushed into the Supabase query.
+    4. Apply the caller's `limit` LAST, after tiering, as a plain slice of
+       the already-annotated, already-filtered list. `limit` bounds what
+       the caller sees, never the clustering input -- applying it any
+       earlier would make both the tier counts and the cluster merge depend
+       on an arbitrary slice of the table instead of the whole thing.
+    """
+    if include not in ALLOWED_RISING_QUERY_INCLUDES:
+        raise HTTPException(status_code=422, detail="Unsupported include")
+
+    def _build():
+        query = (
+            get_client()
+            .table("rising_queries")
+            .select(RISING_QUERY_COLUMNS)
+        )
+        if parent_keyword:
+            query = query.eq("parent_keyword", parent_keyword)
+        return query.order("id").limit(RISING_QUERIES_READ_CAP)
+
+    data = await _fetch(_build)
+
+    annotated = annotate(data)
+
+    if include == "commercial":
+        annotated = [row for row in annotated if row.get("relevance_tier") == "commercial"]
+
+    annotated = annotated[:limit]
+
+    for item in annotated:
+        _validate_response(item, RISING_QUERY_SCHEMA, "rising_query")
+
+    return annotated
