@@ -92,12 +92,18 @@ const STRINGS = {
   "retail.timeframe.caption": { es: "Cambia solo lo que más sube — el reparto por categoría y el riesgo de stock vienen de tu inventario y no cambian.", en: "Changes the top movers chart only — category mix and stock-out risk come from your inventory and do not change." },
   "retail.timeframe.3m":     { es: "3 meses", en: "3 months" },
   "retail.timeframe.12m":    { es: "12 meses", en: "12 months" },
+  "retail.timeframe.updating": { es: "Actualizando…", en: "Updating…" },
   "retail.chart.risingQueries": { es: "Búsquedas en alza", en: "Rising searches" },
   "retail.risingQueries.caveat": { es: "Interés de búsqueda en todo Madrid, no compras reales, y no el inventario de esta tienda.", en: "Search interest across Madrid, not real purchases, and not this shop's inventory." },
   "retail.risingQueries.breakout": { es: "Búsqueda revelación", en: "Breakout" },
   "retail.risingQueries.growth":   { es: "+{pct}%", en: "+{pct}%" },
   "retail.risingQueries.clusterSize": { es: "{n} variantes similares", en: "{n} similar searches" },
   "retail.risingQueries.underParent": { es: "bajo «{parent}»", en: "under \"{parent}\"" },
+  // Requirement: never let the panel imply completeness it cannot back up.
+  // "shown" states the exact count returned; "shownAtCap" additionally
+  // flags that the server's own limit was hit, so more may exist unseen.
+  "retail.risingQueries.shown": { es: "Mostrando {count} búsquedas en alza.", en: "Showing {count} rising searches." },
+  "retail.risingQueries.shownAtCap": { es: "Mostrando las primeras {count} búsquedas en alza; puede haber más sin mostrar.", en: "Showing the first {count} rising searches; there may be more not shown." },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

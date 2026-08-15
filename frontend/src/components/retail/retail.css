@@ -198,6 +198,23 @@
   max-width: 40ch;
 }
 
+/* Fix round 1: a small in-place indicator that a refetch is in flight,
+ * shown instead of blanking the movers chart (or the rest of the
+ * dashboard) while `placeholderData` keeps last-known values on screen. */
+.timeframe-toggle__updating {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--navy-line);
+}
+
+/* Fix round 1: states the exact row count the panel is showing, so it never
+ * implies completeness ("the rising searches in Madrid") it cannot back up. */
+.rising-queries__count-line {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--sand-dim);
+}
+
 /* Task 4: the discovery panel's clustered rows. */
 .rising-queries__list {
   list-style: none;

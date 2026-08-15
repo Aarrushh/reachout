@@ -114,4 +114,42 @@ describe("RisingQueriesPanel", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.queryByText(/no data for this chart yet/i)).toBeNull();
   });
+
+  // Fix round 1, Important #2: the live table holds 658 rows and the
+  // server's own unpadded default page size is 100 (demand/api/app.py),
+  // so calling the endpoint with no `limit` would silently render at most
+  // a sixth of what exists, captioned as though it were complete.
+  it("requests the server's maximum page size explicitly, rather than accepting a silently truncated default", async () => {
+    respondWith([row({})]);
+    mount();
+
+    await screen.findByText("gafas eclipse");
+    const url = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toContain("/demand/api/rising-queries");
+    expect(url).toContain("limit=500");
+  });
+
+  it("states the exact count shown, without implying it is exhaustive", async () => {
+    respondWith([
+      row({ id: "1", query: "gafas eclipse" }),
+      row({ id: "2", query: "protector solar", cluster_id: "other" }),
+    ]);
+    mount();
+
+    await screen.findByText("gafas eclipse");
+    // Two distinct clusters were returned, so the honest count is 2 rows —
+    // never worded as though this were "the rising searches in Madrid".
+    expect(screen.getByText(/showing 2 rising searches/i)).toBeTruthy();
+  });
+
+  it("flags explicitly when the response hits the server's page-size cap", async () => {
+    const rows = Array.from({ length: 500 }, (_, i) =>
+      row({ id: `id-${i}`, cluster_id: `cluster-${i}`, query: `query ${i}` }),
+    );
+    respondWith(rows);
+    mount();
+
+    await screen.findByText(/showing the first 500 rising searches/i);
+    expect(screen.getByText(/there may be more not shown/i)).toBeTruthy();
+  });
 });

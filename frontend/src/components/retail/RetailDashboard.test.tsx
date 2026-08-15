@@ -165,4 +165,54 @@ describe("RetailDashboard", () => {
     // the toggle's own column.
     expect(screen.getByText(/category mix and stock-out risk/i)).toBeTruthy();
   });
+
+  it("keeps category mix and stock-out risk mounted while a timeframe refetch is in flight, instead of blanking the whole dashboard", async () => {
+    // Fix round 1, Important #1: with `timeframe` in the queryKey, switching
+    // it used to create a brand-new query with no cached data, so
+    // `analytics.isPending` went true and the dashboard's early return
+    // replaced everything — category_mix, stock_out_risk, the discovery
+    // panel — with a generic "Loading analytics…" line. That defeated the
+    // requirement that the toggle must not APPEAR to change the two
+    // inventory-derived segments. This test holds the second analytics
+    // fetch open deliberately so it can assert on the DOM mid-flight,
+    // not just on the eventual query-string value.
+    let releaseSecondFetch: () => void = () => {};
+    const secondFetchGate = new Promise<void>((resolve) => {
+      releaseSecondFetch = resolve;
+    });
+    let analyticsCallCount = 0;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("/rising-queries")) {
+          return { ok: true, status: 200, json: async () => [] } as unknown as Response;
+        }
+        analyticsCallCount += 1;
+        if (analyticsCallCount > 1) {
+          await secondFetchGate;
+        }
+        return { ok: true, status: 200, json: async () => RESPONSE } as unknown as Response;
+      }),
+    );
+
+    mount();
+    await screen.findByRole("heading", { name: /^top movers$/i });
+    expect(screen.getAllByTestId("echart").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "12 months" }));
+
+    // Confirm the refetch actually started before asserting the DOM.
+    await waitFor(() => expect(analyticsCallCount).toBeGreaterThanOrEqual(2));
+
+    // The second fetch is still pending at this point (gated on
+    // `secondFetchGate`) — this is exactly the window the bug blanked.
+    expect(screen.getByRole("heading", { name: /^category mix$/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /^stock-out risk$/i })).toBeTruthy();
+    expect(screen.getAllByTestId("echart").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/loading analytics/i)).toBeNull();
+
+    releaseSecondFetch();
+    await waitFor(() => expect(analyticsCallCount).toBe(2));
+  });
 });

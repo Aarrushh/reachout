@@ -7,6 +7,16 @@ import ChartPanel from "./charts/ChartPanel";
 import { groupRisingQueries } from "./risingQueries";
 
 /**
+ * Mirrors `MAX_PAGE_SIZE` in `demand/api/app.py` — the server's hard
+ * ceiling on `limit` (a caller-requested 1000 there returns 422). Passed
+ * explicitly rather than relying on the server's own default of 100
+ * (`DEFAULT_PAGE_SIZE`): the live table holds 658 rows, so the unpadded
+ * default would silently render a quarter of them captioned as though it
+ * were the rising searches in Madrid.
+ */
+const RISING_QUERIES_LIMIT = 500;
+
+/**
  * Requirement 3 (task-4): Madrid's rising search queries, clustered so
  * near-duplicate phrasings collapse into one card, rendered inside a
  * `ChartPanel` like the three analytics charts.
@@ -30,7 +40,7 @@ import { groupRisingQueries } from "./risingQueries";
 export default function RisingQueriesPanel({ lang }: { lang: Lang }) {
   const rising = useQuery({
     queryKey: ["rising-queries"],
-    queryFn: () => fetchRisingQueries(),
+    queryFn: () => fetchRisingQueries({ limit: RISING_QUERIES_LIMIT }),
   });
 
   const title = t(lang, "retail.chart.risingQueries");
@@ -54,10 +64,22 @@ export default function RisingQueriesPanel({ lang }: { lang: Lang }) {
     );
   }
 
+  const rowCount = rising.data.length;
+  const atCap = rowCount >= RISING_QUERIES_LIMIT;
   const clusters = groupRisingQueries(rising.data);
 
   return (
     <ChartPanel lang={lang} title={title} caveat={caveat} isEmpty={clusters.length === 0}>
+      {/*
+        Never let this panel imply it shows every rising query in Madrid —
+        state the exact count, and flag it explicitly when the count hit
+        the server's own cap, since more rows may exist beyond it.
+      */}
+      <p className="rising-queries__count-line">
+        {atCap
+          ? t(lang, "retail.risingQueries.shownAtCap", { count: rowCount })
+          : t(lang, "retail.risingQueries.shown", { count: rowCount })}
+      </p>
       <ul className="rising-queries__list">
         {clusters.map((cluster) => (
           <li key={cluster.clusterId} className="rising-queries__row">
@@ -73,6 +95,15 @@ export default function RisingQueriesPanel({ lang }: { lang: Lang }) {
                   {t(lang, "retail.risingQueries.clusterSize", { n: cluster.size })}
                 </span>
               )}
+              {/*
+                `growthPct === null` is redundant with `isBreakout` today —
+                `groupRisingQueries` sets one from the other — but it stays
+                as a deliberate belt-and-suspenders check: if that function
+                ever changes, this is the line that stops a null from
+                silently reaching the non-breakout branch below and
+                rendering as a fabricated number. Do not simplify to just
+                `cluster.isBreakout`.
+              */}
               {cluster.isBreakout || cluster.growthPct === null ? (
                 <span className="rising-queries__growth rising-queries__growth--breakout">
                   {t(lang, "retail.risingQueries.breakout")}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { fetchAnalytics } from "../../api/client";
 import type { Timeframe } from "../../api/client";
@@ -29,6 +29,18 @@ import TimeframeToggle from "./TimeframeToggle";
  * rescales again on top of that, so a 3-month reading and a 12-month reading
  * of the same keyword are different numbers on different scales. Switching
  * the toggle must always be a new fetch.
+ *
+ * `placeholderData: keepPreviousData` matters as much as the queryKey does:
+ * without it, a new `timeframe` means a brand new query with no cached
+ * data, `analytics.isPending` goes true, and the early-return loading text
+ * below would unmount `CategoryMixChart`, `StockOutRiskChart` and
+ * `RisingQueriesPanel` too — a full-page blank-and-reload that reads as
+ * "everything changed" far louder than the toggle's own caption reads as
+ * "nothing changed." With it, `category_mix` and `stock_out_risk` (which
+ * the server does not filter by timeframe at all) stay on screen showing
+ * their last-known values while only the movers column indicates a fetch
+ * is in flight, and the loading text is reserved for the one case it
+ * actually describes: no data has ever arrived yet.
  */
 export default function RetailDashboard({ lang }: { lang: Lang }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("today 3-m");
@@ -36,9 +48,10 @@ export default function RetailDashboard({ lang }: { lang: Lang }) {
   const analytics = useQuery({
     queryKey: ["analytics", "convenience_store", timeframe],
     queryFn: () => fetchAnalytics({ timeframe }),
+    placeholderData: keepPreviousData,
   });
 
-  if (analytics.isPending) {
+  if (analytics.isFetching && !analytics.data) {
     return <p className="retail-dash__state">{t(lang, "retail.loading")}</p>;
   }
 
@@ -48,6 +61,13 @@ export default function RetailDashboard({ lang }: { lang: Lang }) {
         {t(lang, "retail.loadFailed")}
       </p>
     );
+  }
+
+  if (!analytics.data) {
+    // Unreachable in practice (isFetching-with-no-data and isError are both
+    // handled above), but keeps the destructure below from widening
+    // `analytics.data` back to possibly-undefined.
+    return null;
   }
 
   const { caveat, generated_from: source, segments } = analytics.data;
@@ -67,6 +87,11 @@ export default function RetailDashboard({ lang }: { lang: Lang }) {
         */}
         <div className="retail-dash__movers-col">
           <TimeframeToggle lang={lang} timeframe={timeframe} onChange={setTimeframe} />
+          {analytics.isFetching && (
+            <p className="timeframe-toggle__updating" role="status">
+              {t(lang, "retail.timeframe.updating")}
+            </p>
+          )}
           <TopMoversChart
             lang={lang}
             confidence={segments.top_movers.confidence}
