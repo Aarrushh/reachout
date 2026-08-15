@@ -18,8 +18,15 @@ export interface DemandSignal {
    * ES-MD (Madrid community scope) only.
    */
   geo: string;
+  /**
+   * The capture window this signal was derived from, carried down from trend_snapshots (e.g. 'today 3-m', 'today 12-m'). Part of the natural key and of the table's unique index, NOT decoration: Google scales its 0-100 index to the window requested and this pipeline rescales onto an anchor on top of that, so the same keyword in the same calendar week reads differently at 3-m and at 12-m. Two readings, two rows. A consumer plotting a series MUST filter to one timeframe; mixing them plots incomparable numbers on one axis.
+   */
+  timeframe: string;
   window_start: string;
   window_end: string;
+  /**
+   * Mean of rescaled series values. NOT capped at 100: batches are rescaled onto a shared anchor, so a keyword larger than the reference legitimately exceeds 100. Google's raw 0-100 only holds inside one batch.
+   */
   interest_avg: number;
   /**
    * Vs prior window.

@@ -28,6 +28,9 @@ export interface TrendSnapshot {
   captured_at: string;
   series: {
     date: string;
+    /**
+     * Interest index. NOT capped at 100: 49 keywords exceed one request, so batches are rescaled onto a shared anchor and a keyword larger than the reference legitimately exceeds 100. Google's raw per-request 0-100 only holds inside a single batch. Clamping here would flatten the peaks the rescaling exists to expose. region_breakdown below IS raw Google and keeps its 100 ceiling.
+     */
     value: number;
   }[];
   /**

@@ -24,6 +24,9 @@ export interface AnalyticsResponse {
       points: {
         keyword: string;
         category: string | null;
+        /**
+         * Mean of rescaled series values. NOT capped at 100 -- see demand_signal.schema.json. share_pct and risk_pct below ARE true percentages and keep their ceilings.
+         */
         interest_avg: number;
         delta_pct: number;
         direction: "rising" | "falling" | "flat";
