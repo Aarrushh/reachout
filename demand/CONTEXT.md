@@ -102,7 +102,7 @@ The **first live run** has happened. The anchor keyword selected on that
 run was `crema hidratante`, chosen by the median rule. `interest_avg` is not
 capped at 100 — cross-batch rescaling puts the live maximum at 304.15. The
 honesty invariant holds in the live data: 0 rows where `is_breakout` is true
-and `growth_pct` is non-null.
+and `growth_pct` is non-null, and 0 quantified rows missing a `growth_pct`.
 
 The old blocker was scraping: `trendspy` hit Google directly, Google
 IP-throttled the project and served a CAPTCHA, and the answer was to wait.
