@@ -248,17 +248,31 @@ def cluster_key(query: str) -> str:
     same key so a consumer can surface one card instead of many
     near-identical rows.
 
+    Returns `"{head}:{sorted_tokens_joined_by_underscore}"`. `head` is the
+    first surviving content token in the QUERY'S OWN ORIGINAL order (after
+    the same stopword/decoration stripping, before sorting) -- what the
+    query is actually about, as opposed to what modifies it. It rides
+    alongside the sorted token key so that annotate()'s batch-level merge
+    (see _merge_subset_keys) can require two keys to share a head before
+    treating one as a more-specific variant of the other: `gafas de sol`
+    (head `gafas`) and `funda para gafas de sol` (head `funda`, a
+    sunglasses CASE) have `{gafas, sol}` as a strict subset of
+    `{funda, gafas, sol}` and would wrongly merge on token-set containment
+    alone -- the head differs, so they must not.
+
     This function is pure and per-query: it has no knowledge of any other
     row in the batch. A variant that adds one genuine extra content word
     neither list covers (e.g. "solar" in "comprar gafas eclipse solar")
     still gets its own, larger key here -- annotate() below does a second,
-    batch-level merge pass on top of these keys to fold that case in too.
+    batch-level merge pass on top of these keys to fold that case in too,
+    when heads also agree.
     """
     tokens = [
         t for t in _tokenize(query)
         if t not in CLUSTER_STOPWORDS and t not in CLUSTER_DECORATION_TOKENS
     ]
-    return "_".join(sorted(tokens))
+    head = tokens[0] if tokens else ""
+    return f"{head}:{'_'.join(sorted(tokens))}"
 
 
 # ---------------------------------------------------------------------------
@@ -341,41 +355,71 @@ def _merge_subset_keys(keys) -> dict:
     """Map each distinct cluster_key in a batch to its final cluster_id.
 
     A key whose token set is a strict superset of another present key's
-    token set collapses into that smaller key -- e.g. "comprar gafas
-    eclipse solar" produces the raw key `eclipse_gafas_solar` (its "solar"
-    is genuine content cluster_key() cannot drop), and that key's token
-    set {eclipse, gafas, solar} is a strict superset of `eclipse_gafas`'s
-    {eclipse, gafas}, which is also present in the same batch, so it
-    collapses into `eclipse_gafas`.
+    token set, AND WHICH SHARES THAT KEY'S HEAD TOKEN, collapses into that
+    smaller key -- e.g. "comprar gafas eclipse solar" produces the raw key
+    `gafas:eclipse_gafas_solar` (its "solar" is genuine content
+    cluster_key() cannot drop), and that key's token set
+    {eclipse, gafas, solar} is a strict superset of `gafas:eclipse_gafas`'s
+    {eclipse, gafas} -- same head `gafas`, also present in the same batch
+    -- so it collapses into `gafas:eclipse_gafas`.
+
+    The head-token requirement guards against conflating an accessory with
+    the product it accessorizes. Pure token-set containment cannot tell
+    "same product, more specific" from "different product that merely
+    mentions the first one": `funda para gafas de sol` (a sunglasses CASE)
+    strips to {funda, gafas, sol}, a strict superset of `gafas de sol`'s
+    {gafas, sol}, and would wrongly merge into the sunglasses cluster on
+    token-set containment alone. Its head is `funda`, not `gafas` --
+    different subject -- so it must stay its own cluster. Telling a
+    shopkeeper to stock sunglasses when Madrid is searching for sunglasses
+    cases is a confidently WRONG retail signal, worse than showing two
+    separate (truthful) cards.
+
+    This rule is deliberately conservative and will sometimes fail to merge
+    two queries a human would still group -- e.g. `pack bombillas led` has
+    head `pack`, not `bombillas`, so it will NOT join `bombillas led`. That
+    is the correct failure direction on purpose: under-merging costs a
+    shopkeeper a little redundancy (two true cards instead of one); over-
+    merging costs them a wrong product to stock. When this heuristic is
+    unsure, it must split, not join -- do not "improve" this later by
+    matching on anything looser than an exact head token.
 
     This is a batch-level pass over the *set* of distinct keys the batch
     produced -- never per-row and never dependent on which row happened to
     appear first -- so the mapping (and therefore every row's cluster_id)
     cannot depend on row order. See test_cluster_merge_is_order_independent.
 
-    Two constraints, both load-bearing:
+    Two further constraints, both load-bearing (unchanged from fix round 1,
+    not reworked here):
     - An absorbing (i.e. smaller/target) key must have at least 2 tokens,
       so a bare single-token key such as `gafas` can never swallow every
       other eyewear query in the table.
-    - When more than one present key qualifies as a strict subset, the
-      smallest one wins -- fewest tokens first, then lexicographic key
-      string as a tiebreak -- so the result is a pure function of the key
-      set alone, independent of iteration or insertion order. Because the
-      strict-subset relation is transitive, picking the global minimum
-      qualifying key directly (rather than one merge hop at a time) already
-      lands on the fixed point: if some key K were a smaller subset of that
-      minimum, K would itself be a strict subset of the original key too,
-      and so would have been chosen instead.
+    - When more than one present key qualifies (same head, strict token
+      subset), the smallest one wins -- fewest tokens first, then
+      lexicographic key string as a tiebreak -- so the result is a pure
+      function of the key set alone, independent of iteration or insertion
+      order. Because the strict-subset relation is transitive, picking the
+      global minimum qualifying key directly (rather than one merge hop at
+      a time) already lands on the fixed point: if some key K were a
+      smaller same-head subset of that minimum, K would itself be a
+      qualifying same-head strict subset of the original key too, and so
+      would have been chosen instead.
     """
-    token_sets = {key: frozenset(key.split("_")) for key in keys}
+    parsed = {}
+    for key in keys:
+        head, _, tokens_part = key.partition(":")
+        parsed[key] = (head, frozenset(tokens_part.split("_")))
+
     mapping = {}
-    for key, tokens in token_sets.items():
+    for key, (head, tokens) in parsed.items():
         candidates = [
-            other for other, other_tokens in token_sets.items()
-            if other_tokens < tokens and len(other_tokens) >= 2
+            other for other, (other_head, other_tokens) in parsed.items()
+            if other_head == head
+            and other_tokens < tokens
+            and len(other_tokens) >= 2
         ]
         mapping[key] = (
-            min(candidates, key=lambda k: (len(token_sets[k]), k))
+            min(candidates, key=lambda k: (len(parsed[k][1]), k))
             if candidates else key
         )
     return mapping
@@ -391,10 +435,12 @@ def annotate(rows: list) -> list:
 
     `cluster_id` is not simply `cluster_key(query)`: after every row's raw
     key is computed, keys whose token set is a strict superset of another
-    present key's are merged toward the smaller key (see
-    _merge_subset_keys), so near-duplicates that differ by one genuine
-    extra content word -- not just a stopword or retail decoration -- still
-    land on one card. That merge is batch-level and order-independent;
+    present key's, AND which share that key's head token, are merged
+    toward the smaller key (see _merge_subset_keys), so near-duplicates
+    that differ by one genuine extra content word -- not just a stopword or
+    retail decoration -- still land on one card, without conflating an
+    accessory (`funda para gafas de sol`) with the product it accessorizes
+    (`gafas de sol`). That merge is batch-level and order-independent;
     cluster_key() itself stays a pure per-query function with no knowledge
     of any other row, per the endpoint task's public-surface contract.
     """

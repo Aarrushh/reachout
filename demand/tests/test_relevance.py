@@ -156,6 +156,63 @@ def test_single_token_key_does_not_absorb_unrelated_queries():
 
 
 # ---------------------------------------------------------------------------
+# 5b. Accessory/product conflation guard (fix round 2)
+# ---------------------------------------------------------------------------
+# Pure token-set subset containment cannot tell "same product, more
+# specific" (`comprar gafas eclipse solar` ⊃ `gafas eclipse`, both about
+# sunglasses) from "different product that merely mentions the first one"
+# (`funda para gafas de sol` ⊃ `gafas de sol` -- a sunglasses CASE is not
+# sunglasses). cluster_key() now also returns a head token -- the first
+# surviving content token in the query's own original order -- and
+# _merge_subset_keys() only merges keys that share a head. Telling a
+# shopkeeper to stock sunglasses when Madrid is actually searching for
+# sunglasses cases is a confidently wrong retail signal; two separate,
+# truthful cards are strictly better than one false merge.
+
+def test_accessory_and_product_get_different_cluster_ids():
+    rows = [
+        {"query": "gafas de sol", "parent_keyword": "gafas de sol"},
+        {"query": "funda para gafas de sol", "parent_keyword": "gafas de sol"},
+    ]
+    result = annotate(rows)
+    by_query = {row["query"]: row["cluster_id"] for row in result}
+    assert by_query["gafas de sol"] != by_query["funda para gafas de sol"]
+
+
+def test_second_accessory_product_pair_stays_separate():
+    # A second, independently-chosen accessory/product pair -- proves the
+    # head-token guard is a general rule, not one hardcoded string check.
+    # "caja para bombillas led" (a storage box for LED bulbs) is not
+    # "bombillas led" (the bulbs themselves), even though its stripped
+    # token set {caja, bombillas, led} is a strict superset of
+    # {bombillas, led}.
+    rows = [
+        {"query": "bombillas led", "parent_keyword": "bombillas"},
+        {"query": "caja para bombillas led", "parent_keyword": "bombillas"},
+    ]
+    result = annotate(rows)
+    by_query = {row["query"]: row["cluster_id"] for row in result}
+    assert by_query["bombillas led"] != by_query["caja para bombillas led"]
+
+
+def test_same_head_superset_still_merges():
+    # Guards against the cheap way to pass the two tests above: simply
+    # disabling the subset merge altogether. Here both queries DO share a
+    # head ("bombillas"), and one token set IS a strict superset of the
+    # other, so they must still collapse to one cluster_id -- proving the
+    # head-token gate is an added condition, not a replacement for merging.
+    rows = [
+        {"query": "bombillas led", "parent_keyword": "bombillas"},
+        {"query": "bombillas led g9", "parent_keyword": "bombillas"},
+    ]
+    result = annotate(rows)
+    cluster_ids = {row["cluster_id"] for row in result}
+    assert len(cluster_ids) == 1, (
+        f"expected same-head superset queries to still merge, got {cluster_ids!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # 6. Accent folding
 # ---------------------------------------------------------------------------
 
