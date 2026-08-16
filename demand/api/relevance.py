@@ -244,6 +244,18 @@ NOISE_THRESHOLD = 0.0
 #: _merge_subset_keys.
 CLUSTER_STOPWORDS = frozenset({
     "de", "la", "el", "para", "con", "en", "los", "las", "del", "al", "y",
+    # Widened 2026-08-16. Function words only -- copulas, indefinite
+    # determiners, the reflexive `se`, possessives, and prepositions that
+    # carry no product meaning. Measured effect on the 658 live rows:
+    # commercial clusters 503 -> 480, eclipse clusters 11 -> 8.
+    #
+    # Nothing that could name or qualify a product belongs here. `solar`,
+    # `homologadas`, `normales` and the like stay OUT on purpose: they are
+    # genuine content, and merging on them would tell a shopkeeper to stock
+    # a product Madrid did not search for. Under-merging costs redundancy;
+    # over-merging costs a wrong stocking decision. Split when unsure.
+    "se", "un", "una", "unos", "unas", "que", "a", "o",
+    "mi", "su", "tu", "por", "sin", "sobre", "es", "son", "lo",
 })
 
 #: Retail decoration to strip when building a CLUSTER key only -- scoring is

@@ -347,3 +347,35 @@ def test_informational_penalty_is_applied_at_most_once():
     result = score_query("donde tirar bombillas", "bombillas")
     assert result["score"] == pytest.approx(0.0)
     assert not any(r.startswith("informational_head:") for r in result["reasons"])
+
+
+# ---------------------------------------------------------------------------
+# 11. Widened stopwords (fix round 3)
+# ---------------------------------------------------------------------------
+
+def test_function_words_do_not_split_a_cluster():
+    """These two live rows are one demand story; `se`/`un` must not head
+    two separate cards. Their token sets still differ by the genuine
+    content word "solar" (cluster_key() alone must not absorb that -- see
+    test_widened_stopwords_do_not_merge_distinct_products below), so this
+    checks the annotate()-level cluster_id, which folds the "solar" variant
+    in via the shared-head subset merge (_merge_subset_keys), the same way
+    test_all_five_eclipse_variants_share_one_cluster_id does above."""
+    rows = [
+        {
+            "query": "se puede ver el eclipse solar con gafas de sol",
+            "parent_keyword": "gafas de sol",
+        },
+        {
+            "query": "se puede ver un eclipse con gafas de sol",
+            "parent_keyword": "gafas de sol",
+        },
+    ]
+    cluster_ids = {row["cluster_id"] for row in annotate(rows)}
+    assert len(cluster_ids) == 1, cluster_ids
+
+
+def test_widened_stopwords_do_not_merge_distinct_products():
+    """Guard the other direction: a genuine content word still splits."""
+    assert cluster_key("gafas de sol") != cluster_key("gafas de sol homologadas")
+    assert cluster_key("funda para gafas de sol") != cluster_key("gafas de sol")
