@@ -186,8 +186,12 @@ def test_breakout_growth_pct_stays_null(test_client):
 # ---------------------------------------------------------------------------
 
 def test_limit_is_capped(test_client):
+    # /rising-queries has its own ceiling (RISING_QUERIES_MAX_LIMIT), above
+    # the shared MAX_PAGE_SIZE the other list endpoints use -- see
+    # test_limit_above_500_is_allowed_up_to_the_route_ceiling and
+    # test_limit_above_the_route_ceiling_is_a_422 below for that boundary.
     over = test_client.get(
-        f"/demand/api/rising-queries?limit={api_app.MAX_PAGE_SIZE + 1}"
+        f"/demand/api/rising-queries?limit={api_app.RISING_QUERIES_MAX_LIMIT + 1}"
     )
     assert over.status_code == 422
     assert test_client.get("/demand/api/rising-queries?limit=0").status_code == 422
@@ -328,3 +332,43 @@ def test_query_failure_is_502(test_client, monkeypatch):
         response = test_client.get("/demand/api/rising-queries")
         assert response.status_code == 502
         assert response.json()["detail"] == api_app.DB_FAILURE_DETAIL
+
+
+def test_limit_above_500_is_allowed_up_to_the_route_ceiling(test_client):
+    response = test_client.get("/demand/api/rising-queries?limit=1000")
+    assert response.status_code == 200
+
+
+def test_limit_above_the_route_ceiling_is_a_422(test_client):
+    response = test_client.get("/demand/api/rising-queries?limit=1001")
+    assert response.status_code == 422
+
+
+def test_total_count_header_reports_the_full_filtered_size(test_client):
+    response = test_client.get("/demand/api/rising-queries?limit=1")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    # The header counts every commercial row, not the page.
+    assert int(response.headers["X-Total-Count"]) >= 1
+    unpaged = test_client.get("/demand/api/rising-queries")
+    assert int(response.headers["X-Total-Count"]) == len(unpaged.json())
+
+
+def test_offset_pages_without_overlap_or_loss(test_client):
+    everything = test_client.get("/demand/api/rising-queries").json()
+    assert len(everything) >= 2
+    first = test_client.get("/demand/api/rising-queries?limit=1&offset=0").json()
+    second = test_client.get("/demand/api/rising-queries?limit=1&offset=1").json()
+    assert first == everything[:1]
+    assert second == everything[1:2]
+
+
+def test_offset_does_not_change_cluster_ids(test_client):
+    """cluster_id must come from annotate() over the whole set, never a page."""
+    everything = test_client.get("/demand/api/rising-queries").json()
+    paged = test_client.get("/demand/api/rising-queries?limit=1&offset=1").json()
+    assert paged[0]["cluster_id"] == everything[1]["cluster_id"]
+
+
+def test_negative_offset_is_a_422(test_client):
+    assert test_client.get("/demand/api/rising-queries?offset=-1").status_code == 422

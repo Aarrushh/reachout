@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 import jsonschema
 from supabase import Client, create_client
@@ -168,6 +168,16 @@ TOP_MOVERS_MAX_POINTS = 20
 #: sit comfortably above the live row count, not near the caller-facing
 #: page size.
 RISING_QUERIES_READ_CAP = 5000
+#: /rising-queries has its own caller-facing ceiling, above the shared
+#: MAX_PAGE_SIZE = 500 the three list endpoints use. Reason: this route's
+#: rows are not a page of a browsable table, they are the input to a
+#: client-side clustering render -- 602 of the 658 live rows tier
+#: `commercial`, so a 500 cap silently hid 102 of them behind a caption
+#: that read like a complete list. The other endpoints keep MAX_PAGE_SIZE;
+#: raising that shared constant would loosen three unrelated routes.
+#: Above this ceiling the answer is still a 422, never a silent clamp --
+#: and X-Total-Count tells the caller what it is missing either way.
+RISING_QUERIES_MAX_LIMIT = 1000
 #: `include` values for /rising-queries: `commercial` is the default,
 #: filtered view; `all` is the audit view over every tier.
 ALLOWED_RISING_QUERY_INCLUDES = ("commercial", "all")
@@ -852,9 +862,11 @@ async def get_analytics(
 
 @app.get("/demand/api/rising-queries")
 async def get_rising_queries(
+    response: Response,
     parent_keyword: Optional[str] = None,
     include: str = "commercial",
-    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=RISING_QUERIES_MAX_LIMIT),
+    offset: int = Query(0, ge=0),
 ):
     """Discovery-pass queries, scored for commercial relevance, bounded.
 
@@ -886,11 +898,12 @@ async def get_rising_queries(
        `include="all"` keeps every row, for auditing the heuristic itself.
        Relevance is computed at read time, not stored in the database, so
        this filter cannot be pushed into the Supabase query.
-    4. Apply the caller's `limit` LAST, after tiering, as a plain slice of
-       the already-annotated, already-filtered list. `limit` bounds what
-       the caller sees, never the clustering input -- applying it any
-       earlier would make both the tier counts and the cluster merge depend
-       on an arbitrary slice of the table instead of the whole thing.
+    4. Apply `offset` then `limit` LAST, after tiering, as a plain slice of
+       the already-annotated, already-filtered list. Both bound what the
+       caller sees, never the clustering input. `X-Total-Count` is set from
+       the pre-slice length, so a caller can always tell whether it holds
+       the whole filtered set or one page of it, and page the rest with
+       `offset` without any row's `cluster_id` changing underneath it.
     """
     if include not in ALLOWED_RISING_QUERY_INCLUDES:
         raise HTTPException(status_code=422, detail="Unsupported include")
@@ -912,7 +925,16 @@ async def get_rising_queries(
     if include == "commercial":
         annotated = [row for row in annotated if row.get("relevance_tier") == "commercial"]
 
-    annotated = annotated[:limit]
+    # Set BEFORE slicing: X-Total-Count is the size of the tier-filtered
+    # set, which is exactly what the caller needs to know it is looking at
+    # a page. Counting after the slice would report the page size and make
+    # the header useless. It is a header and not a body field on purpose --
+    # rising_query.schema.json is frozen with additionalProperties: false,
+    # and the response is a bare array with nowhere to put an envelope.
+    response.headers["X-Total-Count"] = str(len(annotated))
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
+
+    annotated = annotated[offset:offset + limit]
 
     for item in annotated:
         _validate_response(item, RISING_QUERY_SCHEMA, "rising_query")
