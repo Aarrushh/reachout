@@ -379,3 +379,24 @@ def test_widened_stopwords_do_not_merge_distinct_products():
     """Guard the other direction: a genuine content word still splits."""
     assert cluster_key("gafas de sol") != cluster_key("gafas de sol homologadas")
     assert cluster_key("funda para gafas de sol") != cluster_key("gafas de sol")
+
+
+# ---------------------------------------------------------------------------
+# 12. Scattered parent-keyword matches (fix round 5)
+# ---------------------------------------------------------------------------
+
+def test_scattered_parent_tokens_still_reach_commercial():
+    result = score_query("gafas para el eclipse de sol", "gafas de sol")
+    assert result["tier"] == "commercial", result
+    assert "contains_parent_tokens_scattered" in result["reasons"]
+
+
+def test_scattered_signal_does_not_double_count_a_contiguous_match():
+    result = score_query("gafas eclipse carrefour", "gafas de sol")
+    assert "contains_parent_tokens_scattered" not in result["reasons"]
+
+
+def test_scattered_signal_does_not_rescue_an_informational_row():
+    result = score_query(
+        "se puede ver el eclipse con gafas de sol normales", "gafas de sol")
+    assert result["tier"] == "noise", result

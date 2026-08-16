@@ -185,6 +185,16 @@ MAX_TOKEN_COUNT = 5
 #: but should comfortably clear the bar combined with the token-count band.
 PARENT_CONTAINMENT_POINTS = 2.0
 
+#: Every parent token present but NOT as a contiguous run ("gafas para el
+#: eclipse de sol" against parent "gafas de sol"). Half the contiguous
+#: signal's weight, because scattered tokens are weaker evidence -- and
+#: exactly COMMERCIAL_THRESHOLD, so it rescues a row that has no other
+#: signal (six tokens puts it outside the token-count band) without
+#: rescuing one that is also carrying a penalty. That is the intended
+#: asymmetry: it can lift a 0.0 row to commercial, and can never lift an
+#: informational row (which sits at -3.0 before this fires) past the bar.
+PARENT_SCATTERED_POINTS = 1.0
+
 #: Retail modifier / chain-name-as-qualifier present.
 RETAIL_MODIFIER_POINTS = 2.0
 
@@ -338,6 +348,11 @@ def score_query(query: str, parent_keyword: str) -> dict:
     if parent_tokens and _contains_contiguous_run(tokens, parent_tokens):
         score += PARENT_CONTAINMENT_POINTS
         reasons.append("contains_parent_keyword")
+    elif parent_tokens and set(parent_tokens) <= set(tokens):
+        # `elif`: contiguous already implies scattered, so a contiguous
+        # match must never collect both.
+        score += PARENT_SCATTERED_POINTS
+        reasons.append("contains_parent_tokens_scattered")
 
     modifier_hits = sorted({t for t in tokens if t in RETAIL_MODIFIER_TOKENS})
     if len(tokens) > 1:
