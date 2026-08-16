@@ -392,11 +392,22 @@ def test_scattered_parent_tokens_still_reach_commercial():
 
 
 def test_scattered_signal_does_not_double_count_a_contiguous_match():
-    result = score_query("gafas eclipse carrefour", "gafas de sol")
+    """A contiguous match implies a scattered one; only the stronger
+    signal may be credited, or every already-correct row silently
+    reweights."""
+    result = score_query("gafas de sol para el eclipse", "gafas de sol")
+    assert "contains_parent_keyword" in result["reasons"]
     assert "contains_parent_tokens_scattered" not in result["reasons"]
+    assert result["score"] == pytest.approx(2.0)
 
 
 def test_scattered_signal_does_not_rescue_an_informational_row():
-    result = score_query(
-        "se puede ver el eclipse con gafas de sol normales", "gafas de sol")
-    assert result["tier"] == "noise", result
+    """The scattered signal is worth exactly COMMERCIAL_THRESHOLD so it can
+    lift a 0.0 row over the bar and can never lift one already carrying the
+    -3.0 informational penalty. This query genuinely reaches the scattered
+    branch: `gafas`, `de` and `sol` are all present but not adjacent."""
+    result = score_query("que gafas usar para el eclipse de sol", "gafas de sol")
+    assert "contains_parent_tokens_scattered" in result["reasons"]
+    assert "informational_head:que" in result["reasons"]
+    assert result["score"] == pytest.approx(-2.0)
+    assert result["tier"] == "noise"
