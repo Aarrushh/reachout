@@ -2,6 +2,33 @@
 
 Built by task **U3** (2026-08-04).
 
+## D11 scaffold note (2026-08-17)
+
+This folder is mid-migration from ECharts to **Bklit UI** (decision D11,
+successor to D9 below — see `docs/IMPLEMENTATION_PLAN_V3.md` §1, §3.1). This
+task (A0) only laid groundwork: `bklit/` now holds a scoped Tailwind v4
+substrate (`bklit/bklit.css`) that Bklit's vendored components will read
+`--chart-*` custom properties from, defined additively in
+`../../../styles/tokens.css`. **Nothing imports `bklit.css` yet** — that is
+expected and correct until Bklit's components land (task A1) and the three
+charts below are rewritten against them (task A2).
+
+Why Tailwind is in this repository at all: Bklit's install path is a shadcn
+registry that requires it. D11 draws the exception as narrowly as this
+directory — utilities-only, **no preflight/reset import** (a reset must never
+leak into consumer CSS), and `bklit.css`'s `@source "../"` restricts class
+scanning to this charts tree only. The containment check:
+
+```sh
+git grep -n 'tailwindcss' src | grep -v retail/charts
+```
+
+must always print nothing. If it doesn't, the scope leaked.
+
+The containment rule immediately below (D9) still describes today's ECharts
+reality verbatim; it will be rewritten to describe Bklit's D9→D11 handoff
+once task A2 lands.
+
 ## The containment rule
 
 `EChart.tsx` is the **only file in the repository** that imports

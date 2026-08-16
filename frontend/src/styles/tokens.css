@@ -28,6 +28,27 @@
   --amz-navbar-2: #232f3e;
   --focus-ring: #007185;
   --shadow-card: 0 2px 5px rgba(15, 17, 17, 0.15);
+
+  /* Chart tokens (D11). Literal hex on purpose — never var() aliases of the
+   * frozen map tokens above, so a chart repaint can never silently repaint
+   * the map. Values are byte-identical to what the charts drew before the
+   * Bklit migration, so the contrast figures in this header carry over
+   * unchanged. --chart-risk (#ff9900) is a non-text graphic fill, judged
+   * under the 3:1 graphics rule, and is the same value it has always been.
+   * --chart-cat-1..5 intentionally match the --cat-* values so a category
+   * is the same colour in the pie as on the map — a visual rhyme, not a
+   * runtime coupling. */
+  --chart-rising: #007600;
+  --chart-falling: #b12704;
+  --chart-flat: #565959;
+  --chart-risk: #ff9900;
+  --chart-grid: #eaeded;
+  --chart-axis-text: #565959;
+  --chart-cat-1: #217a4b;
+  --chart-cat-2: #5a7d0e;
+  --chart-cat-3: #b05a1e;
+  --chart-cat-4: #0f6e9e;
+  --chart-cat-5: #8b3fd1;
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }

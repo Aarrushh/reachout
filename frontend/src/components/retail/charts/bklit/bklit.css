@@ -1,0 +1,16 @@
+/* D11: Tailwind exists in this file's scope ONLY as Bklit's substrate.
+ * No preflight — consumer CSS must never feel this file. */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../";
+
+.chart-panel {
+  /* Bklit's own theming hooks, fed from tokens.css (D11 additions). */
+  --chart-line-primary: var(--chart-risk);
+  --chart-1: var(--chart-cat-1);
+  --chart-2: var(--chart-cat-2);
+  --chart-3: var(--chart-cat-3);
+  --chart-4: var(--chart-cat-4);
+  --chart-5: var(--chart-cat-5);
+}

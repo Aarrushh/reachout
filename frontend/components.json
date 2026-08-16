@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/components/retail/charts/bklit/bklit.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@/components/retail/charts/bklit",
+    "utils": "@/components/retail/charts/bklit/lib/utils",
+    "ui": "@/components/retail/charts/bklit/ui",
+    "lib": "@/components/retail/charts/bklit/lib",
+    "hooks": "@/components/retail/charts/bklit/hooks"
+  },
+  "registries": {
+    "@bklit": "https://ui.bklit.com/r/{name}.json"
+  }
+}
