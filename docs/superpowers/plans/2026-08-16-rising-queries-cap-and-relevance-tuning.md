@@ -37,7 +37,9 @@
 | Rows containing "eclipse" | 24, split across **11** clusters |
 | Commercial rows starting with an interrogative/modal token | **19**, of which 18 are informational and 1 (`donde comprar gafas para el eclipse`) is genuinely commercial |
 
-**Simulated result of Tasks 3–5 on the same 658 rows:** commercial 602 → 580, noise 56 → 78, commercial clusters 503 → 480, eclipse clusters 11 → 8. 23 rows flip to `noise` (all verified informational), 1 row (`gafas para el eclipse de sol`) is rescued from `noise` to `commercial`. **Zero false positives in the simulation** — these exact counts are the acceptance numbers for the live smoke check at the end.
+**Simulated result of Tasks 3–5 on the same 658 rows:** 23 rows change tier — 22 demotions to `noise` (all verified informational) and 1 rescue, `gafas para el eclipse de sol`, from `noise` to `commercial`. **Zero false positives in the simulation.** So commercial 602 → 581, noise 56 → 77, commercial clusters 503 → 481, eclipse clusters 11 → 8. These are the acceptance numbers for the live smoke check at the end.
+
+> **Corrected 2026-08-16 during Task 7.** This paragraph first read 580 / 78 / 480: it subtracted all 23 flips as demotions and then added the rescue a second time, when the rescue was already one of the 23. The live run measures 581 / 77 / 481, and re-scoring the same 658 rows against `relevance.py` as of 4a41fb0 reproduces the 602 / 56 / 503 baseline exactly. The arithmetic was wrong, not the code.
 
 **Why clustering under-merges.** `cluster_key()` strips `CLUSTER_STOPWORDS` and `CLUSTER_DECORATION_TOKENS`, sorts what is left, and prefixes the first surviving token as the *head*. Three things then split queries a human would group:
 1. Function words that are neither stopword nor decoration survive (`se`, `puede`, `puedo`, `un`, `que`, `es`), inflating the token set so no strict-subset merge fires, and becoming the head token.
@@ -479,13 +481,21 @@ Append to `demand/tests/test_relevance.py`:
 
 ```python
 def test_function_words_do_not_split_a_cluster():
-    """These three live rows are one demand story; `se`/`un` must not head
-    three separate cards."""
-    keys = {
-        cluster_key("se puede ver el eclipse solar con gafas de sol"),
-        cluster_key("se puede ver un eclipse con gafas de sol"),
-    }
-    assert len(keys) == 1, keys
+    """These live rows are one demand story; `se`/`un` must not head
+    separate cards.
+
+    Asserted through `annotate()` on `cluster_id`, not on raw
+    `cluster_key()`: the two queries differ by the genuine content word
+    `solar`, which by design still produces a larger raw key. It is
+    `annotate()`'s batch-level subset merge that folds them onto one card,
+    and the card is what a shopkeeper sees.
+    """
+    rows = [
+        {"query": "se puede ver el eclipse solar con gafas de sol", "parent_keyword": "gafas de sol"},
+        {"query": "se puede ver un eclipse con gafas de sol", "parent_keyword": "gafas de sol"},
+    ]
+    ids = {row["cluster_id"] for row in annotate(rows)}
+    assert len(ids) == 1, ids
 
 
 def test_widened_stopwords_do_not_merge_distinct_products():
@@ -506,8 +516,13 @@ CLUSTER_STOPWORDS = frozenset({
     "de", "la", "el", "para", "con", "en", "los", "las", "del", "al", "y",
     # Widened 2026-08-16. Function words only -- copulas, indefinite
     # determiners, the reflexive `se`, possessives, and prepositions that
-    # carry no product meaning. Measured effect on the 658 live rows:
-    # commercial clusters 503 -> 480, eclipse clusters 11 -> 8.
+    # carry no product meaning. Measured effect of THIS widening alone on
+    # the 658 live rows (2026-08-16, isolated by re-scoring them against the
+    # commit before and the commit after): 36 rows change cluster_id,
+    # clusters across all tiers 551 -> 548, eclipse clusters 10 -> 8. The
+    # commercial-tier cluster count does not move (481 either way) -- the
+    # rows this merges had already been demoted to `noise` by the
+    # informational-head rule above.
     #
     # Nothing that could name or qualify a product belongs here. `solar`,
     # `homologadas`, `normales` and the like stay OUT on purpose: they are

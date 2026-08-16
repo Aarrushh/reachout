@@ -256,8 +256,13 @@ CLUSTER_STOPWORDS = frozenset({
     "de", "la", "el", "para", "con", "en", "los", "las", "del", "al", "y",
     # Widened 2026-08-16. Function words only -- copulas, indefinite
     # determiners, the reflexive `se`, possessives, and prepositions that
-    # carry no product meaning. Measured effect on the 658 live rows:
-    # commercial clusters 503 -> 480, eclipse clusters 11 -> 8.
+    # carry no product meaning. Measured effect of THIS widening alone on
+    # the 658 live rows (2026-08-16, isolated by re-scoring them against the
+    # commit before and the commit after): 36 rows change cluster_id,
+    # clusters across all tiers 551 -> 548, eclipse clusters 10 -> 8. The
+    # commercial-tier cluster count does not move (481 either way) -- the
+    # rows this merges had already been demoted to `noise` by the
+    # informational-head rule above.
     #
     # Nothing that could name or qualify a product belongs here. `solar`,
     # `homologadas`, `normales` and the like stay OUT on purpose: they are
