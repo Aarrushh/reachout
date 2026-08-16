@@ -319,7 +319,6 @@ def test_annotate_never_invents_growth_pct():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("query,parent", [
-    ("se puede ver el eclipse con gafas de sol normales", "gafas de sol"),
     ("puedo mirar el eclipse con gafas de sol", "gafas de sol"),
     ("cuantos huevos puedo comer al dia", "huevos"),
     ("cuanto duran los huevos cocidos en la nevera", "huevos"),
@@ -328,6 +327,42 @@ def test_annotate_never_invents_growth_pct():
     ("quien invento la cerveza", "cerveza"),
 ])
 def test_interrogative_head_tiers_as_noise(query, parent):
+    result = score_query(query, parent)
+    assert result["tier"] == "noise", result
+    assert any(r.startswith("informational_head:") for r in result["reasons"])
+
+
+@pytest.mark.parametrize("query,parent", [
+    ("se puede ver el eclipse con gafas de sol normales", "gafas de sol"),
+    ("se puede llevar encendedor en el avion", "encendedor"),
+])
+def test_se_puede_is_a_phrase_marker_not_a_head_token(query, parent):
+    """Both live rows still tier `noise`, but on the phrase `se puede`, not
+    on a bare `se` head. Bare `se` heads a classifieds sale (`se vende ...`),
+    which is the opposite of a lookup -- see the test below."""
+    result = score_query(query, parent)
+    assert result["tier"] == "noise", result
+    assert any(r == "informational_marker:se puede" for r in result["reasons"])
+    assert not any(r.startswith("informational_head:") for r in result["reasons"])
+
+
+def test_se_vende_is_not_informational():
+    """A classifieds-style sale is a purchase signal. Demoting it for its
+    grammar was the cost of treating `se` as an interrogative head."""
+    result = score_query("se vende bicicleta", "bicicleta")
+    assert result["tier"] == "commercial", result
+    assert not any(r.startswith("informational_") for r in result["reasons"])
+
+
+@pytest.mark.parametrize("query,parent", [
+    ("como llegar a mercadona", "mercadona"),
+    ("que horario tiene lidl", "lidl"),
+])
+def test_a_chain_name_does_not_exempt_an_interrogative_head(query, parent):
+    """A chain name scores (someone naming Mercadona is shopping-adjacent),
+    but it must not buy an exemption from the head rule the way `comprar`
+    does: these are Maps-shaped navigational lookups, the class the
+    blocklist exists for, and no stock decision follows from either."""
     result = score_query(query, parent)
     assert result["tier"] == "noise", result
     assert any(r.startswith("informational_head:") for r in result["reasons"])
@@ -379,6 +414,18 @@ def test_widened_stopwords_do_not_merge_distinct_products():
     """Guard the other direction: a genuine content word still splits."""
     assert cluster_key("gafas de sol") != cluster_key("gafas de sol homologadas")
     assert cluster_key("funda para gafas de sol") != cluster_key("gafas de sol")
+
+
+def test_negation_is_not_a_stopword():
+    """`sin` defines the product, it does not decorate it. Merging a
+    negation onto its affirmative is the over-merge the stopword comment
+    forbids: telling a shop to stock lactose-free milk because Madrid
+    searched for milk with lactose is a wrong stocking decision, not a
+    tidier card. Same reasoning for `sobre` (also a noun: sachet/envelope)
+    and `a` (which would collapse "vitamina a" onto "vitamina")."""
+    assert cluster_key("leche sin lactosa") != cluster_key("leche con lactosa")
+    assert cluster_key("cerveza sin") != cluster_key("cerveza")
+    assert cluster_key("vitamina a") != cluster_key("vitamina")
 
 
 # ---------------------------------------------------------------------------

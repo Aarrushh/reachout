@@ -180,6 +180,22 @@ describe("RetailDashboard", () => {
     ).toBeTruthy();
   });
 
+  it("describes the percentages the charts actually draw, and denies only what they are not", async () => {
+    // The Top Movers x-axis is formatted "{value}%" over `delta_pct`, so a
+    // paragraph above it saying "these numbers are not a percentage" reads
+    // as a contradiction of the only numbers on screen. `interest_avg` — the
+    // uncapped relative index — has no render site in this app. The copy
+    // must name week-on-week change and rule out sales, customers and market
+    // share, which are the readings that would cost a shopkeeper money.
+    respondWith(RESPONSE);
+    mount();
+
+    expect(
+      await screen.findByText(/change in search interest against the previous week/i),
+    ).toBeTruthy();
+    expect(screen.getByText(/not sales, customers or market share/i)).toBeTruthy();
+  });
+
   it("keeps category mix and stock-out risk mounted while a timeframe refetch is in flight, instead of blanking the whole dashboard", async () => {
     // Fix round 1, Important #1: with `timeframe` in the queryKey, switching
     // it used to create a brand-new query with no cached data, so

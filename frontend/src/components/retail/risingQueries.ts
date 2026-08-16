@@ -13,7 +13,12 @@ export interface ClusteredQuery {
   /** Always `null` when `isBreakout` is true — see `groupRisingQueries`. */
   growthPct: number | null;
   isBreakout: boolean;
-  /** Number of rows this card collapses, including the displayed one. */
+  /**
+   * Number of DISTINCT queries this card collapses, including the displayed
+   * one — not the number of rows. The table stores one row per query per
+   * capture date, so a query recurring across days is one variant, not
+   * several.
+   */
   size: number;
 }
 
@@ -55,6 +60,21 @@ export function groupRisingQueries(rows: RisingQuery[]): ClusteredQuery[] {
       return a.query.localeCompare(b.query);
     })[0];
     const isBreakout = members.some((m) => m.is_breakout);
+    // Distinct query texts, not rows: the same query captured on two days is
+    // two rows sharing one cluster_id, and counting it twice would render
+    // "2 variantes similares" for a card holding a single variant — a number
+    // nothing measured, on the one panel whose contract is not inventing
+    // numbers. Compared case- and accent-folded, the way the server's
+    // cluster keys are (`demand/api/relevance.py:_tokenize`).
+    const distinctQueries = new Set(
+      members.map((m) =>
+        m.query
+          .trim()
+          .toLocaleLowerCase("es")
+          .normalize("NFD")
+          .replace(/\p{Diacritic}/gu, ""),
+      ),
+    );
 
     return {
       clusterId,
@@ -62,7 +82,7 @@ export function groupRisingQueries(rows: RisingQuery[]): ClusteredQuery[] {
       parentKeyword: representative.parent_keyword,
       growthPct: isBreakout ? null : representative.growth_pct,
       isBreakout,
-      size: members.length,
+      size: distinctQueries.size,
     };
   });
 }

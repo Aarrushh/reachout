@@ -93,8 +93,8 @@ keywords × 2 timeframes); `demand.demand_signals` has 3,283 rows (2,597 ×
 `today 12-m` across 53 weekly windows, 2025-08-04 → 2026-08-03, plus 686 ×
 `today 3-m` across 14 windows, 2026-05-11 → 2026-08-10); `demand.rising_queries`
 has 658 rows (638 distinct queries across 42 parent keywords; 447 breakout,
-211 quantified) — the relevance scorer tiers those 658 as 581 `commercial`
-across 481 distinct clusters and 77 `noise` (measured against the live table
+211 quantified) — the relevance scorer tiers those 658 as 580 `commercial`
+across 480 distinct clusters and 78 `noise` (measured against the live table
 2026-08-16, after the informational-head, clustering-stopword and
 scattered-signal rules landed; the tiering is computed at read time, so these
 counts move when the rules do, not when the table does);

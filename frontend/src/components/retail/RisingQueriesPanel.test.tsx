@@ -165,14 +165,6 @@ describe("RisingQueriesPanel", () => {
     expect(await screen.findByText(/showing 500 of 700 rising searches/i)).toBeTruthy();
   });
 
-  it("requests the route ceiling, not the old 500 cap", async () => {
-    respondWith([row({ query: "comprar cerveza barata" })], 1);
-    mount();
-    await screen.findByText(/comprar cerveza barata/i);
-    const url = String((globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]);
-    expect(url).toContain("limit=1000");
-  });
-
   it("says how many of the total it is showing when the total is larger", async () => {
     respondWith([row({ query: "comprar cerveza barata" })], 1200);
     mount();

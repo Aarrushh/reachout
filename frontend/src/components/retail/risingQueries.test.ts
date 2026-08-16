@@ -36,6 +36,35 @@ describe("groupRisingQueries", () => {
     expect(clusters[0].size).toBe(3);
   });
 
+  it("counts one query captured on two days as one variant", () => {
+    // The live table stores one row per query per capture date, so the same
+    // query recurring across days arrives as several rows with the same
+    // cluster_id. Counting those as variants would put an invented number
+    // ("2 variantes similares") on a card that has exactly one variant.
+    const rows: RisingQuery[] = [
+      row({ id: "1", query: "donde tirar bombillas", captured_date: "2026-08-01" }),
+      row({ id: "2", query: "donde tirar bombillas", captured_date: "2026-08-08" }),
+    ];
+
+    const clusters = groupRisingQueries(rows);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].size).toBe(1);
+  });
+
+  it("still counts a genuinely different phrasing as a variant", () => {
+    const rows: RisingQuery[] = [
+      row({ id: "1", query: "donde tirar bombillas", captured_date: "2026-08-01" }),
+      row({ id: "2", query: "donde tirar bombillas", captured_date: "2026-08-08" }),
+      row({ id: "3", query: "donde tirar bombillas led", captured_date: "2026-08-08" }),
+    ];
+
+    const clusters = groupRisingQueries(rows);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].size).toBe(2);
+  });
+
   it("keeps rows in different clusters as separate entries", () => {
     const rows: RisingQuery[] = [
       row({ id: "1", query: "gafas eclipse", cluster_id: "eclipse gafas" }),

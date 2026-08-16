@@ -9,8 +9,9 @@ import { groupRisingQueries } from "./risingQueries";
 /**
  * Mirrors `RISING_QUERIES_MAX_LIMIT` in `demand/api/app.py` — this route's
  * own ceiling, deliberately above the shared `MAX_PAGE_SIZE = 500` the
- * other list endpoints use. 602 of the 658 live rows tier `commercial`, so
- * the old 500 hid 102 of them. When the table outgrows 1000, the server's
+ * other list endpoints use. 580 of the 658 live rows tier `commercial`
+ * (measured 2026-08-16), so the old 500 hid 80 of them. When the table
+ * outgrows 1000, the server's
  * `X-Total-Count` says so and the caption below reports it honestly
  * instead of implying completeness.
  */
@@ -73,8 +74,9 @@ export default function RisingQueriesPanel({ lang }: { lang: Lang }) {
     <ChartPanel lang={lang} title={title} caveat={caveat} isEmpty={clusters.length === 0}>
       {/*
         Never let this panel imply it shows every rising query in Madrid —
-        state the exact count, and flag it explicitly when the count hit
-        the server's own cap, since more rows may exist beyond it.
+        state the exact count, and when the server's `X-Total-Count` says it
+        holds more than this page carries, say "of N" instead of a bare
+        number that would read like a complete list.
       */}
       <p className="rising-queries__count-line">
         {partial

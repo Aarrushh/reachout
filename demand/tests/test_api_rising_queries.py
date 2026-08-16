@@ -350,7 +350,12 @@ def test_total_count_header_reports_the_full_filtered_size(test_client):
     assert len(response.json()) == 1
     # The header counts every commercial row, not the page.
     assert int(response.headers["X-Total-Count"]) >= 1
-    unpaged = test_client.get("/demand/api/rising-queries")
+    # Ask for the route ceiling, not the default page size — otherwise
+    # "unpaged" is a 100-row page and this assertion only holds by accident
+    # of the fixture being small.
+    unpaged = test_client.get(
+        f"/demand/api/rising-queries?limit={api_app.RISING_QUERIES_MAX_LIMIT}"
+    )
     assert int(response.headers["X-Total-Count"]) == len(unpaged.json())
 
 

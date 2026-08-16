@@ -136,6 +136,12 @@ BLOCKLIST_EXACT = _NAVIGATIONAL_TERMS | _BARE_RETAILER_NAMES
 INFORMATIONAL_MARKERS = frozenset({
     "que es", "como se", "donde tirar", "donde se tiran",
     "en ingles", "significado", "letra", "receta",
+    # `se puede` lives here, not in INFORMATIONAL_HEAD_TOKENS: a bare `se`
+    # head is just as likely to open a classifieds sale (`se vende ...`),
+    # which is a purchase signal, and demoting that for its grammar was a
+    # real cost with no live benefit. Every `se`-headed live row is
+    # `se puede ...`, and this phrase catches all of them.
+    "se puede",
 })
 
 #: Interrogative and modal words that mean "I am looking something up",
@@ -151,6 +157,10 @@ INFORMATIONAL_MARKERS = frozenset({
 #: and `comprar` is the only thing that separates it from the other 18.
 #: Remove the exemption and this rule deletes a real, dated demand spike.
 #:
+#: RETAIL_MODIFIER_TOKENS only. A chain name is NOT an exemption, even
+#: though it scores like one: `como llegar a mercadona` is a navigational
+#: lookup, not a shopping list. See `retail_modifier_hits` in score_query().
+#:
 #: `para` is here for `para que sirve el te matcha` (4 live rows); it is
 #: harmless in head position because a query genuinely starting with
 #: `para` and meaning a purchase would carry a modifier and be exempt.
@@ -158,7 +168,7 @@ INFORMATIONAL_MARKERS = frozenset({
 #: output, which is already accent-folded (see INFORMATIONAL_MARKERS).
 INFORMATIONAL_HEAD_TOKENS = frozenset({
     "que", "como", "cuando", "cuanto", "cuantos", "cuantas",
-    "donde", "quien", "quienes", "cual", "cuales", "se", "puedo",
+    "donde", "quien", "quienes", "cual", "cuales", "puedo",
     "por", "para",
 })
 
@@ -257,10 +267,10 @@ CLUSTER_STOPWORDS = frozenset({
     # Widened 2026-08-16. Function words only -- copulas, indefinite
     # determiners, the reflexive `se`, possessives, and prepositions that
     # carry no product meaning. Measured effect of THIS widening alone on
-    # the 658 live rows (2026-08-16, isolated by re-scoring them against the
-    # commit before and the commit after): 36 rows change cluster_id,
-    # clusters across all tiers 551 -> 548, eclipse clusters 10 -> 8. The
-    # commercial-tier cluster count does not move (481 either way) -- the
+    # the 658 live rows (2026-08-16, isolated by re-running annotate() with
+    # only the first line of this set): 28 rows change cluster_id, clusters
+    # across all tiers 551 -> 548, eclipse clusters 10 -> 8. The
+    # commercial-tier cluster count does not move (480 either way) -- the
     # rows this merges had already been demoted to `noise` by the
     # informational-head rule above.
     #
@@ -269,8 +279,16 @@ CLUSTER_STOPWORDS = frozenset({
     # genuine content, and merging on them would tell a shopkeeper to stock
     # a product Madrid did not search for. Under-merging costs redundancy;
     # over-merging costs a wrong stocking decision. Split when unsure.
-    "se", "un", "una", "unos", "unas", "que", "a", "o",
-    "mi", "su", "tu", "por", "sin", "sobre", "es", "son", "lo",
+    #
+    # Three words that LOOK like function words are deliberately absent,
+    # removed 2026-08-16 after the final review caught them: `sin` is
+    # retail negation and names the product (`sin gluten`, `sin lactosa`,
+    # `cerveza sin` -- stripping it merged "leche sin lactosa" onto "leche
+    # con lactosa"), `sobre` is also a noun (sachet/envelope), and `a`
+    # collapsed "vitamina a" onto "vitamina". Guarded by
+    # test_negation_is_not_a_stopword.
+    "se", "un", "una", "unos", "unas", "que", "o",
+    "mi", "su", "tu", "por", "es", "son", "lo",
 })
 
 #: Retail decoration to strip when building a CLUSTER key only -- scoring is
@@ -359,10 +377,23 @@ def score_query(query: str, parent_keyword: str) -> dict:
         score += PARENT_SCATTERED_POINTS
         reasons.append("contains_parent_tokens_scattered")
 
-    modifier_hits = sorted({t for t in tokens if t in RETAIL_MODIFIER_TOKENS})
-    if len(tokens) > 1:
+    # A chain name normally counts as a retail modifier, but it is weaker
+    # evidence than `comprar`, and inside a lookup it is part of the lookup:
+    # `como llegar a mercadona` and `que horario tiene lidl` are Maps-shaped
+    # navigational queries -- no stock decision follows from either. So when
+    # the informational-head rule below is going to fire, the chain name
+    # neither exempts the row from it nor scores. `comprar` still does both.
+    retail_modifier_hits = {t for t in tokens if t in RETAIL_MODIFIER_TOKENS}
+    informational_head = (
+        bool(tokens)
+        and tokens[0] in INFORMATIONAL_HEAD_TOKENS
+        and not retail_modifier_hits
+    )
+
+    modifier_hits = sorted(retail_modifier_hits)
+    if len(tokens) > 1 and not informational_head:
         modifier_hits = sorted(
-            set(modifier_hits) | {t for t in tokens if t in CHAIN_NAME_TOKENS}
+            retail_modifier_hits | {t for t in tokens if t in CHAIN_NAME_TOKENS}
         )
     if modifier_hits:
         score += RETAIL_MODIFIER_POINTS
@@ -385,7 +416,7 @@ def score_query(query: str, parent_keyword: str) -> dict:
     if marker_hits:
         score += INFORMATIONAL_MARKER_PENALTY
         reasons.append("informational_marker:" + ",".join(marker_hits))
-    elif tokens and tokens[0] in INFORMATIONAL_HEAD_TOKENS and not modifier_hits:
+    elif informational_head:
         # `elif`, not a second `if`: the phrase list and the head list
         # overlap ("donde tirar bombillas" matches both), and the same
         # single signal must never be charged twice.

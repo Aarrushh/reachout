@@ -171,8 +171,9 @@ RISING_QUERIES_READ_CAP = 5000
 #: /rising-queries has its own caller-facing ceiling, above the shared
 #: MAX_PAGE_SIZE = 500 the three list endpoints use. Reason: this route's
 #: rows are not a page of a browsable table, they are the input to a
-#: client-side clustering render -- 602 of the 658 live rows tier
-#: `commercial`, so a 500 cap silently hid 102 of them behind a caption
+#: client-side clustering render -- 580 of the 658 live rows tier
+#: `commercial` (measured 2026-08-16, after the relevance tuning), so a
+#: 500 cap silently hid 80 of them behind a caption
 #: that read like a complete list. The other endpoints keep MAX_PAGE_SIZE;
 #: raising that shared constant would loosen three unrelated routes.
 #: Above this ceiling the answer is still a 422, never a silent clamp --
@@ -904,6 +905,12 @@ async def get_rising_queries(
        the pre-slice length, so a caller can always tell whether it holds
        the whole filtered set or one page of it, and page the rest with
        `offset` without any row's `cluster_id` changing underneath it.
+
+    One limit worth knowing: `X-Total-Count` counts the rows this handler
+    read, and step 1 reads at most `RISING_QUERIES_READ_CAP` (5000). Past
+    5000 stored rows the header under-reports rather than lying loudly, and
+    the clustering input is truncated too. The live table holds 658, so this
+    is headroom, not a live defect -- but it is the number to raise first.
     """
     if include not in ALLOWED_RISING_QUERY_INCLUDES:
         raise HTTPException(status_code=422, detail="Unsupported include")
