@@ -198,6 +198,17 @@
   max-width: 40ch;
 }
 
+/* Task 6: the two-sentence defence against a shopkeeper reading this index as
+ * "customers" or "percent", or reading the two timeframes as comparable.
+ * Visible on the page, not a tooltip — see TimeframeToggle.tsx. */
+.retail-dash__explainer {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--sand-dim);
+  max-width: 40ch;
+}
+
 /* Fix round 1: a small in-place indicator that a refetch is in flight,
  * shown instead of blanking the movers chart (or the rest of the
  * dashboard) while `placeholderData` keeps last-known values on screen. */

@@ -52,6 +52,8 @@ export default function TimeframeToggle({
         ))}
       </div>
       <p className="timeframe-toggle__caption">{t(lang, "retail.timeframe.caption")}</p>
+      <p className="retail-dash__explainer">{t(lang, "retail.timeframe.explainer")}</p>
+      <p className="retail-dash__explainer">{t(lang, "retail.index.explainer")}</p>
     </div>
   );
 }

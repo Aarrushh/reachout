@@ -93,6 +93,8 @@ const STRINGS = {
   "retail.timeframe.3m":     { es: "3 meses", en: "3 months" },
   "retail.timeframe.12m":    { es: "12 meses", en: "12 months" },
   "retail.timeframe.updating": { es: "Actualizando…", en: "Updating…" },
+  "retail.timeframe.explainer": { es: "Las dos vistas son mediciones distintas y no se pueden comparar entre sí: cada una se mide contra su propio periodo. Un número más alto en 12 meses no significa más búsquedas que en 3 meses.", en: "The two views are separate measurements and cannot be compared with each other: each is measured against its own period. A higher number over 12 months does not mean more searches than over 3 months." },
+  "retail.index.explainer": { es: "Estos números son un índice relativo de interés de búsqueda, no un recuento de clientes ni un porcentaje. Sirven para comparar productos entre sí en la misma vista, no para estimar ventas.", en: "These numbers are a relative search-interest index, not a customer count and not a percentage. Use them to compare products against each other within one view, not to estimate sales." },
   "retail.chart.risingQueries": { es: "Búsquedas en alza", en: "Rising searches" },
   "retail.risingQueries.caveat": { es: "Interés de búsqueda en todo Madrid, no compras reales, y no el inventario de esta tienda.", en: "Search interest across Madrid, not real purchases, and not this shop's inventory." },
   "retail.risingQueries.breakout": { es: "Búsqueda revelación", en: "Breakout" },

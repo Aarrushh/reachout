@@ -171,6 +171,15 @@ describe("RetailDashboard", () => {
     expect(screen.getByText(/category mix and stock-out risk/i)).toBeTruthy();
   });
 
+  it("tells the shopkeeper the two timeframes are not comparable", async () => {
+    respondWith(RESPONSE);
+    mount();
+
+    expect(
+      await screen.findByText(/cannot be compared with each other/i),
+    ).toBeTruthy();
+  });
+
   it("keeps category mix and stock-out risk mounted while a timeframe refetch is in flight, instead of blanking the whole dashboard", async () => {
     // Fix round 1, Important #1: with `timeframe` in the queryKey, switching
     // it used to create a brand-new query with no cached data, so
