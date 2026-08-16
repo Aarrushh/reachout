@@ -1,0 +1,137 @@
+{
+  "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+  "recommendations": [
+    {
+      "id": "63f2784f-d944-4733-b7b0-c5e1a4067d8c",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "dbb066ee-7824-486d-8aaa-0afafc415913",
+      "headline": "Sube el interés por grocery en Madrid",
+      "body": "Tienes 15 productos de esta categoría en stock.",
+      "action": "stock_up",
+      "confidence": "high",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-17T09:00:00+00:00"
+    },
+    {
+      "id": "15b43b22-4b9d-4831-a798-65817454dcdd",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "bdd7d0a2-552b-43de-9cc9-a876eea45c04",
+      "headline": "Sube el interés por pharmacy en Madrid",
+      "body": "Tienes 8 productos de esta categoría en stock.",
+      "action": "stock_up",
+      "confidence": "medium",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-16T09:00:00+00:00"
+    },
+    {
+      "id": "330a367a-8aad-48cc-b027-1fef71576d77",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "9f02d161-84f7-4966-9b35-d68440b30d0d",
+      "headline": "Sube el interés por electronics en Madrid",
+      "body": "Tienes 4 productos de esta categoría en stock.",
+      "action": "stock_up",
+      "confidence": "low",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-15T09:00:00+00:00"
+    },
+    {
+      "id": "8c081dba-1ca3-4f40-9bb5-0366cf3bd71a",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "4daea44b-1095-4471-a2ac-5291c9662deb",
+      "headline": "Sube el interés por hardware en Madrid",
+      "body": "Tienes 6 productos de esta categoría en stock.",
+      "action": "feature_in_window",
+      "confidence": "high",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-14T09:00:00+00:00"
+    },
+    {
+      "id": "a8c3dcc2-20c8-4508-b10f-f43b4798ba96",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "e07456c4-e82c-405e-a4f9-e1b374b8363b",
+      "headline": "Sube el interés por stationery en Madrid",
+      "body": "Tienes 5 productos de esta categoría en stock.",
+      "action": "feature_in_window",
+      "confidence": "medium",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-13T09:00:00+00:00"
+    },
+    {
+      "id": "bae538ac-81e2-4fed-a29b-cce60268e9a4",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "fafb0744-b74c-4ef1-bd28-7bb9576f33f8",
+      "headline": "Sube el interés por grocery en Madrid",
+      "body": "Tienes 3 productos de esta categoría en stock.",
+      "action": "feature_in_window",
+      "confidence": "low",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-12T09:00:00+00:00"
+    },
+    {
+      "id": "cc80cdce-616e-4c40-8df7-3a9cc0c3d87d",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "6fde7651-ca41-4072-a3f6-eac5f53b7525",
+      "headline": "Baja el interés por pharmacy en Madrid",
+      "body": "Tienes 2 productos de esta categoría en stock.",
+      "action": "watch",
+      "confidence": "high",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-11T09:00:00+00:00"
+    },
+    {
+      "id": "3b8bfd18-53d3-442a-865c-194516b04257",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "ad74ce85-0409-4ef8-acbf-b7f57722c372",
+      "headline": "Baja el interés por electronics en Madrid",
+      "body": "Tienes 1 productos de esta categoría en stock.",
+      "action": "watch",
+      "confidence": "medium",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-10T09:00:00+00:00"
+    },
+    {
+      "id": "3fb7a569-0feb-4fcd-ad2c-c250c45639d4",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "59157bf3-1865-4c8f-b0b7-a07b1704076a",
+      "headline": "Interés estable por hardware en Madrid",
+      "body": "Tienes 1 productos de esta categoría en stock.",
+      "action": "watch",
+      "confidence": "low",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-09T09:00:00+00:00"
+    },
+    {
+      "id": "a30b79d7-eabd-468e-9bc2-b3b4494d3bbe",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "b8128286-abe9-4ac8-a24e-705586a2c339",
+      "headline": "Sube el interés por stationery en Madrid",
+      "body": "Tienes 10 productos de esta categoría en stock.",
+      "action": "stock_up",
+      "confidence": "high",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-08T09:00:00+00:00"
+    },
+    {
+      "id": "b46dbfbb-888f-483d-907d-5b4634d57563",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "91c30476-7d2b-497f-97d6-5b97c0b3eb48",
+      "headline": "Sube el interés por grocery en Madrid",
+      "body": "Tienes 7 productos de esta categoría en stock.",
+      "action": "feature_in_window",
+      "confidence": "medium",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-07T09:00:00+00:00"
+    },
+    {
+      "id": "24dbf02f-0d83-4f14-9d0a-6ac350cc14bd",
+      "store_id": "b0eb92f6-6faf-4650-bbc4-6564cc14063a",
+      "signal_id": "fcd98d02-16f0-44e5-9aba-932536d95270",
+      "headline": "Interés estable por pharmacy en Madrid",
+      "body": "Tienes 1 productos de esta categoría en stock.",
+      "action": "watch",
+      "confidence": "low",
+      "caveat": "Basado en interés de búsqueda en Madrid, no en compras reales.",
+      "created_at": "2026-08-06T09:00:00+00:00"
+    }
+  ]
+}

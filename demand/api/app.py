@@ -78,6 +78,13 @@ SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "shared" / "schemas"
 ANALYTICS_FIXTURE_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "analytics_convenience_store.json"
 )
+#: Same module-level-constant style as `ANALYTICS_FIXTURE_PATH`, for the same
+#: reason: a test can point it at a broken file without monkeypatching `open`.
+REC_FIXTURE_PATH = (
+    Path(__file__).resolve().parent
+    / "fixtures"
+    / "recommendations_convenience_store.json"
+)
 
 
 def load_schema(name: str) -> dict:
@@ -589,8 +596,31 @@ async def get_recommendations(
     store that does not exist into a response body to satisfy a contract
     check. Inventing data to pass validation is the failure the validator is
     there to catch.
+
+    Fixture mode is gated by `DEMAND_ANALYTICS_SOURCE`, the SAME env var
+    `/analytics` uses (`app.py:777`), deliberately not a second one.
+    `recommendations_response.schema.json` is frozen and has no
+    `generated_from` field, so this endpoint has no per-response fixture
+    disclosure of its own — the dashboard-level practice-data banner, driven
+    by the analytics response's `generated_from`, is this panel's disclosure
+    too. That is only truthful if one switch drives both endpoints.
     """
     _require_uuid(store_id, "store_id")
+
+    source = os.environ.get("DEMAND_ANALYTICS_SOURCE", "fixture")
+
+    if source != "live":
+        # Fixture mode is store-agnostic by construction, exactly like the
+        # analytics fixture: it is a canned document, not this store's data.
+        # The caller's store_id is validated above but never used to rewrite
+        # or filter the fixture's rows -- doing so would silently overwrite
+        # `id`/`signal_id` provenance with data this store never produced.
+        with open(REC_FIXTURE_PATH, "r", encoding="utf-8") as f:
+            response_data = json.load(f)
+        _validate_response(
+            response_data, REC_RESPONSE_SCHEMA, "recommendations_response"
+        )
+        return response_data
 
     data = await _fetch(
         lambda: get_client()

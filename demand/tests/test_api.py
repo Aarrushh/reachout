@@ -301,7 +301,10 @@ def test_get_signals_invalid_order_is_422(test_client):
     assert response.status_code == 422
 
 
-def test_get_recommendations_for_a_store(test_client):
+def test_get_recommendations_for_a_store(test_client, monkeypatch):
+    # These assert on the live Supabase path, not the default fixture
+    # branch -- see test_api_recommendations.py for fixture-mode coverage.
+    monkeypatch.setenv("DEMAND_ANALYTICS_SOURCE", "live")
     response = test_client.get(f"/demand/api/recommendations?store_id={STORE_A}")
     assert response.status_code == 200
     data = response.json()
@@ -311,14 +314,16 @@ def test_get_recommendations_for_a_store(test_client):
     assert data["recommendations"][0]["headline"] == "Stock up on hielo"
 
 
-def test_get_recommendations_unknown_store_is_empty_not_invented(test_client):
+def test_get_recommendations_unknown_store_is_empty_not_invented(test_client, monkeypatch):
+    monkeypatch.setenv("DEMAND_ANALYTICS_SOURCE", "live")
     unknown = "44444444-4444-4444-4444-444444444444"
     response = test_client.get(f"/demand/api/recommendations?store_id={unknown}")
     assert response.status_code == 200
     assert response.json() == {"store_id": unknown, "recommendations": []}
 
 
-def test_recommendations_limit_is_honoured_and_capped(test_client):
+def test_recommendations_limit_is_honoured_and_capped(test_client, monkeypatch):
+    monkeypatch.setenv("DEMAND_ANALYTICS_SOURCE", "live")
     response = test_client.get(f"/demand/api/recommendations?store_id={STORE_A}&limit=1")
     assert len(response.json()["recommendations"]) == 1
     over = test_client.get(
@@ -488,7 +493,8 @@ def test_out_of_contract_trend_row_is_a_described_500(test_client):
         assert response.json()["detail"] == "Response failed the trend_snapshot contract"
 
 
-def test_out_of_contract_recommendation_row_is_a_described_500(test_client):
+def test_out_of_contract_recommendation_row_is_a_described_500(test_client, monkeypatch):
+    monkeypatch.setenv("DEMAND_ANALYTICS_SOURCE", "live")
     tables = demand_tables()
     tables["recommendations"][0]["confidence"] = "very high"
     with _client_with(tables):
