@@ -100,10 +100,11 @@ const STRINGS = {
   "retail.risingQueries.clusterSize": { es: "{n} variantes similares", en: "{n} similar searches" },
   "retail.risingQueries.underParent": { es: "bajo «{parent}»", en: "under \"{parent}\"" },
   // Requirement: never let the panel imply completeness it cannot back up.
-  // "shown" states the exact count returned; "shownAtCap" additionally
-  // flags that the server's own limit was hit, so more may exist unseen.
+  // "shown" states the exact count returned; "shownPartial" additionally
+  // reports the server's true total (`X-Total-Count`) when it exceeds what
+  // arrived, so more may exist unseen without inventing a bigger number.
   "retail.risingQueries.shown": { es: "Mostrando {count} búsquedas en alza.", en: "Showing {count} rising searches." },
-  "retail.risingQueries.shownAtCap": { es: "Mostrando las primeras {count} búsquedas en alza; puede haber más sin mostrar.", en: "Showing the first {count} rising searches; there may be more not shown." },
+  "retail.risingQueries.shownPartial": { es: "Mostrando {count} de {total} búsquedas en alza.", en: "Showing {count} of {total} rising searches." },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

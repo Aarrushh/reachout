@@ -118,6 +118,20 @@ export interface RisingQueriesParams {
   /** `"commercial"` (server default) or `"all"`, for auditing the tiering heuristic. */
   include?: "commercial" | "all";
   limit?: number;
+  /** Row offset for paging; cluster ids are stable across pages. */
+  offset?: number;
+}
+
+export interface RisingQueriesPage {
+  rows: RisingQuery[];
+  /**
+   * `X-Total-Count`: how many rows survived the server's tier filter,
+   * before `offset`/`limit`. Larger than `rows.length` means the panel is
+   * holding one page, not the whole set. Falls back to `rows.length` when
+   * the header is absent or unparseable — an under-count is safe (the UI
+   * simply omits the "of N"), an invented larger number would not be.
+   */
+  total: number;
 }
 
 /**
@@ -127,15 +141,18 @@ export interface RisingQueriesParams {
  */
 export async function fetchRisingQueries(
   params: RisingQueriesParams = {},
-): Promise<RisingQuery[]> {
+): Promise<RisingQueriesPage> {
   const usp = new URLSearchParams();
   if (params.parentKeyword) usp.set("parent_keyword", params.parentKeyword);
   if (params.include) usp.set("include", params.include);
   if (params.limit !== undefined) usp.set("limit", String(params.limit));
+  if (params.offset !== undefined) usp.set("offset", String(params.offset));
   const qs = usp.toString();
   const res = await fetch(`${DEMAND_API_BASE}/demand/api/rising-queries${qs ? `?${qs}` : ""}`);
   if (!res.ok) {
     throw new ApiError(`GET /demand/api/rising-queries failed: ${res.status}`, res.status);
   }
-  return res.json();
+  const rows: RisingQuery[] = await res.json();
+  const header = Number(res.headers.get("X-Total-Count"));
+  return { rows, total: Number.isFinite(header) && header >= rows.length ? header : rows.length };
 }

@@ -54,7 +54,12 @@ function respondWith(body: AnalyticsResponse, risingQueries: RisingQuery[] = [])
     "fetch",
     vi.fn(async (url: string) => {
       if (String(url).includes("/rising-queries")) {
-        return { ok: true, status: 200, json: async () => risingQueries } as unknown as Response;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => risingQueries,
+          headers: { get: (name: string) => (name === "X-Total-Count" ? String(risingQueries.length) : null) },
+        } as unknown as Response;
       }
       return { ok: true, status: 200, json: async () => body } as unknown as Response;
     }),
@@ -186,7 +191,12 @@ describe("RetailDashboard", () => {
       "fetch",
       vi.fn(async (url: string) => {
         if (String(url).includes("/rising-queries")) {
-          return { ok: true, status: 200, json: async () => [] } as unknown as Response;
+          return {
+            ok: true,
+            status: 200,
+            json: async () => [],
+            headers: { get: (name: string) => (name === "X-Total-Count" ? "0" : null) },
+          } as unknown as Response;
         }
         analyticsCallCount += 1;
         if (analyticsCallCount > 1) {

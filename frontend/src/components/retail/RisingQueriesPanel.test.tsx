@@ -33,11 +33,18 @@ function mount() {
   );
 }
 
-function respondWith(rows: RisingQuery[]) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => ({ ok: true, status: 200, json: async () => rows }) as unknown as Response),
+function respondWith(rows: RisingQuery[], total: number = rows.length) {
+  const fetchMock = vi.fn(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => rows,
+        headers: { get: (name: string) => (name === "X-Total-Count" ? String(total) : null) },
+      }) as unknown as Response,
   );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 describe("RisingQueriesPanel", () => {
@@ -118,7 +125,9 @@ describe("RisingQueriesPanel", () => {
   // Fix round 1, Important #2: the live table holds 658 rows and the
   // server's own unpadded default page size is 100 (demand/api/app.py),
   // so calling the endpoint with no `limit` would silently render at most
-  // a sixth of what exists, captioned as though it were complete.
+  // a sixth of what exists, captioned as though it were complete. The
+  // explicit value is now the route's own ceiling (1000), not the shared
+  // `MAX_PAGE_SIZE` (500) the other list endpoints use.
   it("requests the server's maximum page size explicitly, rather than accepting a silently truncated default", async () => {
     respondWith([row({})]);
     mount();
@@ -126,7 +135,7 @@ describe("RisingQueriesPanel", () => {
     await screen.findByText("gafas eclipse");
     const url = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(url).toContain("/demand/api/rising-queries");
-    expect(url).toContain("limit=500");
+    expect(url).toContain("limit=1000");
   });
 
   it("states the exact count shown, without implying it is exhaustive", async () => {
@@ -142,14 +151,37 @@ describe("RisingQueriesPanel", () => {
     expect(screen.getByText(/showing 2 rising searches/i)).toBeTruthy();
   });
 
-  it("flags explicitly when the response hits the server's page-size cap", async () => {
+  // The server, not a client-side row count, is now the source of truth for
+  // whether more rows exist: `X-Total-Count` carries the post-tier-filter
+  // total, and the caption only claims partial coverage when that total
+  // exceeds what actually arrived.
+  it("flags explicitly when the server's total exceeds what was returned", async () => {
     const rows = Array.from({ length: 500 }, (_, i) =>
       row({ id: `id-${i}`, cluster_id: `cluster-${i}`, query: `query ${i}` }),
     );
-    respondWith(rows);
+    respondWith(rows, 700);
     mount();
 
-    await screen.findByText(/showing the first 500 rising searches/i);
-    expect(screen.getByText(/there may be more not shown/i)).toBeTruthy();
+    expect(await screen.findByText(/showing 500 of 700 rising searches/i)).toBeTruthy();
+  });
+
+  it("requests the route ceiling, not the old 500 cap", async () => {
+    respondWith([row({ query: "comprar cerveza barata" })], 1);
+    mount();
+    await screen.findByText(/comprar cerveza barata/i);
+    const url = String((globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+    expect(url).toContain("limit=1000");
+  });
+
+  it("says how many of the total it is showing when the total is larger", async () => {
+    respondWith([row({ query: "comprar cerveza barata" })], 1200);
+    mount();
+    expect(await screen.findByText(/showing 1 of 1200/i)).toBeTruthy();
+  });
+
+  it("does not say 'of N' when it holds every row", async () => {
+    respondWith([row({ query: "comprar cerveza barata" })], 1);
+    mount();
+    expect(await screen.findByText(/^showing 1 rising searches?\.$/i)).toBeTruthy();
   });
 });

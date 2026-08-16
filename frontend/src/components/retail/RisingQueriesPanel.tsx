@@ -7,14 +7,14 @@ import ChartPanel from "./charts/ChartPanel";
 import { groupRisingQueries } from "./risingQueries";
 
 /**
- * Mirrors `MAX_PAGE_SIZE` in `demand/api/app.py` — the server's hard
- * ceiling on `limit` (a caller-requested 1000 there returns 422). Passed
- * explicitly rather than relying on the server's own default of 100
- * (`DEFAULT_PAGE_SIZE`): the live table holds 658 rows, so the unpadded
- * default would silently render a quarter of them captioned as though it
- * were the rising searches in Madrid.
+ * Mirrors `RISING_QUERIES_MAX_LIMIT` in `demand/api/app.py` — this route's
+ * own ceiling, deliberately above the shared `MAX_PAGE_SIZE = 500` the
+ * other list endpoints use. 602 of the 658 live rows tier `commercial`, so
+ * the old 500 hid 102 of them. When the table outgrows 1000, the server's
+ * `X-Total-Count` says so and the caption below reports it honestly
+ * instead of implying completeness.
  */
-const RISING_QUERIES_LIMIT = 500;
+const RISING_QUERIES_LIMIT = 1000;
 
 /**
  * Requirement 3 (task-4): Madrid's rising search queries, clustered so
@@ -64,9 +64,10 @@ export default function RisingQueriesPanel({ lang }: { lang: Lang }) {
     );
   }
 
-  const rowCount = rising.data.length;
-  const atCap = rowCount >= RISING_QUERIES_LIMIT;
-  const clusters = groupRisingQueries(rising.data);
+  const rowCount = rising.data.rows.length;
+  const total = rising.data.total;
+  const partial = total > rowCount;
+  const clusters = groupRisingQueries(rising.data.rows);
 
   return (
     <ChartPanel lang={lang} title={title} caveat={caveat} isEmpty={clusters.length === 0}>
@@ -76,8 +77,8 @@ export default function RisingQueriesPanel({ lang }: { lang: Lang }) {
         the server's own cap, since more rows may exist beyond it.
       */}
       <p className="rising-queries__count-line">
-        {atCap
-          ? t(lang, "retail.risingQueries.shownAtCap", { count: rowCount })
+        {partial
+          ? t(lang, "retail.risingQueries.shownPartial", { count: rowCount, total })
           : t(lang, "retail.risingQueries.shown", { count: rowCount })}
       </p>
       <ul className="rising-queries__list">
