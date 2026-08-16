@@ -138,6 +138,30 @@ INFORMATIONAL_MARKERS = frozenset({
     "en ingles", "significado", "letra", "receta",
 })
 
+#: Interrogative and modal words that mean "I am looking something up",
+#: but ONLY in head position and ONLY when no retail modifier is present.
+#:
+#: Head position, because a `que` or `como` buried mid-phrase is grammar,
+#: not intent ("gafas de sol para ver el eclipse" is a purchase); at the
+#: head it is the whole point of the query ("como hacer huevos cocidos").
+#:
+#: The retail-modifier exemption is load-bearing and measured: of the 19
+#: live rows with an interrogative head that tiered `commercial`, exactly
+#: one is a genuine purchase -- `donde comprar gafas para el eclipse` --
+#: and `comprar` is the only thing that separates it from the other 18.
+#: Remove the exemption and this rule deletes a real, dated demand spike.
+#:
+#: `para` is here for `para que sirve el te matcha` (4 live rows); it is
+#: harmless in head position because a query genuinely starting with
+#: `para` and meaning a purchase would carry a modifier and be exempt.
+#: Accents are omitted deliberately -- these are matched against _tokenize
+#: output, which is already accent-folded (see INFORMATIONAL_MARKERS).
+INFORMATIONAL_HEAD_TOKENS = frozenset({
+    "que", "como", "cuando", "cuanto", "cuantos", "cuantas",
+    "donde", "quien", "quienes", "cual", "cuales", "se", "puedo",
+    "por", "para",
+})
+
 #: Token-count band a genuine short retail query tends to sit in: long enough
 #: to be a real phrase, short enough not to be a sentence someone typed into
 #: a question. Named MIN/MAX (not a bare range literal) so the eclipse and
@@ -329,6 +353,12 @@ def score_query(query: str, parent_keyword: str) -> dict:
     if marker_hits:
         score += INFORMATIONAL_MARKER_PENALTY
         reasons.append("informational_marker:" + ",".join(marker_hits))
+    elif tokens and tokens[0] in INFORMATIONAL_HEAD_TOKENS and not modifier_hits:
+        # `elif`, not a second `if`: the phrase list and the head list
+        # overlap ("donde tirar bombillas" matches both), and the same
+        # single signal must never be charged twice.
+        score += INFORMATIONAL_MARKER_PENALTY
+        reasons.append("informational_head:" + tokens[0])
 
     if len(tokens) == 1:
         score += BARE_TOKEN_PENALTY

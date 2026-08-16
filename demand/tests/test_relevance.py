@@ -9,6 +9,8 @@ API key, no network, no database -- demand/tests/conftest.py's
 import os
 import sys
 
+import pytest
+
 REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if REPO_ROOT not in sys.path:
@@ -308,3 +310,40 @@ def test_annotate_never_invents_growth_pct():
     assert "relevance_tier" in result
     assert "relevance_reasons" in result
     assert "cluster_id" in result
+
+
+# ---------------------------------------------------------------------------
+# 10. Informational heads. All eight query strings below are verbatim live
+# rows from demand.rising_queries; the first seven tiered `commercial`
+# before this rule existed.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("query,parent", [
+    ("se puede ver el eclipse con gafas de sol normales", "gafas de sol"),
+    ("puedo mirar el eclipse con gafas de sol", "gafas de sol"),
+    ("cuantos huevos puedo comer al dia", "huevos"),
+    ("cuanto duran los huevos cocidos en la nevera", "huevos"),
+    ("como hacer huevos cocidos", "huevos"),
+    ("para que sirve el te matcha", "te"),
+    ("quien invento la cerveza", "cerveza"),
+])
+def test_interrogative_head_tiers_as_noise(query, parent):
+    result = score_query(query, parent)
+    assert result["tier"] == "noise", result
+    assert any(r.startswith("informational_head:") for r in result["reasons"])
+
+
+def test_retail_modifier_exempts_an_interrogative_head():
+    """`donde comprar ...` is a purchase, not a lookup -- the one live row
+    the head rule would otherwise destroy."""
+    result = score_query("donde comprar gafas para el eclipse", "gafas de sol")
+    assert result["tier"] == "commercial", result
+    assert not any(r.startswith("informational_head:") for r in result["reasons"])
+
+
+def test_informational_penalty_is_applied_at_most_once():
+    """`donde tirar bombillas` matches the phrase marker AND the head token;
+    it must be charged once, not twice."""
+    result = score_query("donde tirar bombillas", "bombillas")
+    assert result["score"] == pytest.approx(0.0)
+    assert not any(r.startswith("informational_head:") for r in result["reasons"])
