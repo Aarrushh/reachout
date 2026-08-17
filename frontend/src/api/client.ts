@@ -6,6 +6,7 @@
 import type { AnalyticsResponse } from "../types/AnalyticsResponse";
 import type { PicksResponse } from "../types/PicksResponse";
 import type { RankedShops } from "../types/RankedShops";
+import type { RecommendationsResponse } from "../types/RecommendationsResponse";
 import type { RisingQuery } from "../types/RisingQuery";
 import type { ShopMapGeoJSON } from "../types/MapGeojson";
 import type { ShopsGeoJSON } from "../types/ShopsGeojson";
@@ -155,4 +156,22 @@ export async function fetchRisingQueries(
   const rows: RisingQuery[] = await res.json();
   const header = Number(res.headers.get("X-Total-Count"));
   return { rows, total: Number.isFinite(header) && header >= rows.length ? header : rows.length };
+}
+
+/**
+ * `store_id` is REQUIRED by the endpoint and its frozen schema. The dashboard
+ * is store-agnostic today, so the id comes from the environment; the fallback
+ * uuid matches the committed fixture's own store id, so a build with no env
+ * var set behaves exactly like the analytics fixture path does.
+ */
+const DEMAND_STORE_ID =
+  import.meta.env.VITE_DEMAND_STORE_ID ?? "b0eb92f6-6faf-4650-bbc4-6564cc14063a"; // ← the fixture file's uuid
+
+export async function fetchRecommendations(limit = 500): Promise<RecommendationsResponse> {
+  const usp = new URLSearchParams({ store_id: DEMAND_STORE_ID, limit: String(limit) });
+  const res = await fetch(`${DEMAND_API_BASE}/demand/api/recommendations?${usp.toString()}`);
+  if (!res.ok) {
+    throw new ApiError(`GET /demand/api/recommendations failed: ${res.status}`, res.status);
+  }
+  return res.json();
 }

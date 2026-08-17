@@ -107,6 +107,13 @@ const STRINGS = {
   // arrived, so more may exist unseen without inventing a bigger number.
   "retail.risingQueries.shown": { es: "Mostrando {count} búsquedas en alza.", en: "Showing {count} rising searches." },
   "retail.risingQueries.shownPartial": { es: "Mostrando {count} de {total} búsquedas en alza.", en: "Showing {count} of {total} rising searches." },
+  "retail.chart.recommendations": { es: "Recomendaciones para tu tienda", en: "Recommendations for your shop" },
+  "retail.recommendations.shown": { es: "Mostrando {count} recomendaciones.", en: "Showing {count} recommendations." },
+  "retail.recommendations.action.stockUp": { es: "Reponer", en: "Stock up" },
+  "retail.recommendations.action.feature": { es: "Destacar esta semana", en: "Feature this window" },
+  "retail.recommendations.action.watch": { es: "Vigilar", en: "Watch" },
+  "retail.provenance.search": { es: "Interés de búsqueda · Madrid", en: "Search interest · Madrid" },
+  "retail.provenance.inventory": { es: "Censo de inventario · esta tienda", en: "Inventory census · this shop" },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

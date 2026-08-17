@@ -48,11 +48,11 @@ function mount(lang: "es" | "en" = "en") {
   );
 }
 
-// RetailDashboard now fires two independent fetches once analytics loads:
-// its own /analytics call and the discovery panel's /rising-queries call.
-// Routing by URL keeps each test's analytics fixture from being handed back
-// for the rising-queries request too, which would not even be the right
-// shape (an object, not an array).
+// RetailDashboard now fires three independent fetches once analytics loads:
+// its own /analytics call, the discovery panel's /rising-queries call, and
+// the recommendations panel's /recommendations call. Routing by URL keeps
+// each test's analytics fixture from being handed back for the other two
+// requests too, which would not even be the right shape.
 function respondWith(body: AnalyticsResponse, risingQueries: RisingQuery[] = []) {
   vi.stubGlobal(
     "fetch",
@@ -63,6 +63,13 @@ function respondWith(body: AnalyticsResponse, risingQueries: RisingQuery[] = [])
           status: 200,
           json: async () => risingQueries,
           headers: { get: (name: string) => (name === "X-Total-Count" ? String(risingQueries.length) : null) },
+        } as unknown as Response;
+      }
+      if (String(url).includes("/recommendations")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ store_id: "b0eb92f6-6faf-4650-bbc4-6564cc14063a", recommendations: [] }),
         } as unknown as Response;
       }
       return { ok: true, status: 200, json: async () => body } as unknown as Response;
@@ -225,6 +232,13 @@ describe("RetailDashboard", () => {
             status: 200,
             json: async () => [],
             headers: { get: (name: string) => (name === "X-Total-Count" ? "0" : null) },
+          } as unknown as Response;
+        }
+        if (String(url).includes("/recommendations")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ store_id: "b0eb92f6-6faf-4650-bbc4-6564cc14063a", recommendations: [] }),
           } as unknown as Response;
         }
         analyticsCallCount += 1;

@@ -8,6 +8,7 @@ import type { Lang } from "../../i18n/strings";
 import CategoryMixChart from "./charts/CategoryMixChart";
 import StockOutRiskChart from "./charts/StockOutRiskChart";
 import TopMoversChart from "./charts/TopMoversChart";
+import RecommendationsPanel from "./RecommendationsPanel";
 import RisingQueriesPanel from "./RisingQueriesPanel";
 import TimeframeToggle from "./TimeframeToggle";
 
@@ -112,6 +113,7 @@ export default function RetailDashboard({ lang }: { lang: Lang }) {
           points={segments.stock_out_risk.points}
         />
         <RisingQueriesPanel lang={lang} />
+        <RecommendationsPanel lang={lang} />
       </div>
     </>
   );

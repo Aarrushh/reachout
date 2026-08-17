@@ -289,3 +289,25 @@
 .rising-queries__growth--breakout {
   color: var(--terracotta-hot);
 }
+
+/* Provenance eyebrow (D11 redesign): mono microcaps + hairline. Encodes the
+ * search-signal vs inventory-census split the timeframe caption describes. */
+.chart-panel__eyebrow {
+  color: var(--sand-dim);
+  border-bottom: 1px solid var(--ink-700);
+  padding-bottom: 6px;
+  margin: 0 0 10px;
+}
+
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; }
+
+.recommendations__count-line { color: var(--sand-dim); font-size: 12px; margin: 0 0 8px; }
+.recommendations__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; }
+.recommendations__row { border: 1px solid var(--ink-600); border-left-width: 3px; border-radius: 6px; padding: 10px 12px; background: var(--ink-800); }
+.recommendations__row--stock_up { border-left-color: var(--chart-rising); }
+.recommendations__row--feature_in_window { border-left-color: var(--chart-risk); }
+.recommendations__row--watch { border-left-color: var(--chart-flat); }
+.recommendations__row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.recommendations__action { color: var(--sand-dim); }
+.recommendations__headline { font-family: var(--font-display); font-weight: 600; font-size: 14px; margin: 6px 0 2px; }
+.recommendations__body { font-size: 13px; color: var(--sand); margin: 0; }
