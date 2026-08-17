@@ -12,19 +12,23 @@ Protocol (MWP).
 
 ## What the frontend is
 
-React 19 + TypeScript + Vite. Today it is the consumer search-and-map UI
-for ReachOut's Madrid MVP. It is about to become a **shell with two
-halves** — a consumer mode (the existing search/map/chat UI) and a retail
+React 19 + TypeScript + Vite. It is a **shell with two halves** — a
+consumer mode (search/map/chat for ReachOut's Madrid MVP) and a retail
 mode (a demand dashboard for shopkeepers) — picked by a URL toggle, not by
-separate routes. See `docs/IMPLEMENTATION_PLAN_V2.md` for the full plan.
+separate routes. Both halves are built. See
+`docs/IMPLEMENTATION_PLAN_V4.md` for the work still open.
 
 ## The standing conventions — binding rules, not suggestions
 
 - **No UI/component library.** Plain CSS + custom-property tokens
   (`src/styles/tokens.css`) for everything. **Recorded exception (D9):**
-  ECharts (`echarts-for-react`), and only inside
-  `components/retail/charts/`. No other component library enters the tree,
-  and no chart import leaves that folder.
+  the vendored Bklit charts under `components/retail/charts/bklit/`, whose
+  dependencies (`@visx/*`, `d3-array`, `d3-shape`, `@base-ui/react`,
+  `@number-flow/react`) and whose Tailwind v4 layers (`bklit.css`, scoped
+  to that folder alone) may not be used anywhere else. `motion` is allowed
+  there and in the vendored ReactBits components. ECharts was the earlier
+  form of this exception and is gone — do not reach for it. No other
+  component library enters the tree, and no chart import leaves that folder.
 - **All copy through `src/i18n/strings.ts`.** Spanish is the default
   language; English is opt-in via the `?lang=en` URL param
   (`src/hooks/useLang.ts` — no stored preference, URL only). Never a
