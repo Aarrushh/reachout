@@ -1,8 +1,10 @@
 # ReachOut — Codebase Overview
 
-*Written 2026-08-05, from the code on `main` at `d8f48bd`. Every claim below
-was checked against a file, not against a doc. Where a doc disagrees with the
-code, this document says so and names the file.*
+*Written 2026-08-05 from the code on `main` at `d8f48bd`; revised 2026-08-16
+from `main` at `7ce070d`, after the demand tables were populated for the first
+time. Every claim below was checked against a file or against a live query, not
+against a doc. Where a doc disagrees with the code, this document says so and
+names the file. Row counts and test counts carry the date they were measured.*
 
 This is the orientation document for an engineer joining the project. It
 covers both phases: **v1**, the shopper pipeline and its live API, and **v2**,
@@ -10,7 +12,9 @@ the demand service and the retail dashboard. It explains what the code does in
 coding logic — inputs, outputs, who calls what, what halts what — and why the
 odd-looking parts are shaped the way they are.
 
-Read §1 and §2 before touching anything. §10 tells you which files lie.
+Read §1 and §2 before touching anything. §10 tells you which files lie. If you
+are here to redesign the frontend, read §11 as well — it separates what is
+layout from what is a correctness constraint.
 
 ---
 
@@ -608,10 +612,17 @@ run every test green, or the offload model in §8 collapses.
 
 ## 5. Data model
 
-### 5.1 The three demand tables
+### 5.1 The four demand tables
 
 All in `demand/data/schema.sql`, idempotent (`create ... if not exists`
-throughout).
+throughout). **Live row counts, queried 2026-08-16:**
+
+| Table | Rows | Grain |
+|---|---|---|
+| `demand.trend_snapshots` | 98 | 49 keywords × 2 timeframes |
+| `demand.demand_signals` | 3,283 | 2,597 × `today 12-m` (53 weeks) + 686 × `today 3-m` (14 weeks) |
+| `demand.rising_queries` | 658 | one discovered query per parent keyword per capture day |
+| `demand.recommendations` | 1,541 | per store × signal |
 
 **`demand.trend_snapshots`** — raw captures.
 `id uuid pk, keyword text, geo text, timeframe text, provider text,
@@ -653,6 +664,24 @@ headline, body, action, confidence, caveat, created_at`.
   It is a foreign key across Postgres schemas in the same database, which works
   fine — but it means the demand service cannot be extracted to its own
   database without replacing that constraint with something else.
+
+**`demand.rising_queries`** — the discovery pass, added after this document's
+first draft. `id uuid pk, parent_keyword, query, growth_pct numeric (nullable),
+is_breakout boolean, geo, gprop, captured_at, captured_date`.
+
+- This is the "what is Madrid starting to search for that you do not stock"
+  table: SerpApi's RELATED_QUERIES rising block for each seed keyword, so its
+  grain is *discovered query*, not *tracked keyword*.
+- **`growth_pct` is null exactly when `is_breakout` is true.** Google says
+  "Breakout" when it will not quantify growth, and the null is that refusal
+  preserved. 447 of the 658 live rows are breakout. Nothing anywhere — API,
+  clustering helper, or chart — may substitute a number for that null.
+- `gprop` is stored rather than assumed constant: a Shopping-derived row and a
+  Web-derived row mean different things and must never merge silently.
+- `id` is a uuid5 of `(parent_keyword, query, geo, gprop, captured_date)`, so
+  re-ingesting a day upserts. The same query captured on two different days is
+  two rows by design — see §6.5 for why the frontend has to de-duplicate them
+  before it counts anything.
 
 ### 5.2 RLS is off, and the service key is the only gate
 
@@ -770,10 +799,93 @@ on a real client; the projection narrows on any client.
 | Endpoint | Params | Validated against | Notes |
 |---|---|---|---|
 | `GET /demand/api/health` | — | — | `{"status":"ok"}` |
-| `GET /demand/api/trends` | `limit ≤ 500` | `trend_snapshot.schema.json` per row | newest first; explicit columns |
-| `GET /demand/api/signals` | `window, direction, limit ≤ 500` | `demand_signal.schema.json` per row | ordered by `rank` |
+| `GET /demand/api/trends` | `limit ≤ 500`, `timeframe` | `trend_snapshot.schema.json` per row | newest first; explicit columns |
+| `GET /demand/api/signals` | `window, direction, keyword, order, limit ≤ 500`, `timeframe` | `demand_signal.schema.json` per row | ordered by `rank`, or by `window_start` with `order=window_start` |
 | `GET /demand/api/recommendations` | `store_id` **(required uuid)**, `limit` | `recommendations_response.schema.json` | 422 on malformed uuid |
-| `GET /demand/api/analytics` | `store_id` (optional uuid), `inventory_type` | `analytics_response.schema.json` | 422 on unsupported `inventory_type` |
+| `GET /demand/api/analytics` | `store_id` (optional uuid), `inventory_type`, `timeframe` | `analytics_response.schema.json` | 422 on unsupported `inventory_type` **or `timeframe`** |
+| `GET /demand/api/rising-queries` | `parent_keyword`, `include`, `limit ≤ 1000`, `offset` | `rising_query.schema.json` per row | bare array + `X-Total-Count` header |
+
+**`timeframe` is a first-class filter, not a convenience.** `ALLOWED_TIMEFRAMES
+= ("today 3-m", "today 12-m")`, `DEFAULT_TIMEFRAME = "today 3-m"`
+(`app.py:138,141`). `demand_signals` holds both scales in one table, and they
+are rescaled onto different anchors — a 3-month reading and a 12-month reading
+of the same keyword are not convertible into one another. An endpoint that did
+not filter would return both and any chart drawing the result would be
+plotting two different measurements as one line. Unknown values 422 rather
+than silently falling back.
+
+`/analytics` additionally resolves the **latest `window_start` for the
+requested timeframe first**, then filters to it. Without that, the `rank`
+ordering plus `ANALYTICS_SIGNALS_CAP = 500` (`app.py:155`) sliced a full year
+of weekly rows down to the 13 perennial top-ranked keywords — a chart that
+looked authoritative and showed almost none of the actual movers. Bounding the
+cap to one week (≤49 rows) is what makes the cap harmless.
+
+### 6.3.1 `/demand/api/rising-queries` — the two contracts it carries
+
+This route is younger than the rest of the service and breaks two of its
+conventions on purpose. Both breaks are load-bearing.
+
+**It returns a bare array with the total in a header.**
+`rising_query.schema.json` is a row schema with `additionalProperties: false`,
+and it is frozen, so there is no envelope object to put a count in. The total
+therefore travels as `X-Total-Count`, with
+`Access-Control-Expose-Headers` set so a browser can actually read it. The
+frontend needs it to caption "showing 500 of 700" honestly instead of implying
+completeness; a client-side `rows.length` cannot tell truncation from a short
+table.
+
+**Its page ceiling is its own.** `RISING_QUERIES_MAX_LIMIT = 1000`, deliberately
+above the shared `MAX_PAGE_SIZE = 500` the other list endpoints use, because
+580 of the 658 live rows tier `commercial` (measured 2026-08-16) and 500 hid 80
+of them behind a caption that read as complete.
+
+**Order of operations inside the handler is a correctness requirement, not
+style:**
+
+1. read from the DB, capped at `RISING_QUERIES_READ_CAP = 5000`, ordered by `id`
+2. call `annotate()` **once, on the whole batch**
+3. filter by tier
+4. set `X-Total-Count` from the post-filter length — **before slicing**
+5. apply `offset`/`limit` last
+
+Step 2 is why: `annotate()` assigns cluster IDs by comparing rows *against each
+other*, so its output depends on which rows share the call. Annotating a page
+would give the same query different cluster IDs on different pages. Step 4 is
+why the count is trustworthy: a total computed after slicing is just the page
+size wearing a header's name.
+
+**Relevance is scored at read time, in pure Python** (`demand/api/relevance.py`)
+— no AI anywhere near ranking, per the one rule in `CLAUDE.md`. Rows are
+scored, tiered `commercial` / `ambiguous` / `noise`, and **never deleted**;
+`?include=all` returns everything for audit, and every row carries its
+`relevance_score` and the list of `relevance_reasons` that produced it. A
+hidden heuristic is an unauditable one. Scoring at read time also means the
+rules stay tunable with no DDL, no migration and no re-ingest.
+
+The scoring rules, with their weights: parent-keyword containment +2.0, retail
+modifier +2.0, chain name +1.0, 2–5 tokens +1.0, scattered parent tokens +1.0,
+blocklist −4.0, informational marker or informational head token −3.0, single
+bare token −2.0. `COMMERCIAL_THRESHOLD = 1.0`, `NOISE_THRESHOLD = 0.0`.
+
+Two things about the Spanish token sets that look like tuning noise and are
+not:
+
+- **`sin`, `sobre` and `a` are deliberately absent from `CLUSTER_STOPWORDS`.**
+  They look like function words. In retail they name products: `sin` is
+  negation (`leche sin lactosa` is a different product from `leche`), `sobre`
+  is also a noun (an envelope), and dropping `a` collapses `vitamina a` into
+  `vitamina`. A stopword list built from grammar rather than from the domain
+  merges products that a shopkeeper stocks separately.
+- **A chain name stops scoring when the informational-head rule fires.**
+  `como llegar mercadona` is a navigation lookup, not a purchase intent;
+  letting the `+1.0` chain-name signal stand alongside the `−3.0` penalty left
+  it at 2.0 — still above the commercial threshold. One query must not earn
+  credit for the brand it is merely asking directions to.
+
+The honesty invariant travels the whole way through this route: **`is_breakout:
+true` ⇒ `growth_pct` is null**, asserted in tests, and 447 of 658 live rows are
+breakouts. Nothing may substitute a number Google declined to give.
 
 Every read goes through `_fetch` (`app.py:202-223`), which takes a
 **zero-argument callable, not a built query**. That is not style. `get_client()`
@@ -880,7 +992,10 @@ Checked by reading the tree, not the tracker. Every one has landed:
 | **U6** | Dead "ask AI" button | `retail/AiAnalystButton.tsx` | `07f09da` |
 | **U7** | Browser verification + three phone-layout fixes | Playwright, 25/25 | `ac4f515` |
 
-Frontend suite: **79 tests, 16 files, all passing.**
+Since then the retail half gained the timeframe toggle and the discovery
+panel (`RisingQueriesPanel.tsx`, `risingQueries.ts`), both covered in §7.3.
+
+Frontend suite: **104 tests, 19 files, all passing.**
 
 ### 7.3 The parts that carry a rule
 
@@ -921,6 +1036,44 @@ render `null` — no heading, no skeleton, no reserved space. It sits beside the
 search box on the landing page, and an error banner there would tell a shopper
 the site is broken while the thing they came for still works.
 
+**The timeframe toggle refetches; it never reslices.** `RetailDashboard.tsx`
+holds `timeframe` in state and puts it in the TanStack Query **key**, so
+switching 3 months / 12 months issues a new request. Client-side filtering of
+an already-loaded payload would be faster and would be wrong: the two
+timeframes are rescaled onto different anchors and share no axis. Two further
+rules ride along with it — the toggle's caption names the two segments it does
+*not* govern (category mix and stock-out risk derive from `public.products`,
+not from signals), and the dashboard keeps those two panels **mounted while
+the refetch is in flight** instead of blanking the screen, so the toggle never
+appears to have changed them.
+
+**The retail explainer describes the numbers actually on screen.** The Top
+Movers x-axis formats `delta_pct` as `{value}%`, so copy reading "these are not
+percentages" would contradict the only numbers visible. `interest_avg` — the
+uncapped relative index — has no render site in this app at all. The copy
+therefore names *week-on-week change in search interest, measured on a relative
+index*, and rules out the three readings that would cost a shopkeeper money:
+sales, customers, market share.
+
+**`RisingQueriesPanel.tsx` is the only panel with its own fetch.**
+`/rising-queries` is a separate endpoint, is not part of `AnalyticsResponse`,
+and takes no `timeframe`. It carries no `confidence` either, so the
+`ChartPanel` chip is left unset rather than guessed. It asks for
+`limit=1000` explicitly — the server's unpaged default is 100, which would have
+rendered a sixth of the table under a caption that read as complete — and it
+reports `showing N of M` from `X-Total-Count` whenever the server holds more
+than arrived.
+
+**`risingQueries.ts` counts distinct queries, not rows.** The table stores one
+row per query per capture date, so a query recurring across two weeks arrives
+as two rows in one cluster. Counting rows would put "2 variantes similares" on
+a card that has exactly one variant — an invented number, which is the failure
+this pipeline exists to prevent. `size` therefore counts accent-folded,
+lowercased distinct query texts. The panel's breakout branch checks
+`isBreakout || growthPct === null`; the second half is redundant today and
+stays deliberately, so that a future change to the grouping helper cannot let a
+null reach the numeric branch.
+
 ### 7.4 What is NOT in the frontend
 
 - **No call to `POST /api/chat`.** `ChatPanel` uses `src/chat/shopkeeper.ts`, a
@@ -929,7 +1082,15 @@ the site is broken while the thing they came for still works.
   is one function body.
 - **No call to `POST /api/search`.** Decision S6: the frontend is on the
   pipeline's `GET` path.
-- **No call to `/demand/api/recommendations`.** Only `/analytics` is consumed.
+- **No call to `/demand/api/recommendations`.** `/analytics` and
+  `/rising-queries` are consumed; the 1,541 recommendation rows are computed,
+  stored, served by an endpoint, and read by nobody. The only thing in the
+  frontend that references them is the generated `.d.ts`. This is the largest
+  piece of finished backend work with no surface.
+- **No call to `/demand/api/trends` or `/demand/api/signals`.** `/signals`
+  gained `keyword` and `order=window_start` specifically to make a
+  demand-over-time line chart possible from data already stored (53 weekly
+  points per keyword). The chart was never built.
 - **No auth anywhere.** D2.
 
 ---
@@ -1080,42 +1241,56 @@ run.
 Stated without euphemism, determined from the code and a live database query,
 not from the tracker.
 
-### 9.1 V1a — live ingest has never successfully run. The tables are empty.
+### 9.1 V1a — resolved. The ingest ran; the tables hold real data.
 
-Queried directly against Supabase on 2026-08-05:
+**This section described the opposite until 2026-08-16.** It is kept, corrected,
+because the shape of the failure and the shape of the fix are both worth
+knowing.
 
-```
-trend_snapshots -> 0
-demand_signals  -> 0
-recommendations -> 0
-```
+What was true through 2026-08-05: all four demand tables held 0 rows. The schema
+was applied and the grants were correct — M3 was verified by a live REST probe
+returning `200 []`, which only happens once the schema exists, is exposed, and
+`service_role` has been granted. The pipeline ran. What never happened was a
+successful **live scrape**: Google IP-throttled the project and served a CAPTCHA
+(`docs/TRACKER.md` V1a: `[!] blocked: Google IP-throttled (CAPTCHA); no usable
+fallback dataset`). Two rounds of ingest hardening came out of the attempts —
+5-term batching, anchor rescaling, and surviving a missing region breakdown
+(`9cecea2`) — but no rows landed.
 
-The schema is applied and the grants are correct — M3 was verified by a live
-REST probe returning `200 []`, which only happens once the schema exists, is
-exposed, and `service_role` has been granted. The pipeline runs. What has not
-happened is a successful **live scrape**: Google IP-throttled the project and
-served a CAPTCHA (`docs/TRACKER.md` V1a: `[!] blocked: Google IP-throttled
-(CAPTCHA); no usable fallback dataset`). Two rounds of ingest hardening came out
-of the attempts — 5-term batching, anchor rescaling, and surviving a missing
-region breakdown (`9cecea2`) — but no rows landed.
+**What unblocked it: a paid provider, not a better scraper.** `TrendspyProvider`
+and its dependencies (`trendspy`, `pandas`) were removed outright and replaced
+with SerpApi, which fetches Google Trends server-side and returns JSON. The
+throttling problem was never solvable from this machine's IP; it stopped being
+this project's problem instead. Live counts are in §5.1.
 
-**The fixture provider is not a substitute and must not be presented as one.**
-`demand/tests/fixtures/trends/interest_over_time.json` contains **two English
-keywords** (`sneakers`, `coffee`) with **three daily points each**. Running the
-chain against it produces 49 snapshot rows of which 47 have an empty series —
-rows that look like data and are not. Those rows were deleted rather than left
-in the table.
+Two properties of that switch are permanent constraints, not migration details:
 
-So: **the demand service is fully built, fully tested, and has never processed a
-single real trend.** The dashboard renders the committed fixture and says
-"practice data" on screen. That is the honest state, and the UI is built so that
-it stays honest without anyone remembering to update it.
+- **Searches cost money and the budget is finite.** No code path may spend a
+  SerpApi search implicitly — live runs require `--spend` passed explicitly, and
+  the weekly cron requires *both* `DEMAND_INGEST_CRON=1` and
+  `DEMAND_INGEST_CRON_SPEND=1` before it will fire.
+- **The fixture provider is still not a substitute and must not be presented as
+  one.** `demand/tests/fixtures/trends/interest_over_time.json` contains **two
+  English keywords** (`sneakers`, `coffee`) with **three daily points each**.
+  Running the chain against it produces 49 snapshot rows of which 47 have an
+  empty series — rows that look like data and are not.
 
-### 9.2 V1b — blocked behind V1a
+**The dashboard still shows the fixture by default.** `/demand/api/analytics`
+reads `os.environ.get("DEMAND_ANALYTICS_SOURCE", "fixture")` (`app.py:777`), so
+a service started without that variable serves the canned payload and the UI
+correctly labels it "practice data". Live rendering requires
+`DEMAND_ANALYTICS_SOURCE=live` in the environment. `/rising-queries` has no such
+switch — it always reads the database.
+
+### 9.2 V1b — unblocked, and done only locally
 
 The five-minute visual confirmation that the charts draw *ingested* numbers.
-Cannot run until V1a produces rows, and cannot be faked: if the scrape stays
-blocked, the dashboard keeps its practice-data banner and V1 stays open.
+V1a now produces rows, so this can run — and has, against a local
+`DEMAND_ANALYTICS_SOURCE=live uvicorn demand.api.app:app --port 8001`, which
+returns `generated_from: "live"`.
+
+It has **not** run anywhere hosted, because nothing about the demand service is
+deployed (§9.4).
 
 ### 9.3 Neither integration branch received a whole-branch review
 
@@ -1152,17 +1327,30 @@ repeatedly checked — and treat the *absence* of a comment as unexamined.
   `UNENFORCED_FORMATS == frozenset()` so the claim stops depending on prose.
 - **`POST /api/chat` is shipped but unused** — the frontend runs a mock.
 - **The Supabase secret key was pasted into a prompt during the build and
-  should be rotated.**
+  should be rotated.** So should `SERPAPI_API_KEY`, for the same reason.
 - **Steps 2 and 3 of the demand deployment exist only in `docs/TRACKER.md`**,
   not in `schema.sql` where they would be seen (§5.3).
+- **The demand service is not deployed and cannot be reached by a hosted
+  build.** `render.yaml` defines only `reachout-api`; there is no second service
+  for `demand.api.app`. `netlify.toml` never sets `VITE_DEMAND_API_BASE`, and
+  `frontend/src/api/client.ts:28` falls back to `http://localhost:8001`. A
+  deployed frontend therefore asks the visitor's own machine for demand data and
+  gets a connection refusal. Everything in §6.3 works locally only.
+- **The weekly cron maintains the 3-month series only.** It fires Monday 00:00
+  UTC (`app.py:286-287`), costs 22 searches per firing, passes no timeframe, and
+  so falls back to `INGEST_TIMEFRAME = "today 3-m"` (`run_ingest.py:48`). The
+  12-month history — the 2,597 rows that earn most of the `high` confidence
+  labels — goes stale unless a 12-m run is scheduled separately. It also only
+  runs while the API process is up, and nothing is hosted.
+- **1,541 recommendation rows have no reader** (§7.4).
 
 ### 9.5 Test counts, as of this document
 
 | Suite | Command | Result |
 |---|---|---|
 | Shopper | `cd reachout && PYTHONPATH=.. ../.venv/bin/python -m pytest tests -q` | **273 passed** |
-| Demand | `.venv/bin/python -m pytest demand/tests -q` | **158 passed** |
-| Frontend | `cd frontend && npx vitest run` | **79 passed** (16 files) |
+| Demand | `.venv/bin/python -m pytest demand/tests -q` | **409 passed** |
+| Frontend | `cd frontend && npx vitest run` | **104 passed** (19 files) |
 
 **Environment gotchas that will cost you an hour each:**
 
@@ -1248,3 +1436,105 @@ repeatedly checked — and treat the *absence* of a comment as unexamined.
 5. **`PROJECT_OVERVIEW.md`** — good on method (§4 ICM and graph engineering are
    accurate and worth reading in full), inevitably behind on inventory.
 6. Everything else is history.
+
+---
+
+## 11. If you redesign the UI
+
+Both halves of the frontend are about to be redrawn. This section is the list
+of things that are not layout — they are constraints that survive any visual
+change, and each one exists because breaking it puts a number on screen that
+the data does not support.
+
+### 11.1 The honesty invariants — carry these into any new component
+
+None of these are stylistic. Each has a test that fails if it is dropped.
+
+1. **`is_breakout: true` renders "Breakout", never a number.** Not `0`, not
+   `0%`, not a quantified sibling's percentage. 447 of 658 live rows are
+   breakouts, so this is the majority case, not an edge case.
+2. **`generated_from: "fixture"` must be visible.** Fixture and live payloads
+   are byte-identical in shape by design; that field is the only thing that
+   distinguishes canned numbers from a shop's own. A redesign that drops the
+   practice-data banner presents demo data as real.
+3. **Every panel carries the server's `caveat` string, always visible.** Not a
+   tooltip, not behind an info icon — a tooltip does not exist on a
+   touchscreen.
+4. **Confidence is per segment, not per response.** One payload routinely
+   carries `high`, `medium` and `low` in three segments. One shared chip would
+   be a lie about two of them.
+5. **Charts perform no arithmetic.** `charts/options.ts` colours by
+   `direction`, never by the sign of `delta_pct`, and plots `share_pct` /
+   `risk_pct` verbatim with no normalisation. If the browser starts computing,
+   the same number can disagree with itself in two places.
+6. **Never label an axis "searches", and never render `interest_avg` as a
+   percentage.** It is a relative index rescaled onto a shared anchor; its live
+   max is 304.15, so a 0–100 axis is simply wrong. The only percentages the app
+   draws today are `delta_pct`, `share_pct` and `risk_pct`.
+7. **Counts state what they are.** "Showing N" when the server's
+   `X-Total-Count` says M > N must read "showing N of M".
+
+### 11.2 The three things that will bite a redesign hardest
+
+**The demand service is not deployed.** Every retail chart in a hosted build
+currently calls `http://localhost:8001` (§9.4). A redesign that ships to
+Netlify will look completely broken on the retail side, and the cause is
+`render.yaml` and `netlify.toml`, not the new components. Fix the deployment
+before blaming the UI.
+
+**The dashboard shows fixture data unless `DEMAND_ANALYTICS_SOURCE=live` is
+set** (`app.py:777`). Someone redesigning against a locally started service
+will be styling canned numbers and may tune layouts around row counts that do
+not match the live table.
+
+**The timeframe toggle must refetch.** 3-month and 12-month readings are
+rescaled onto different anchors; they are not two slices of one dataset and
+cannot be converted. Any redesign that keeps both in memory and switches
+client-side produces plausible, wrong charts. The same rule forbids drawing
+both on one axis.
+
+### 11.3 What the retail side has that no design currently uses
+
+- **1,541 recommendation rows** — `feature_in_window` / `stock_up` / `watch`,
+  per store, already joined to `public.products`, already served by an
+  endpoint. This is the most actionable data in the system and it has no
+  screen.
+- **53 weekly points per keyword** in `demand_signals`, plus the `keyword` and
+  `order=window_start` params on `/signals` that exist specifically to fetch
+  them. A demand-over-time line chart is a frontend-only task.
+- **Ambiguous-tier rising queries.** The default view returns `commercial`
+  only; `?include=all` returns every row with its score and reasons. An audit
+  or tuning surface is one query param away.
+
+### 11.4 What the consumer side actually constrains
+
+The consumer half is a different service (SQLite, port 8000) and a different
+set of rules:
+
+- **`/api/picks` is deterministic on purpose** (§6.2). A redesign that adds
+  client-side shuffling or "recommended for you" reordering breaks the
+  property the endpoint was built to guarantee.
+- **`PicksRail` renders `null` on loading, error and empty** — no skeleton, no
+  reserved space. Adding a placeholder box tells a shopper the site is broken
+  while the search they came for still works.
+- **The service worker caches the consumer app and refuses to cache anything
+  retail** (`isRetailRequest`). If a redesign moves retail content under a new
+  path that is neither `?mode=retail` nor `/demand/`, stale demand figures
+  start being served offline with nothing on screen saying they are stale.
+- **Modes are not routes.** Two routes exist, `/` and `/results`, and
+  `?mode=retail` selects the tree. Anything not exactly `retail` resolves to
+  consumer, deliberately. Introducing `/dashboard` is a real architectural
+  change, not a routing tidy-up.
+- **All copy goes through `src/i18n/strings.ts`**, Spanish and English. There
+  is no component library and no CSS framework — plain CSS with
+  custom-property tokens, one recorded exception for ECharts.
+
+### 11.5 The parts that are safe to throw away
+
+Layout, spacing, colour, typography, chart types, panel arrangement, component
+names, and the ECharts wrapper itself are all replaceable — the option builders
+in `charts/options.ts` are pure functions with tests, so a different chart
+library changes those and nothing else. `src/types/` is generated from the
+frozen schemas by `npm run gen-types`; regenerate, never hand-edit. The five
+schemas in `demand/shared/schemas/` and `demand/data/schema.sql` are frozen and
+are the reason the data behind the redesign stays trustworthy.

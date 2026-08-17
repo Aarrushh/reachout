@@ -28,3 +28,6 @@ tools/.jules_runner_state*.json.lock.*.tmp
 
 # Serena MCP tool config (generated per-machine)
 .serena/
+
+# Agent working files: SDD task briefs/reports/diffs and local-run server logs
+.superpowers/
