@@ -1,23 +1,18 @@
 # `components/retail/charts/` — the only place a chart library exists
 
-Built by task **U3** (2026-08-04).
+Built by task **U3** (2026-08-04). Migrated from ECharts to **Bklit UI**
+across tasks A0–A2 (2026-08-17, decision D11, successor to D9 below — see
+`docs/IMPLEMENTATION_PLAN_V3.md` §1, §3.1–§3.6). The migration is complete:
+`EChart.tsx` is gone, the ECharts npm packages are no longer dependencies,
+and every chart renders through the vendored Bklit components in `bklit/`.
 
-## D11 scaffold note (2026-08-17)
+## The Tailwind scope (D11)
 
-This folder is mid-migration from ECharts to **Bklit UI** (decision D11,
-successor to D9 below — see `docs/IMPLEMENTATION_PLAN_V3.md` §1, §3.1). This
-task (A0) only laid groundwork: `bklit/` now holds a scoped Tailwind v4
-substrate (`bklit/bklit.css`) that Bklit's vendored components will read
-`--chart-*` custom properties from, defined additively in
-`../../../styles/tokens.css`. **Nothing imports `bklit.css` yet** — that is
-expected and correct until Bklit's components land (task A1) and the three
-charts below are rewritten against them (task A2).
-
-Why Tailwind is in this repository at all: Bklit's install path is a shadcn
-registry that requires it. D11 draws the exception as narrowly as this
-directory — utilities-only, **no preflight/reset import** (a reset must never
-leak into consumer CSS), and `bklit.css`'s `@source "../"` restricts class
-scanning to this charts tree only. The containment check:
+Bklit's install path is a shadcn registry that requires Tailwind. D11 draws
+that exception as narrowly as this directory — utilities-only, **no
+preflight/reset import** (a reset must never leak into consumer CSS), and
+`bklit/bklit.css`'s `@source "../"` restricts class scanning to this charts
+tree only. The containment check:
 
 ```sh
 git grep -n 'tailwindcss' src | grep -v retail/charts
@@ -25,33 +20,37 @@ git grep -n 'tailwindcss' src | grep -v retail/charts
 
 must always print nothing. If it doesn't, the scope leaked.
 
-The containment rule immediately below (D9) still describes today's ECharts
-reality verbatim; it will be rewritten to describe Bklit's D9→D11 handoff
-once task A2 lands.
-
 ## The containment rule
 
-`EChart.tsx` is the **only file in the repository** that imports
-`echarts-for-react`. Decision D9 admitted ECharts as the single exception to
-the frontend's no-component-library convention, on one condition: reversing
-it must be a rewrite of this folder and nothing else. That condition holds
-only while the import stays in one file, so:
+The ECharts npm packages are gone from the tree entirely — the old manual
+source grep this section used to describe is retired along with them. In
+its place, `charts.containment.test.ts` runs
+four rules as executable assertions against the source tree itself, so a
+future violation fails a test instead of only a code-review glance:
 
-- New charts import `EChart`, never `echarts-for-react`.
+1. Nothing outside `components/retail/charts/` imports the vendored
+   `./bklit` barrel. Bklit is vendored source, not a published package —
+   reversing D11 must stay a rewrite of this one folder.
+2. Nothing outside `charts/` and `consumer/reactbits/` imports `motion` or
+   `@visx/*` — the two libraries D11/D12 admitted as scoped exceptions to
+   the frontend's no-component-library convention, each confined to its own
+   vendored surface.
+3. Every `<Bar` / `<PieSlice` usage inside `charts/` carries
+   `animate={false}` (C19: charts must never animate on refetch — an
+   animated redraw draws the eye to motion rather than to the number).
+4. No `reactbits/` import inside `charts/`, and no `bklit` import inside
+   `consumer/` — the two vendored surfaces stay on their own sides.
+
+Two more rules from the ECharts era still hold, enforced by convention
+rather than by the containment test:
+
 - Option objects are built in `options.ts`, never inline in a component.
 - Nothing outside `components/retail/` imports anything from here.
 
-Checking it is one command:
-
-```sh
-grep -rn echarts src/ | grep -v components/retail/charts/ | grep -v '\.test\.'
-```
-
-It should print nothing. Test files are excluded because `vi.mock` has to
-name the real module to replace it — `AppShell.test.tsx` and
-`RetailDashboard.test.tsx` both stub it, since ECharts draws into a canvas
-jsdom does not implement. Those are stubs, not usages: neither file imports
-the library.
+`AppShell.test.tsx` and `RetailDashboard.test.tsx` both mock
+`./charts/BklitFrame` rather than importing the real one, since jsdom has no
+`ResizeObserver` for Bklit's `@visx/responsive` sizing to measure against.
+Those are stubs, not usages: neither test file imports Bklit itself.
 
 ## The arithmetic rule
 

@@ -6,12 +6,16 @@ import RetailDashboard from "./RetailDashboard";
 import type { AnalyticsResponse } from "../../types/AnalyticsResponse";
 import type { RisingQuery } from "../../types/RisingQuery";
 
-// ECharts renders into a canvas that jsdom does not implement. The chart
-// library is not what these tests are about — the frame around it is — so it
-// is replaced by a stub that exposes the option it was handed.
-vi.mock("echarts-for-react", () => ({
-  default: ({ option }: { option: Record<string, unknown> }) => (
-    <div data-testid="echart" data-option={JSON.stringify(option)} />
+// Bklit's BarChart/PieChart size themselves via @visx/responsive's
+// ParentSize, which needs a real ResizeObserver reporting non-zero container
+// size — jsdom has none, so without a stand-in the vendored charts never
+// mount their SVG at all (see bklit-patches.test.tsx). That vendored-source
+// layout detail is not what these tests are about — the frame around it is —
+// so BklitFrame itself is replaced by a stub that exposes only its
+// aria-label, the one thing these tests need to count and identify panels by.
+vi.mock("./charts/BklitFrame", () => ({
+  default: ({ ariaLabel }: { ariaLabel: string }) => (
+    <div data-testid="bklit-frame" aria-label={ariaLabel} role="img" />
   ),
 }));
 
@@ -108,7 +112,7 @@ describe("RetailDashboard", () => {
     expect(screen.getAllByText(RESPONSE.caveat)).toHaveLength(3);
     // stock_out_risk has no points: empty state, chart absent, caveat present.
     expect(screen.getByText(/no data for this chart yet/i)).toBeTruthy();
-    expect(screen.getAllByTestId("echart")).toHaveLength(2);
+    expect(screen.getAllByTestId("bklit-frame")).toHaveLength(2);
   });
 
   it("reports a failed fetch instead of rendering empty charts", async () => {
@@ -233,7 +237,7 @@ describe("RetailDashboard", () => {
 
     mount();
     await screen.findByRole("heading", { name: /^top movers$/i });
-    expect(screen.getAllByTestId("echart").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("bklit-frame").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "12 months" }));
 
@@ -244,7 +248,7 @@ describe("RetailDashboard", () => {
     // `secondFetchGate`) — this is exactly the window the bug blanked.
     expect(screen.getByRole("heading", { name: /^category mix$/i })).toBeTruthy();
     expect(screen.getByRole("heading", { name: /^stock-out risk$/i })).toBeTruthy();
-    expect(screen.getAllByTestId("echart").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("bklit-frame").length).toBeGreaterThan(0);
     expect(screen.queryByText(/loading analytics/i)).toBeNull();
 
     releaseSecondFetch();

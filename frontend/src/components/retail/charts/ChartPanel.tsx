@@ -37,6 +37,10 @@ const CONFIDENCE_KEY = {
 export interface ChartPanelProps {
   lang: Lang;
   title: string;
+  /** Provenance eyebrow (D11 redesign): one microcaps line naming the data
+   * source — "search interest" vs "inventory census". Structure encoding
+   * truth: it marks, per panel, which half the timeframe toggle can touch. */
+  eyebrow?: string;
   confidence?: Confidence;
   caveat: string;
   /** Empty `points` renders the empty state instead of the chart. */
@@ -47,6 +51,7 @@ export interface ChartPanelProps {
 export default function ChartPanel({
   lang,
   title,
+  eyebrow,
   confidence,
   caveat,
   isEmpty,
@@ -54,6 +59,7 @@ export default function ChartPanel({
 }: ChartPanelProps) {
   return (
     <section className="chart-panel">
+      {eyebrow && <p className="chart-panel__eyebrow microcaps">{eyebrow}</p>}
       <header className="chart-panel__head">
         <h2 className="chart-panel__title">{title}</h2>
         {confidence && (

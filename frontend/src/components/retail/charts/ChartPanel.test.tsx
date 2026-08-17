@@ -56,4 +56,14 @@ describe("ChartPanel", () => {
     expect(screen.getByText("Confianza: alta")).toBeTruthy();
     expect(screen.getByText(CAVEAT)).toBeTruthy();
   });
+
+  it("shows the provenance eyebrow when passed, and renders nothing for it otherwise", () => {
+    mount({ eyebrow: "Search interest" });
+    expect(screen.getByText("Search interest")).toBeTruthy();
+  });
+
+  it("omits the eyebrow line entirely when no eyebrow is passed", () => {
+    const { container } = mount();
+    expect(container.querySelector(".chart-panel__eyebrow")).toBeNull();
+  });
 });

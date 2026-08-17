@@ -6,10 +6,13 @@ import { describe, expect, it, vi } from "vitest";
 import AppShell from "./AppShell";
 
 // Retail mode now fetches analytics and draws charts (U3). Neither belongs to
-// what this file tests — which half the shell renders — so the chart library
-// is stubbed (jsdom has no canvas) and fetch never resolves, leaving the
-// dashboard in its loading state.
-vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echart" /> }));
+// what this file tests — which half the shell renders — so the chart frame
+// is stubbed (jsdom has no ResizeObserver for Bklit's @visx/responsive
+// sizing) and fetch never resolves, leaving the dashboard in its loading
+// state.
+vi.mock("../components/retail/charts/BklitFrame", () => ({
+  default: () => <div data-testid="bklit-frame" />,
+}));
 vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
 
 function mountAt(url: string) {
