@@ -34,7 +34,7 @@ export default function CategoryMixChart({
   const title = t(lang, "retail.chart.categoryMix");
   const view = categoryMixView(points);
   return (
-    <ChartPanel lang={lang} title={title}
+    <ChartPanel lang={lang} title={title} eyebrow={t(lang, "retail.provenance.inventory")}
       confidence={confidence} caveat={caveat} isEmpty={points.length === 0}>
       <BklitFrame ariaLabel={title} height={240}>
         {/* No PieCenter on purpose: the predecessor's donut had labels off and

@@ -29,7 +29,7 @@ export default function TopMoversChart({
   const title = t(lang, "retail.chart.topMovers");
   const view = topMoversView(points);
   return (
-    <ChartPanel lang={lang} title={title}
+    <ChartPanel lang={lang} title={title} eyebrow={t(lang, "retail.provenance.search")}
       confidence={confidence} caveat={caveat} isEmpty={points.length === 0}>
       <BklitFrame ariaLabel={title}>
         <BarChart data={view.data} xDataKey="keyword" orientation="horizontal" aspectRatio="5 / 4"
@@ -42,7 +42,7 @@ export default function TopMoversChart({
             showCrosshair={false}
             rows={(point) => [
               {
-                color: view.colorAccessor(point as { direction: TopMoverPoint["direction"] }),
+                color: view.colorAccessor(point),
                 label: title,
                 value: `${point.delta_pct as number}%`,
               },

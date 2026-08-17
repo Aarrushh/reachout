@@ -32,7 +32,7 @@ export default function StockOutRiskChart({
   const title = t(lang, "retail.chart.stockOutRisk");
   const view = stockOutRiskView(points);
   return (
-    <ChartPanel lang={lang} title={title}
+    <ChartPanel lang={lang} title={title} eyebrow={t(lang, "retail.provenance.inventory")}
       confidence={confidence} caveat={caveat} isEmpty={points.length === 0}>
       <BklitFrame ariaLabel={title}>
         <BarChart data={view.data} xDataKey="category" domainMax={view.domainMax} aspectRatio="5 / 4"
