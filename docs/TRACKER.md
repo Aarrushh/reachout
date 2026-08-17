@@ -80,16 +80,20 @@ and its chat pane were bundled statically into the one `index` chunk.
 and `RetailView-*.css` 19.63 KB / 4.48 KB gz that a consumer-mode load never
 requests (confirmed by `dist/index.html` and by grepping the built chunks:
 `visx`/`bklit`/`MotionValue` appear only in the `RetailView` chunk, never in
-`index-*.js`). Consumer landing JS+CSS gz dropped **695 → 316.97 KB
-including the still-modulepreloaded maplibre chunk** (below the 50%/347.5 KB
-gate; JS-only or maplibre-excluded framings clear it by a much wider
-margin). Concern carried forward, not fixed here (out of scope — touching
-`results.tsx` is this task's explicit fence): `dist/index.html` shows
-`maplibre-*.js` as an unconditional `<link rel="modulepreload">` and
-`maplibre-*.css` as an unconditional `<link rel="stylesheet">`, because
-`results.tsx` statically imports `MapPanel` (which imports `maplibre-gl`)
-rather than lazy-loading it — so despite A0's `manualChunks` split putting
-it in its own file, a plain visit to `/` still has the browser fetch it.
+`index-*.js`). Consumer landing JS gz dropped **695 → 316.97 KB** (index
+99.93 + maplibre 217.04 gzipped). Adding the unconditional stylesheets
+`index-*.css` 4.75 + `maplibre-*.css` 9.26 KB gz, the true landing weight a
+browser actually fetches is **330.98 KB gz** — a **4.8% margin** under the
+347.5 KB gate (the §7 baseline is itself JS-only, so this JS-to-JS comparison
+is internally consistent). Acceptance bullet from the split plan — **not met
+here**: "`maplibre-gl` is not in the initial consumer entry". It is in its
+own chunk, but `dist/index.html` preloads it unconditionally as
+`<link rel="modulepreload">` and stylesheet as `<link rel="stylesheet">`,
+because `results.tsx` statically imports `MapPanel` (which imports
+`maplibre-gl`) rather than lazy-loading it — so a plain visit to `/` still
+has the browser fetch it. **Open follow-up: lazy-load `MapPanel`** so it
+defers until retail-mode navigation. Concern carried forward, not fixed here
+(out of scope — touching `results.tsx` is this task's explicit fence).
 Full before/after table and method: `.superpowers/sdd/IMPLEMENTATION_PLAN_V3/task-7-report.md`.
 
 **M3 is done** (verified 2026-08-03 by probe, not by asking: a REST call with
