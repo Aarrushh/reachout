@@ -39,12 +39,15 @@ describe("AppShell", () => {
     expect(screen.getByTestId("consumer-content")).toBeTruthy();
   });
 
-  it("shows retail instead of the consumer routes at ?mode=retail", () => {
+  it("shows retail instead of the consumer routes at ?mode=retail", async () => {
     mountAt("/?mode=retail");
     // The consumer half must be absent, not merely covered: an offline cache
     // or a screen reader would still reach it if it were only hidden.
     expect(screen.queryByTestId("consumer-content")).toBeNull();
-    expect(screen.getByRole("heading", { name: /retail mode|modo tienda/i })).toBeTruthy();
+    // RetailView is now behind a Suspense boundary (lazy import), so the
+    // dashboard heading isn't present on the first render — only the
+    // fallback is. Wait for the chunk to resolve before asserting on it.
+    expect(await screen.findByRole("heading", { name: /retail mode|modo tienda/i })).toBeTruthy();
   });
 
   it("treats an unrecognised mode as consumer", () => {

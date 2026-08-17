@@ -62,6 +62,36 @@ Homebrew that was already present (not on `PATH` — it lives at
 `cd frontend && npm test` (33 passing) and `npm run build` (which runs
 `tsc --noEmit` first).
 
+**2026-08-17 — B2 (redesign/bklit-reactbits-v3): lazy retail boundary +
+font subsetting, measured not estimated.** `AppShell.tsx` now does
+`const RetailView = lazy(() => import("../components/retail/RetailView"))`
+wrapped in `<Suspense>`; `main.tsx`'s four `@fontsource` imports moved to
+their `latin-*` variants (all four `latin-*.css` files verified present in
+the installed package versions before the edit — space-grotesk 5.2.10,
+inter 5.2.8, ibm-plex-mono 5.2.7 — and the weights are unchanged: display
+600, mono 500, UI 400/500). Two `npm run build` runs, same tree, only the
+stash toggled: **before** (A0–A3/B1 landed, no B2 changes) `index-*.js`
+588.99 KB / **191.38 KB gz**, `index-*.css` 49.90 KB / **10.15 KB gz**,
+`maplibre-*.js` 803.21 KB / 217.04 KB gz (unchanged by this task, A0's
+split), `maplibre-*.css` 65.47 KB / 9.26 KB gz — RetailView (ECharts→Bklit)
+and its chat pane were bundled statically into the one `index` chunk.
+**After:** `index-*.js` 312.30 KB / **99.93 KB gz**, `index-*.css` 20.62 KB
+/ **4.75 KB gz**, plus a new lazy `RetailView-*.js` 271.9 KB / 89.79 KB gz
+and `RetailView-*.css` 19.63 KB / 4.48 KB gz that a consumer-mode load never
+requests (confirmed by `dist/index.html` and by grepping the built chunks:
+`visx`/`bklit`/`MotionValue` appear only in the `RetailView` chunk, never in
+`index-*.js`). Consumer landing JS+CSS gz dropped **695 → 316.97 KB
+including the still-modulepreloaded maplibre chunk** (below the 50%/347.5 KB
+gate; JS-only or maplibre-excluded framings clear it by a much wider
+margin). Concern carried forward, not fixed here (out of scope — touching
+`results.tsx` is this task's explicit fence): `dist/index.html` shows
+`maplibre-*.js` as an unconditional `<link rel="modulepreload">` and
+`maplibre-*.css` as an unconditional `<link rel="stylesheet">`, because
+`results.tsx` statically imports `MapPanel` (which imports `maplibre-gl`)
+rather than lazy-loading it — so despite A0's `manualChunks` split putting
+it in its own file, a plain visit to `/` still has the browser fetch it.
+Full before/after table and method: `.superpowers/sdd/IMPLEMENTATION_PLAN_V3/task-7-report.md`.
+
 **M3 is done** (verified 2026-08-03 by probe, not by asking: a REST call with
 `Accept-Profile: demand` returns `200 []`, which only happens once the schema
 exists, is exposed, and `service_role` is granted). Credentials are in

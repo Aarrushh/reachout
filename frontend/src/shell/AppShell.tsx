@@ -1,9 +1,13 @@
+import { lazy, Suspense } from "react";
 import type { ReactNode } from "react";
 
-import RetailView from "../components/retail/RetailView";
 import ModeToggle from "./ModeToggle";
 import { useMode } from "./useMode";
 import "./shell.css";
+
+// Retail is a different audience on a different visit: consumer landing and
+// results must never download the chart stack (D11) or its deps.
+const RetailView = lazy(() => import("../components/retail/RetailView"));
 
 /**
  * The one shell both halves of the app live inside.
@@ -27,7 +31,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <ModeToggle />
       </header>
       <main className="app-shell__body">
-        {mode === "retail" ? <RetailView /> : children}
+        {mode === "retail" ? (
+          <Suspense fallback={<p className="retail-dash__state" aria-busy="true">Cargando… / Loading…</p>}>
+            <RetailView />
+          </Suspense>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );

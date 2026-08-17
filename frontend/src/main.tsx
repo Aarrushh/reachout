@@ -1,10 +1,10 @@
 /**
  * Router + QueryClientProvider bootstrap.
  */
-import "@fontsource/space-grotesk/600.css";
-import "@fontsource/ibm-plex-mono/500.css";
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
+import "@fontsource/space-grotesk/latin-600.css";
+import "@fontsource/ibm-plex-mono/latin-500.css";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-500.css";
 import "./styles/tokens.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
