@@ -55,9 +55,13 @@ Those are stubs, not usages: neither test file imports Bklit itself.
 ## The arithmetic rule
 
 `options.ts` performs **no arithmetic**. Every value it puts on an axis —
-`delta_pct`, `share_pct`, `risk_pct`, `interest_avg` — is a field the demand
-service already computed and validated against
+`delta_pct`, `share_pct`, `risk_pct` — is a field the demand service already
+computed and validated against
 `demand/shared/schemas/analytics_response.schema.json`.
+
+`interest_avg` is deliberately absent from that list. It is a normalised index,
+not a count, so charting it would invite a reader to treat it as a number of
+searches. It must never reach an axis.
 
 `options.test.ts` asserts against the **literal** numbers from the payload
 rather than expressions over them. That is deliberate: a test that recomputed
