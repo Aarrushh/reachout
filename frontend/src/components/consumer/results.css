@@ -13,6 +13,11 @@
  * while the left column scrolls. */
 .map-panel-wrap { position: relative; min-width: 0; }
 .map-panel { position: absolute; inset: 0; background: var(--amz-navbar); }
+/* Suspense fallback while the maplibre chunk loads. Same wrap/inset sizing as
+ * the real map panel above, so mounting causes zero reflow — only the
+ * background swaps from this quiet fill to the live map. Reuses the same
+ * panel-fade idiom as .results-panel's own loading state; no new tokens. */
+.map-panel-skeleton { background: var(--ink-800); border-left: 1px solid var(--ink-700); animation: panel-fade 200ms ease-out; }
 @media (max-width: 900px) {
   .split { display: flex; flex-direction: column; }
   .map-panel-wrap { height: 40vh; flex: none; }

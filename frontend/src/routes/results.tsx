@@ -5,7 +5,6 @@ import { lazy, Suspense, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 
 import { fetchAllShops, fetchRankedShops, fetchShopsGeoJSON, type SearchParams } from "../api/client";
-import MapPanel from "../components/consumer/MapPanel";
 import ResultsPanel, { type SortMode } from "../components/consumer/ResultsPanel";
 import TopBar from "../components/consumer/TopBar";
 import { useLang } from "../hooks/useLang";
@@ -15,6 +14,14 @@ import "../components/consumer/results.css";
 
 // Chat is off the critical path — keep it out of the initial bundle.
 const ChatPanel = lazy(() => import("../components/ChatPanel"));
+// MapPanel pulls in maplibre-gl, which is ~217 KB gz on its own — the single
+// biggest thing this app ships. Landing on `/` never needs it (there is no
+// query yet, so this route hasn't even mounted); only reaching the results
+// screen does. A static import here would make Rollup preload the maplibre
+// chunk unconditionally in `dist/index.html`, so every visitor pays for the
+// map before they've typed a search. Lazy-loading it defers that fetch until
+// a shopper actually lands on this route.
+const MapPanel = lazy(() => import("../components/consumer/MapPanel"));
 
 export type RankedResult = NonNullable<RankedShops["results"]>[number];
 
@@ -121,11 +128,13 @@ export default function ResultsRoute() {
           onInStockOnly={(v) => (v ? setParam("stock", "1") : deleteParam("stock"))}
           page={page} onPage={(p) => setParam("page", String(p))}
           onChat={setChatResult} />
-        <MapPanel matched={shopsGeoJSON.data} network={allShops.data}
-          pingedIds={pingedIds} selectedShopId={selectedShopId} onSelect={setSelectedShopId} lang={lang}
-          region={region}
-          onRegion={(r) => (r ? setParam("region", r) : deleteParam("region"))}
-          networkCount={allShops.data?.metadata.shop_count ?? 0} />
+        <Suspense fallback={<div className="map-panel-wrap"><div className="map-panel map-panel-skeleton" aria-hidden="true" /></div>}>
+          <MapPanel matched={shopsGeoJSON.data} network={allShops.data}
+            pingedIds={pingedIds} selectedShopId={selectedShopId} onSelect={setSelectedShopId} lang={lang}
+            region={region}
+            onRegion={(r) => (r ? setParam("region", r) : deleteParam("region"))}
+            networkCount={allShops.data?.metadata.shop_count ?? 0} />
+        </Suspense>
       </div>
       {chatResult && (
         <Suspense fallback={null}>

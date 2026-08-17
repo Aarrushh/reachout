@@ -85,16 +85,29 @@ requests (confirmed by `dist/index.html` and by grepping the built chunks:
 `index-*.css` 4.75 + `maplibre-*.css` 9.26 KB gz, the true landing weight a
 browser actually fetches is **330.98 KB gz** — a **4.8% margin** under the
 347.5 KB gate (the §7 baseline is itself JS-only, so this JS-to-JS comparison
-is internally consistent). Acceptance bullet from the split plan — **not met
-here**: "`maplibre-gl` is not in the initial consumer entry". It is in its
-own chunk, but `dist/index.html` preloads it unconditionally as
-`<link rel="modulepreload">` and stylesheet as `<link rel="stylesheet">`,
-because `results.tsx` statically imports `MapPanel` (which imports
-`maplibre-gl`) rather than lazy-loading it — so a plain visit to `/` still
-has the browser fetch it. **Open follow-up: lazy-load `MapPanel`** so it
-defers until retail-mode navigation. Concern carried forward, not fixed here
-(out of scope — touching `results.tsx` is this task's explicit fence).
-Full before/after table and method: `.superpowers/sdd/IMPLEMENTATION_PLAN_V3/task-7-report.md`.
+is internally consistent). Acceptance bullet from the split plan — **now met, closed by Task 9
+(2026-08-17)**: "`maplibre-gl` is not in the initial consumer entry". It is
+in its own chunk, and `results.tsx` now lazy-loads `MapPanel` the same way
+it already lazy-loads `ChatPanel` (`const MapPanel = lazy(() =>
+import("../components/consumer/MapPanel"))`) instead of importing it
+statically, so `dist/index.html` no longer preloads the maplibre chunk or
+its stylesheet at all — `grep -c modulepreload dist/index.html` is `0` and
+`grep maplibre dist/index.html` finds nothing. The maplibre chunk itself is
+unchanged (`maplibre-*.js` 217.04 KB gz, `maplibre-*.css` 9.26 KB gz) and is
+still emitted and still fetched the moment a shopper actually reaches the
+results screen — deferred, not deleted — behind a same-footprint
+`Suspense` skeleton (`.map-panel-skeleton`, reusing `--ink-800`/`--ink-700`,
+zero layout shift when the real map mounts). Re-measured from a fresh
+`npm run build` on this tree with `gzip -c`: `index-*.js` 140734 B
+(**140.73 KB gz**) + `index-*.css` 4812 B (**4.81 KB gz**) is the entire
+unconditional landing fetch now — **145.55 KB gz total**, a **58.1% margin**
+under the 347.5 KB gate. (**Correction to the follow-up above:** `MapPanel`
+is the *consumer* results map, not a retail-mode component, so the deferral
+was never about "retail-mode navigation" — it defers until a shopper runs a
+search and reaches the results screen, which is the only place `MapPanel`
+is ever rendered.) Full before/after table and method:
+`.superpowers/sdd/IMPLEMENTATION_PLAN_V3/task-7-report.md` (Task 7) and
+`.superpowers/sdd/IMPLEMENTATION_PLAN_V3/task-9-report.md` (this fix).
 
 **M3 is done** (verified 2026-08-03 by probe, not by asking: a REST call with
 `Accept-Profile: demand` returns `200 []`, which only happens once the schema
