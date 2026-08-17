@@ -45,7 +45,13 @@ export default function ResultsPanel({
   const { data, isPending, isError, error } = query;
   const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    panelRef.current?.scrollTo({ top: 0 });
+    // jsdom (the vitest test environment) implements neither `matchMedia`
+    // nor `scrollTo`; `vitest.setup.ts` stubs the latter but not the former,
+    // so this guard follows the same `typeof matchMedia === "function"`
+    // pattern already used in `usePingSequence.ts` to keep this call safe
+    // under test rather than throwing on every mount.
+    const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    panelRef.current?.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
   }, [page]);
 
   const results: RankedResult[] = useMemo(
@@ -76,7 +82,9 @@ export default function ResultsPanel({
     return (
       <div className="results-panel">
         <p className="results-meta microcaps">{t(lang, "results.loading")}</p>
-        {Array.from({ length: 5 }, (_, i) => <div key={i} className="skeleton-card" />)}
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="skeleton-card"><span className="skeleton-card__sheen" aria-hidden="true" /></div>
+        ))}
       </div>
     );
   }

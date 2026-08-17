@@ -142,11 +142,6 @@ export default function SearchRoute() {
           {needLocation && !loc && <p className="entry-geo-error">{t(lang, "entry.needLocation")}</p>}
         </div>
       </header>
-      <PicksRail
-        lang={lang}
-        neighbourhood={loc?.kind === "barrio" ? loc.name : null}
-        onSelect={goPick}
-      />
       <section className="entry-cats">
         <h2>{t(lang, "landing.categoriesTitle")}</h2>
         <div className="cat-tiles">
@@ -167,6 +162,11 @@ export default function SearchRoute() {
           </div>
         ))}
       </section>
+      <PicksRail
+        lang={lang}
+        neighbourhood={loc?.kind === "barrio" ? loc.name : null}
+        onSelect={goPick}
+      />
     </div>
   );
 }

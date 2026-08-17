@@ -117,7 +117,9 @@
  * twelve cards would push the category tiles below two screens of scroll. */
 .picks {
   width: min(960px, 92vw); margin: 28px auto 0;
+  animation: picks-in 300ms ease-out;
 }
+@keyframes picks-in { from { opacity: 0; transform: translateY(8px); } }
 .picks h2 {
   font-family: var(--font-display); font-size: 18px; margin: 0 0 2px;
 }

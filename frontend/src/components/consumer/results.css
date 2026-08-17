@@ -4,7 +4,11 @@
   flex: 1; min-height: 0;
   display: grid; grid-template-columns: 1fr 1fr;
 }
-.results-panel { overflow-y: auto; min-width: 0; background: var(--ink-800); }
+.results-panel {
+  overflow-y: auto; min-width: 0; background: var(--ink-800);
+  animation: panel-fade 200ms ease-out;
+}
+@keyframes panel-fade { from { opacity: 0; } }
 /* The wrap takes .map-panel's old grid slot; sticky keeps the map in view
  * while the left column scrolls. */
 .map-panel-wrap { position: relative; min-width: 0; }
@@ -41,10 +45,21 @@
 .live-indicator .mono { color: var(--ink-600); }
 .live-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--stock-green); animation: live-pulse 1.6s ease-in-out infinite;
+  background: var(--stock-green); position: relative;
 }
-@keyframes live-pulse {
-  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--stock-green) 30%, transparent); }
+/* Ring geometry (inset -5px / border-width 5px) is read from this dot's own
+ * prior box-shadow spread (`0 0 0 5px`, above) — not copied from
+ * breathe-ring's -3px/3px, which belongs to the differently-sized 10px
+ * user-dot. This preserves the same 5px ring extent this element already had. */
+.live-dot::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%;
+  border: 5px solid color-mix(in srgb, var(--stock-green) 30%, transparent);
+  opacity: 0; will-change: transform, opacity;
+  animation: live-ring 1.6s ease-in-out infinite;
+}
+@keyframes live-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
 }
 
 /* ================= TOPBAR (Amazon navbar, two stacked bars) ================= */
@@ -218,10 +233,18 @@
 .skeleton-card {
   position: relative; height: 124px; border-radius: 8px; margin: 0 12px 8px;
   border: 1px solid var(--ink-600); overflow: hidden;
-  /* shimmer sweeps behind the solid tile/bar silhouettes */
-  background: linear-gradient(100deg, var(--ink-900) 40%, var(--ink-700) 50%, var(--ink-900) 60%);
-  background-size: 200% 100%; animation: shimmer 1.4s infinite linear;
+  background: var(--ink-900);
 }
+/* The sheen is its own element moved with transform — compositor-only, no
+ * repaint per frame. The reduced-motion kill switch in tokens.css stops it
+ * like any other CSS animation. */
+.skeleton-card__sheen {
+  position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(100deg, transparent 40%, var(--ink-700) 50%, transparent 60%);
+  transform: translateX(-100%); will-change: transform;
+  animation: sheen 1.4s infinite linear;
+}
+@keyframes sheen { to { transform: translateX(100%); } }
 .skeleton-card::before {
   content: ""; position: absolute; top: 14px; left: 14px; width: 96px; height: 96px;
   border-radius: 50%; background: var(--ink-700);
@@ -234,13 +257,20 @@
     linear-gradient(var(--ink-700), var(--ink-700)) 0 50px / 30% 16px no-repeat,
     linear-gradient(var(--ink-700), var(--ink-700)) 0 76px / 55% 10px no-repeat;
 }
-@keyframes shimmer { to { background-position: -200% 0; } }
-
 .shop-card { opacity: 0.35; transition: opacity 0.3s; }
 .shop-card.pinged { opacity: 1; animation: card-in 0.3s ease-out; }
 @keyframes card-in { from { transform: translateY(12px); opacity: 0.35; } to { transform: none; opacity: 1; } }
-.shop-card.pinged .ping-dot { animation: ping-pulse 0.4s ease-out 3; }
-@keyframes ping-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--terracotta) 35%, transparent); } }
+.shop-card.pinged .ping-dot { position: relative; }
+.shop-card.pinged .ping-dot::after {
+  content: ""; position: absolute; inset: -2px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--terracotta) 55%, transparent);
+  opacity: 0; will-change: transform, opacity;
+  animation: ping-ring 0.4s ease-out 3;
+}
+@keyframes ping-ring {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) { .shop-card { opacity: 1; } }
 
 .results-panel.state {
@@ -262,10 +292,18 @@
 
 .user-dot {
   width: 10px; height: 10px; border-radius: 50%; background: var(--terracotta);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--terracotta) 20%, transparent);
-  animation: breathe 2s ease-in-out infinite;
+  position: relative;
 }
-@keyframes breathe { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--terracotta) 8%, transparent); } }
+.user-dot::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--terracotta) 30%, transparent);
+  will-change: transform, opacity;
+  animation: breathe-ring 2s ease-in-out infinite;
+}
+@keyframes breathe-ring {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.7); opacity: 0; }
+}
 .shop-popup .maplibregl-popup-content {
   background: var(--ink-700); color: var(--sand); border: 1px solid var(--ink-600);
   border-radius: 6px; padding: 10px 12px; font-family: var(--font-ui); font-size: 13px;
