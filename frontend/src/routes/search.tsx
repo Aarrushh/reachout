@@ -8,6 +8,7 @@ import { fetchAllShops } from "../api/client";
 import BarrioCombobox from "../components/consumer/BarrioCombobox";
 import InstallPrompt from "../components/consumer/InstallPrompt";
 import PicksRail from "../components/consumer/PicksRail";
+import BlurText from "../components/consumer/reactbits/BlurText";
 import SearchInput from "../components/consumer/SearchInput";
 import { CATEGORY_ICONS } from "../components/consumer/ShopCard";
 import { CATEGORIES } from "../components/consumer/TopBar";
@@ -127,7 +128,15 @@ export default function SearchRoute() {
         </div>
         <div className="entry-hero-inner">
           <span className="entry-wordmark microcaps">ReachOut · Madrid</span>
-          <h1>{t(lang, "landing.tagline")}</h1>
+          <h1>
+            <BlurText
+              text={t(lang, "landing.tagline")}
+              animateBy="words"
+              delay={80}
+              stepDuration={0.3}
+              className="entry-h1"
+            />
+          </h1>
           <div className="entry-search-cluster">
             <div className="entry-loc">
               <BarrioCombobox lang={lang} selected={loc?.kind === "barrio" ? loc.name : null}

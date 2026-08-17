@@ -1,6 +1,7 @@
 import { type FormEvent } from "react";
 
 import { t, type Lang } from "../../i18n/strings";
+import ClickSpark from "./reactbits/ClickSpark";
 
 interface Props {
   value: string;
@@ -35,9 +36,14 @@ export default function SearchInput({ value, onChange, onSubmit, lang, disabled,
         }}
         aria-label={t(lang, "search.submit")}
       />
-      <button type="submit" disabled={disabled || !value.trim()}>
-        {t(lang, "search.submit")}
-      </button>
+      {/* Wraps only the submit control, per D12: the "broadcast" gesture
+       * fires at the moment of broadcast, not on every keystroke in the
+       * field beside it. */}
+      <ClickSpark sparkColor="var(--terracotta)" sparkRadius={18} sparkCount={8}>
+        <button type="submit" disabled={disabled || !value.trim()}>
+          {t(lang, "search.submit")}
+        </button>
+      </ClickSpark>
     </form>
   );
 }
